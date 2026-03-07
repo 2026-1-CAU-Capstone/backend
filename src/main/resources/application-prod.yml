@@ -13,6 +13,7 @@ server:
       max: 200
       min-spare: 20
 
+spring:
   # ── Database ──────────────────────────────
   datasource:
     url: jdbc:${DB_DRIVER}://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=true&serverTimezone=Asia/Seoul
@@ -33,7 +34,7 @@ server:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
 
   # ── Redis ─────────────────────────────────
 #  data:
