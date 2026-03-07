@@ -1,0 +1,80 @@
+# =============================================
+# Dev Profile - 개발 환경 설정
+# 개인별로 다른 값은 .env 파일의 환경변수로 관리
+# =============================================
+
+server:
+  port: ${SERVER_PORT:8080}
+
+  # ── Database ──────────────────────────────
+  datasource:
+    url: jdbc:${DB_DRIVER:mysql}://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:backend_dev}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  # ── JPA ───────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: update        # dev: update / 주의: prod에서는 validate 또는 none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # ── Redis ─────────────────────────────────
+#  data:
+#    redis:
+#      host: ${REDIS_HOST:localhost}
+#      port: ${REDIS_PORT:6379}
+#      password: ${REDIS_PASSWORD:}
+
+#  # ── Mail ──────────────────────────────────
+#  mail:
+#    host: ${MAIL_HOST:smtp.gmail.com}
+#    port: ${MAIL_PORT:587}
+#    username: ${MAIL_USERNAME:}
+#    password: ${MAIL_PASSWORD:}
+#    properties:
+#      mail.smtp.auth: true
+#      mail.smtp.starttls.enable: true
+
+# ── JWT ───────────────────────────────────
+#jwt:
+#  secret: ${JWT_SECRET:dev-secret-key-please-change-in-production}
+#  access-expiration: ${JWT_ACCESS_EXPIRATION:3600000}    # 1시간 (ms)
+#  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7일 (ms)
+
+## ── OAuth2 ────────────────────────────────
+#spring.security.oauth2.client:
+#  registration:
+#    google:
+#      client-id: ${GOOGLE_CLIENT_ID:}
+#      client-secret: ${GOOGLE_CLIENT_SECRET:}
+#      scope: profile, email
+#    kakao:
+#      client-id: ${KAKAO_CLIENT_ID:}
+#      client-secret: ${KAKAO_CLIENT_SECRET:}
+#      client-authentication-method: client_secret_post
+#      authorization-grant-type: authorization_code
+#      scope: profile_nickname, account_email
+#      redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+# ── Logging ───────────────────────────────
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+
+# ── Swagger / Springdoc ───────────────────
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

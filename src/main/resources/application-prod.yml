@@ -1,0 +1,95 @@
+# =============================================
+# Prod Profile - 운영 환경 설정
+# 민감한 값은 반드시 환경변수로 주입 (기본값 없음)
+# =============================================
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  tomcat:
+    accept-count: 100
+    max-connections: 8192
+    threads:
+      max: 200
+      min-spare: 20
+
+  # ── Database ──────────────────────────────
+  datasource:
+    url: jdbc:${DB_DRIVER}://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME}          # 기본값 없음 - 반드시 환경변수 필요
+    password: ${DB_PASSWORD}          # 기본값 없음 - 반드시 환경변수 필요
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ── JPA ───────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate             # prod: 스키마 자동 변경 방지
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # ── Redis ─────────────────────────────────
+#  data:
+#    redis:
+#      host: ${REDIS_HOST}
+#      port: ${REDIS_PORT}
+#      password: ${REDIS_PASSWORD}
+#      ssl:
+#        enabled: true
+#
+#  # ── Mail ──────────────────────────────────
+#  mail:
+#    host: ${MAIL_HOST}
+#    port: ${MAIL_PORT}
+#    username: ${MAIL_USERNAME}
+#    password: ${MAIL_PASSWORD}
+#    properties:
+#      mail.smtp.auth: true
+#      mail.smtp.starttls.enable: true
+#
+## ── JWT ───────────────────────────────────
+#jwt:
+#  secret: ${JWT_SECRET}               # 기본값 없음 - 반드시 환경변수 필요
+#  access-expiration: ${JWT_ACCESS_EXPIRATION:1800000}   # 30분
+#  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7일
+#
+## ── OAuth2 ────────────────────────────────
+#spring.security.oauth2.client:
+#  registration:
+#    google:
+#      client-id: ${GOOGLE_CLIENT_ID}
+#      client-secret: ${GOOGLE_CLIENT_SECRET}
+#      scope: profile, email
+#    kakao:
+#      client-id: ${KAKAO_CLIENT_ID}
+#      client-secret: ${KAKAO_CLIENT_SECRET}
+#      client-authentication-method: client_secret_post
+#      authorization-grant-type: authorization_code
+#      scope: profile_nickname, account_email
+#      redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+# ── Logging ───────────────────────────────
+logging:
+  level:
+    root: WARN
+    com.jazzify..package: INFO            # ← 패키지명 변경
+  file:
+    name: /var/log/backend/application.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+# ── Swagger / Springdoc ───────────────────
+springdoc:
+  api-docs:
+    enabled: false                    # prod: API 문서 비공개
+  swagger-ui:
+    enabled: false
