@@ -1,12 +1,11 @@
-package com.jazzify.backend.domain.user.dto;
+package com.jazzify.backend.domain.user.dto.response;
 
 import org.jspecify.annotations.NullMarked;
 
 import java.util.UUID;
 
 @NullMarked
-public record TokenResponse(
-        String accessToken,
+public record SignUpResponse(
         UUID publicId,
         String username
 ) {

@@ -2,9 +2,12 @@ package com.jazzify.backend.domain.user.service;
 
 import com.jazzify.backend.core.security.JwtTokenProvider;
 import com.jazzify.backend.core.security.RefreshTokenService;
-import com.jazzify.backend.domain.user.dto.*;
+import com.jazzify.backend.domain.user.dto.request.LoginRequest;
+import com.jazzify.backend.domain.user.dto.request.SignUpRequest;
+import com.jazzify.backend.domain.user.dto.response.SignUpResponse;
+import com.jazzify.backend.domain.user.dto.result.TokenResult;
 import com.jazzify.backend.domain.user.entity.User;
-import com.jazzify.backend.domain.user.exception.UserErrorCode;
+import com.jazzify.backend.shared.exception.code.UserErrorCode;
 import com.jazzify.backend.domain.user.service.implementation.UserReader;
 import com.jazzify.backend.domain.user.service.implementation.UserWriter;
 import com.jazzify.backend.domain.user.util.UserMapper;
@@ -26,7 +29,6 @@ public class AuthService {
 
     private final UserReader userReader;
     private final UserWriter userWriter;
-    private final UserMapper userMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
@@ -38,7 +40,7 @@ public class AuthService {
         }
 
         User savedUser = userWriter.create(request.username(), request.password());
-        return userMapper.toSignUpResponse(savedUser);
+        return UserMapper.toSignUpResponse(savedUser);
     }
 
     public TokenResult login(LoginRequest request) {

@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.user.entity;
+package com.jazzify.backend.shared.persistence;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -9,6 +9,8 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+
+import com.jazzify.backend.shared.persistence.converter.UuidBinaryConverter;
 
 @Getter
 @NullMarked

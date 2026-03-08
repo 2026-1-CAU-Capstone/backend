@@ -1,6 +1,5 @@
-package com.jazzify.backend.domain.user.exception;
+package com.jazzify.backend.shared.exception.code;
 
-import com.jazzify.backend.shared.exception.BaseErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;

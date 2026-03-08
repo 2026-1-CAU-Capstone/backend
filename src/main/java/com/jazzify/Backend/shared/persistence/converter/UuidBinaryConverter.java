@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.user.entity;
+package com.jazzify.backend.shared.persistence.converter;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;

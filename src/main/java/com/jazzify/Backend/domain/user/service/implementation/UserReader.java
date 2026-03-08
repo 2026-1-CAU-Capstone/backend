@@ -1,7 +1,7 @@
 package com.jazzify.backend.domain.user.service.implementation;
 
 import com.jazzify.backend.domain.user.entity.User;
-import com.jazzify.backend.domain.user.exception.UserErrorCode;
+import com.jazzify.backend.shared.exception.code.UserErrorCode;
 import com.jazzify.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;

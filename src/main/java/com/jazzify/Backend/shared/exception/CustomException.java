@@ -5,6 +5,8 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 
+import com.jazzify.backend.shared.exception.code.BaseErrorCode;
+
 @Getter
 @NullMarked
 public class CustomException extends RuntimeException {

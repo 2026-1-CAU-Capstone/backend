@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+import com.jazzify.backend.shared.exception.code.GlobalErrorCode;
+import com.jazzify.backend.shared.web.ErrorResponse;
+
 @Slf4j
 @NullMarked
 @RestControllerAdvice

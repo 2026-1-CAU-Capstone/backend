@@ -4,11 +4,15 @@ import java.util.Arrays;
 
 import com.jazzify.backend.core.security.CookieUtil;
 import com.jazzify.backend.core.security.CustomPrincipal;
-import com.jazzify.backend.domain.user.dto.*;
-import com.jazzify.backend.domain.user.exception.UserErrorCode;
+import com.jazzify.backend.domain.user.dto.request.LoginRequest;
+import com.jazzify.backend.domain.user.dto.request.SignUpRequest;
+import com.jazzify.backend.domain.user.dto.response.SignUpResponse;
+import com.jazzify.backend.domain.user.dto.response.TokenResponse;
+import com.jazzify.backend.domain.user.dto.result.TokenResult;
+import com.jazzify.backend.shared.exception.code.UserErrorCode;
 import com.jazzify.backend.domain.user.service.AuthService;
 import com.jazzify.backend.domain.user.util.UserMapper;
-import com.jazzify.backend.shared.exception.ApiResponse;
+import com.jazzify.backend.shared.web.ApiResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,7 +33,6 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController implements AuthControllerSpec {
 
     private final AuthService authService;
-    private final UserMapper userMapper;
     private final CookieUtil cookieUtil;
 
     @PostMapping("/signup")
@@ -48,7 +51,7 @@ public class AuthController implements AuthControllerSpec {
         );
         servletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return ApiResponse.ok(userMapper.toTokenResponse(result));
+        return ApiResponse.ok(UserMapper.toTokenResponse(result));
     }
 
     @PostMapping("/refresh")
@@ -62,7 +65,7 @@ public class AuthController implements AuthControllerSpec {
         );
         servletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return ApiResponse.ok(userMapper.toTokenResponse(result));
+        return ApiResponse.ok(UserMapper.toTokenResponse(result));
     }
 
     @PostMapping("/logout")

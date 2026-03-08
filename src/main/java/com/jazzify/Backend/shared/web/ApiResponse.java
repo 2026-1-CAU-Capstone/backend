@@ -1,6 +1,5 @@
-package com.jazzify.backend.shared.exception;
+package com.jazzify.backend.shared.web;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

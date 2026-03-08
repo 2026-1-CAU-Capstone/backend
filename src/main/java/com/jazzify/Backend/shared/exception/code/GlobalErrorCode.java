@@ -1,4 +1,4 @@
-package com.jazzify.backend.shared.exception;
+package com.jazzify.backend.shared.exception.code;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

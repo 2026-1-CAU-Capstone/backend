@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.user.dto;
+package com.jazzify.backend.domain.user.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

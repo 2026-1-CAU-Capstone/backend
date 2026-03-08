@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.user.dto;
+package com.jazzify.backend.domain.user.dto.result;
 
 import org.jspecify.annotations.NullMarked;
 

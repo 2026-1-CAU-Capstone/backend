@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.jspecify.annotations.NullMarked;
 
+import com.jazzify.backend.shared.persistence.BaseEntity;
+
 @Entity
 @Table(name = "tb_user")
 @Getter
