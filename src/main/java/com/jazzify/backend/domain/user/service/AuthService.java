@@ -39,7 +39,7 @@ public class AuthService {
             throw UserErrorCode.DUPLICATE_USERNAME.toException();
         }
 
-        User savedUser = userWriter.create(request.username(), request.password());
+        User savedUser = userWriter.create(request.name(), request.username(), request.password());
         return UserMapper.toSignUpResponse(savedUser);
     }
 

@@ -17,8 +17,9 @@ public class UserWriter {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public User create(String username, String rawPassword) {
+    public User create(String name, String username, String rawPassword) {
         User user = User.builder()
+                .name(name)
                 .username(username)
                 .password(passwordEncoder.encode(rawPassword))
                 .build();

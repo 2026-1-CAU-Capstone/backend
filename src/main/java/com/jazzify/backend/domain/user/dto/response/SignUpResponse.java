@@ -7,6 +7,7 @@ import java.util.UUID;
 @NullMarked
 public record SignUpResponse(
         UUID publicId,
+        String name,
         String username
 ) {
 }

@@ -8,7 +8,11 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public record SignUpRequest(
         @NotBlank(message = "사용자명은 필수입니다.")
-        @Size(min = 2, max = 10, message = "사용자명은 2~10자여야 합니다.")
+        @Size(min = 1, max = 50, message = "사용자명은 1~50자여야 합니다.")
+        String name,
+
+        @NotBlank(message = "아이디는 필수입니다.")
+        @Size(min = 2, max = 10, message = "아이디는 2~10자여야 합니다.")
         String username,
 
         @NotBlank(message = "비밀번호는 필수입니다.")

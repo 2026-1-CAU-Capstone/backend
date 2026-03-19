@@ -16,6 +16,7 @@ public final class UserMapper {
     public static SignUpResponse toSignUpResponse(User user) {
         return new SignUpResponse(
                 Objects.requireNonNull(user.getPublicId(), "publicId must not be null after persist"),
+                user.getName(),
                 user.getUsername()
         );
     }
