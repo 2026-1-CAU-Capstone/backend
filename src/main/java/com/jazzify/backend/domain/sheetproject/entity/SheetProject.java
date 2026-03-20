@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.user.entity.User;
+import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 
 import java.util.ArrayList;
@@ -23,15 +24,16 @@ public class SheetProject extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
-    @Column
-    private @Nullable String key;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private @Nullable MusicKey key;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "file_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "file_id", nullable = false, unique = true)
     private SheetFile sheetFile;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -42,13 +44,18 @@ public class SheetProject extends BaseEntity {
     private List<ChordInfo> chordInfos = new ArrayList<>();
 
     @Builder
-    public SheetProject(String title, @Nullable String key, User user,
+    public SheetProject(String title, @Nullable MusicKey key, User user,
                         SheetFile sheetFile, @Nullable Session session) {
         this.title = title;
         this.key = key;
         this.user = user;
         this.sheetFile = sheetFile;
         this.session = session;
+    }
+
+    public void update(String title, @Nullable MusicKey key) {
+        this.title = title;
+        this.key = key;
     }
 }
 

@@ -8,6 +8,8 @@ import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @NullMarked
 @Component
 @RequiredArgsConstructor
@@ -15,6 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserReader {
 
     private final UserRepository userRepository;
+
+    public User getByPublicId(UUID publicId) {
+        return userRepository.findByPublicId(publicId)
+                .orElseThrow(UserErrorCode.USER_NOT_FOUND::toException);
+    }
 
     public User getByUsername(String username) {
         return userRepository.findByUsername(username)

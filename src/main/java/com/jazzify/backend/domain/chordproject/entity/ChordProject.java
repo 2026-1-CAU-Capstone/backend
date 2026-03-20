@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.user.entity.User;
+import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 
 import java.util.ArrayList;
@@ -23,8 +24,9 @@ public class ChordProject extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false)
-    private String key;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private MusicKey key;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -38,11 +40,16 @@ public class ChordProject extends BaseEntity {
     private List<ChordInfo> chordInfos = new ArrayList<>();
 
     @Builder
-    public ChordProject(String title, String key, User user, @Nullable Session session) {
+    public ChordProject(String title, MusicKey key, User user, @Nullable Session session) {
         this.title = title;
         this.key = key;
         this.user = user;
         this.session = session;
+    }
+
+    public void update(String title, MusicKey key) {
+        this.title = title;
+        this.key = key;
     }
 }
 
