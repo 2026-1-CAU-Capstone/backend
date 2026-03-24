@@ -40,7 +40,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	// Source: https://mvnrepository.com/artifact/me.paulschwarz/spring-dotenv
-	implementation(platform("me.paulschwarz:spring-dotenv-bom:5.1.0"))
+	developmentOnly(platform("me.paulschwarz:spring-dotenv-bom:5.1.0"))
 	developmentOnly("me.paulschwarz:springboot4-dotenv")
 
 	//jjwt

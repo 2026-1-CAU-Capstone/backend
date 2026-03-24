@@ -1,0 +1,9 @@
+# docker-compose.yml (로컬 빌드 전용)
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jazzify-backend:latest
+

@@ -1,0 +1,136 @@
+# .github/workflows/cicd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  HOST: ${{ secrets.HOST }}
+  HOST_USERNAME: ${{ secrets.HOST_USERNAME }}
+  HOST_SSH_KEY: ${{ secrets.HOST_SSH_KEY }}
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # 백엔드 테스트
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run backend tests
+        run: ./gradlew test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write   # GHCR push 권한
+
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # 이미지 이름 (ghcr.io는 소문자 강제)
+      - name: Set image name
+        id: meta
+        run: |
+          OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/$OWNER/jazzify-backend" >> $GITHUB_OUTPUT
+
+      # 백엔드 빌드
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build backend with Gradle
+        run: ./gradlew build -x test
+
+      # GHCR 로그인 (GITHUB_TOKEN으로 인증 - 별도 secrets 불필요)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Docker 이미지 빌드 후 GHCR에 push
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:latest
+            ${{ steps.meta.outputs.image }}:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # GitHub Secrets에 저장된 .env 파일 내용을 그대로 파일로 생성 + IMAGE_NAME 주입
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env
+          echo "IMAGE_NAME=${{ needs.build.outputs.image }}" >> .env
+
+      # docker-compose + .env 파일을 서버로 전송
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ env.HOST }}
+          username: ${{ env.HOST_USERNAME }}
+          key: ${{ env.HOST_SSH_KEY }}
+          source: "docker-compose-server.yml,.env"
+          target: "/home/ubuntu/"
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ env.HOST }}
+          username: ${{ env.HOST_USERNAME }}
+          key: ${{ env.HOST_SSH_KEY }}
+          script: |
+            echo "Deploying to Server instance..."
+
+            # GHCR 로그인 (read:packages 권한의 PAT)
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # GHCR에서 최신 이미지 풀
+            echo "Pulling latest Docker image..."
+            docker pull ${{ needs.build.outputs.image }}:latest
+
+            # DB는 유지하고 백엔드 서비스만 재시작
+            # ※ docker-compose-server.yml의 백엔드 서비스명이 'backend'인 경우
+            echo "Restarting backend service..."
+            docker compose -f /home/ubuntu/docker-compose-server.yml up -d --force-recreate --no-deps backend
+
+            # 사용하지 않는 이미지 정리
+            echo "Cleaning up unused Docker images..."
+            docker image prune -f
