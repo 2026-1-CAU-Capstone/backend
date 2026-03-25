@@ -6,7 +6,7 @@ import org.jspecify.annotations.NullMarked;
 
 @NullMarked
 public record CustomPrincipal(
-        UUID publicId,
-        String username
+	UUID publicId,
+	String username
 ) {
 }

@@ -1,18 +1,19 @@
 package com.jazzify.backend.domain.user.repository;
 
-import com.jazzify.backend.domain.user.entity.User;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
-import java.util.UUID;
+import com.jazzify.backend.domain.user.entity.User;
 
 @NullMarked
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByUsername(String username);
+	Optional<User> findByUsername(String username);
 
-    Optional<User> findByPublicId(UUID publicId);
+	Optional<User> findByPublicId(UUID publicId);
 
-    boolean existsByUsername(String username);
+	boolean existsByUsername(String username);
 }

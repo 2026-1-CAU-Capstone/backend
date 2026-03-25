@@ -1,17 +1,18 @@
 package com.jazzify.backend.domain.chordproject.dto.response;
 
-import com.jazzify.backend.shared.domain.MusicKey;
-import org.jspecify.annotations.NullMarked;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.jspecify.annotations.NullMarked;
+
+import com.jazzify.backend.shared.domain.MusicKey;
+
 @NullMarked
 public record ChordProjectResponse(
-        UUID publicId,
-        String title,
-        MusicKey keySignature,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+	UUID publicId,
+	String title,
+	MusicKey keySignature,
+	LocalDateTime createdAt,
+	LocalDateTime updatedAt
 ) {
 }
