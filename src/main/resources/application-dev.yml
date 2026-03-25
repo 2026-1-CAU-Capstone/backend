@@ -92,4 +92,3 @@ springdoc:
     path: /swagger-ui.html
     tags-sorter: alpha
     operations-sorter: alpha
-    path: /swagger-ui.html

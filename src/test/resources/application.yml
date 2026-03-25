@@ -1,0 +1,39 @@
+# =============================================
+# Test Profile - 테스트 환경 설정
+# 실제 인프라 없이 인메모리로 동작
+# =============================================
+
+spring:
+  profiles:
+    active: test   # dev 프로파일 비활성화 → application-dev.yml 로드 안 함
+
+  # ── Database (H2 인메모리 - Spring Boot 자동 설정) ─
+  # H2가 클래스패스에 있으면 datasource URL/driver 없이도 자동 구성됨
+
+  # ── JPA ───────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  # ── Redis auto-config 제외 (MockBean으로 대체) ─
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
+
+# ── JWT ───────────────────────────────────
+jwt:
+  secret: test-secret-key-for-testing-purposes-must-be-at-least-32-characters-long
+  access-expiration: 3600000
+  refresh-expiration: 604800000
+
+# ── Cookie ────────────────────────────────
+cookie:
+  secure: false
+
+# ── CORS ──────────────────────────────────
+cors:
+  allowed-origins: http://localhost:3000
+
+
