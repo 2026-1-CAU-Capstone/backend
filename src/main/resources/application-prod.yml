@@ -99,6 +99,6 @@ logging:
 # ── Swagger / Springdoc ───────────────────
 springdoc:
   api-docs:
-    enabled: false                    # prod: API 문서 비공개
+    enabled: true
   swagger-ui:
-    enabled: false
+    enabled: true
