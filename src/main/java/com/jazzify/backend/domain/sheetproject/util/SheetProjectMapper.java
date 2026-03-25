@@ -16,7 +16,7 @@ public final class SheetProjectMapper {
         return new SheetProjectResponse(
                 Objects.requireNonNull(project.getPublicId()),
                 project.getTitle(),
-                project.getKey(),
+                project.getKeySignature(),
                 Objects.requireNonNull(project.getSheetFile().getPublicId()),
                 Objects.requireNonNull(project.getCreatedAt()),
                 Objects.requireNonNull(project.getUpdatedAt())

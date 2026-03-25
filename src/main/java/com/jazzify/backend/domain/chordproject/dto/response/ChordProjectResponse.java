@@ -10,7 +10,7 @@ import java.util.UUID;
 public record ChordProjectResponse(
         UUID publicId,
         String title,
-        MusicKey key,
+        MusicKey keySignature,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

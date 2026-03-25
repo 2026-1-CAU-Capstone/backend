@@ -11,7 +11,7 @@ import java.util.UUID;
 public record SheetProjectResponse(
         UUID publicId,
         String title,
-        @Nullable MusicKey key,
+        @Nullable MusicKey keySignature,
         UUID filePublicId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

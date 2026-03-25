@@ -16,7 +16,7 @@ public final class ChordProjectMapper {
         return new ChordProjectResponse(
                 Objects.requireNonNull(project.getPublicId()),
                 project.getTitle(),
-                project.getKey(),
+                project.getKeySignature(),
                 Objects.requireNonNull(project.getCreatedAt()),
                 Objects.requireNonNull(project.getUpdatedAt())
         );

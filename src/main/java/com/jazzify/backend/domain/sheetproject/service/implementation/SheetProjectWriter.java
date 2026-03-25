@@ -22,7 +22,7 @@ public class SheetProjectWriter {
     public SheetProject create(String title, @Nullable MusicKey key, User user, SheetFile sheetFile) {
         SheetProject project = SheetProject.builder()
                 .title(title)
-                .key(key)
+                .keySignature(key)
                 .user(user)
                 .sheetFile(sheetFile)
                 .build();

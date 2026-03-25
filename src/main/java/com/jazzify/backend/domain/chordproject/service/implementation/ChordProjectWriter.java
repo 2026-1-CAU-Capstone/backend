@@ -20,7 +20,7 @@ public class ChordProjectWriter {
     public ChordProject create(String title, MusicKey key, User user) {
         ChordProject project = ChordProject.builder()
                 .title(title)
-                .key(key)
+                .keySignature(key)
                 .user(user)
                 .build();
         return chordProjectRepository.save(project);

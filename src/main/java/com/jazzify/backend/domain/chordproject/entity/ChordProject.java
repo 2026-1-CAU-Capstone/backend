@@ -26,7 +26,7 @@ public class ChordProject extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private MusicKey key;
+    private MusicKey keySignature;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -40,16 +40,16 @@ public class ChordProject extends BaseEntity {
     private List<ChordInfo> chordInfos = new ArrayList<>();
 
     @Builder
-    public ChordProject(String title, MusicKey key, User user, @Nullable Session session) {
+    public ChordProject(String title, MusicKey keySignature, User user, @Nullable Session session) {
         this.title = title;
-        this.key = key;
+        this.keySignature = keySignature;
         this.user = user;
         this.session = session;
     }
 
     public void update(String title, MusicKey key) {
         this.title = title;
-        this.key = key;
+        this.keySignature = key;
     }
 }
 

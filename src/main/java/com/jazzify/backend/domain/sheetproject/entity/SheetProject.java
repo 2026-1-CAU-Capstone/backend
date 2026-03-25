@@ -26,7 +26,7 @@ public class SheetProject extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
-    private @Nullable MusicKey key;
+    private @Nullable MusicKey keySignature;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -44,10 +44,10 @@ public class SheetProject extends BaseEntity {
     private List<ChordInfo> chordInfos = new ArrayList<>();
 
     @Builder
-    public SheetProject(String title, @Nullable MusicKey key, User user,
+    public SheetProject(String title, @Nullable MusicKey keySignature, User user,
                         SheetFile sheetFile, @Nullable Session session) {
         this.title = title;
-        this.key = key;
+        this.keySignature = keySignature;
         this.user = user;
         this.sheetFile = sheetFile;
         this.session = session;
@@ -55,7 +55,7 @@ public class SheetProject extends BaseEntity {
 
     public void update(String title, @Nullable MusicKey key) {
         this.title = title;
-        this.key = key;
+        this.keySignature = key;
     }
 }
 
