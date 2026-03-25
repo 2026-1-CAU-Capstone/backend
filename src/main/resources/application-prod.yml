@@ -30,7 +30,7 @@ spring:
   # ── JPA ───────────────────────────────────
   jpa:
     hibernate:
-      ddl-auto: validate             # prod: 스키마 자동 변경 방지
+      ddl-auto: update             # prod: 스키마 자동 변경 방지
     show-sql: false
     properties:
       hibernate:
