@@ -4,9 +4,9 @@ import org.jspecify.annotations.NullMarked;
 
 @NullMarked
 public record StorageFileSavedEvent(
-        Long storageFileId,
-        byte[] fileData,
-        String filePath
+	Long storageFileId,
+	byte[] fileData,
+	String filePath
 ) {
 }
 

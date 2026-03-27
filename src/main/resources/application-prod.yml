@@ -5,7 +5,10 @@
 
 server:
   port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
   shutdown: graceful
+  forward-headers-strategy: framework
   tomcat:
     accept-count: 100
     max-connections: 8192
@@ -30,7 +33,7 @@ spring:
   # ── JPA ───────────────────────────────────
   jpa:
     hibernate:
-      ddl-auto: validate             # prod: 스키마 자동 변경 방지
+      ddl-auto: update             # prod: 스키마 자동 변경 방지
     show-sql: false
     properties:
       hibernate:
@@ -99,6 +102,8 @@ logging:
 # ── Swagger / Springdoc ───────────────────
 springdoc:
   api-docs:
-    enabled: false                    # prod: API 문서 비공개
+    enabled: true
   swagger-ui:
-    enabled: false
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: method

@@ -1,14 +1,16 @@
 package com.jazzify.backend.domain.user.service.implementation;
 
-import com.jazzify.backend.domain.user.entity.User;
-import com.jazzify.backend.shared.exception.code.UserErrorCode;
-import com.jazzify.backend.domain.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
+import com.jazzify.backend.domain.user.entity.User;
+import com.jazzify.backend.domain.user.repository.UserRepository;
+import com.jazzify.backend.shared.exception.code.UserErrorCode;
+
+import lombok.RequiredArgsConstructor;
 
 @NullMarked
 @Component
@@ -16,20 +18,20 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class UserReader {
 
-    private final UserRepository userRepository;
+	private final UserRepository userRepository;
 
-    public User getByPublicId(UUID publicId) {
-        return userRepository.findByPublicId(publicId)
-                .orElseThrow(UserErrorCode.USER_NOT_FOUND::toException);
-    }
+	public User getByPublicId(UUID publicId) {
+		return userRepository.findByPublicId(publicId)
+			.orElseThrow(UserErrorCode.USER_NOT_FOUND::toException);
+	}
 
-    public User getByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(UserErrorCode.USER_NOT_FOUND::toException);
-    }
+	public User getByUsername(String username) {
+		return userRepository.findByUsername(username)
+			.orElseThrow(UserErrorCode.USER_NOT_FOUND::toException);
+	}
 
-    public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
-    }
+	public boolean existsByUsername(String username) {
+		return userRepository.existsByUsername(username);
+	}
 }
 
