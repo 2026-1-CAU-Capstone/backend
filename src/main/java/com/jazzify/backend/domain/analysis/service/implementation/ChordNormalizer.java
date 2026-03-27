@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Layer 1‑3: Chord Normalizer.
- * Strips tensions → extracts core quality for pattern matching.
+ * Layer 1: 코드 품질 정규화기.
+ * 텐션을 무시하고 핵심 품질(core quality)만 추출하여 이후 패턴 매칭에 사용한다.
+ * 예: "dom7"(7th, 9th, 13th 모두) → 동일한 "dom7"로 정규화
  */
 @Component
 public class ChordNormalizer {
 
+    /** 지원하는 모든 코드 품질 → 핵심 품질 매핑 테이블 (총 18종) */
     private static final Map<String, String> CORE_QUALITY_MAP = Map.ofEntries(
             Map.entry("maj7", "maj7"), Map.entry("maj", "maj"),
             Map.entry("min7", "min7"), Map.entry("min", "min"),
@@ -25,6 +27,10 @@ public class ChordNormalizer {
             Map.entry("minmaj7", "minmaj7"), Map.entry("power", "power")
     );
 
+    /**
+     * 모든 코드의 quality를 normalizedQuality 필드에 정규화하여 기록한다.
+     * 알려진 품질이면 매핑된 핵심 품질을, 미지의 품질이면 원래 값을 그대로 사용한다.
+     */
     public List<ParsedChord> normalize(List<ParsedChord> chords) {
         for (ParsedChord c : chords) {
             c.setNormalizedQuality(CORE_QUALITY_MAP.getOrDefault(c.getQuality(), c.getQuality()));
@@ -32,4 +38,3 @@ public class ChordNormalizer {
         return chords;
     }
 }
-

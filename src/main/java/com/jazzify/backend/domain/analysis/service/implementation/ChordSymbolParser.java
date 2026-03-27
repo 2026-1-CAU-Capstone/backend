@@ -13,18 +13,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Chord‑symbol parser.
- * Ported from Python text_parser.py.
+ * 코드 기호 파서.
+ * 텍스트 코드 진행 문자열("Dm7 G7 | Cmaj7")을 파싱하여 ParsedChord 객체 리스트로 변환한다.
+ * Python text_parser.py에서 포팅됨.
  */
 @Component
 public class ChordSymbolParser {
 
+    /** 코드 기호 정규식: (근음)(품질+텐션)(슬래시 베이스) 3그룹으로 분해 */
     private static final Pattern CHORD_RE = Pattern.compile(
             "^([A-Ga-g][#b\\u266F\\u266D]*)" +  // root
             "(.*?)" +                              // quality + tensions
             "(?:/([A-Ga-g][#b\\u266F\\u266D]*))?$" // optional slash bass
     );
 
+    /** "N.C.", "NC", "no chord" 등 코드 없음 표기를 인식하는 정규식 */
     private static final Pattern NO_CHORD_RE = Pattern.compile(
             "^(N\\.?C\\.?|NC|no\\s*chord)$", Pattern.CASE_INSENSITIVE
     );
@@ -34,19 +37,27 @@ public class ChordSymbolParser {
     public record ParseResult(SongInput song, List<ParsedChord> chords) {}
 
     /**
-     * Parse a plain‑text chord progression into SongInput + ParsedChord list.
-     * Format: bars separated by '|', chords within a bar separated by spaces.
+     * 텍스트 코드 진행 전체를 파싱한다.
+     * "|"로 마디를 나누고, 공백으로 코드를 나눈 뒤, 각 코드를 ParsedChord로 변환한다.
+     *
+     * 알고리즘:
+     * 1) 박자에서 한 마디당 박 수를 계산 (예: "4/4" → 4박)
+     * 2) 텍스트를 줄 단위 → "|" 단위로 분할하여 마디 텍스트 리스트 생성
+     * 3) 각 마디 내 코드 수로 박 지속시간을 균등 분배 (beatsPerBar / nChords)
+     * 4) 개별 코드를 parseChordSymbol()로 변환
      */
     public ParseResult parseProgressionText(String text, String title, String key, String timeSignature) {
+        // 박자 분자 추출 (예: "3/4" → 3)
         int beatsPerBar = 4;
         if (timeSignature.contains("/")) {
             beatsPerBar = Integer.parseInt(timeSignature.split("/")[0]);
         }
 
+        // 텍스트를 줄 → "|" 단위로 분할하여 마디별 텍스트 리스트 생성
         List<String> barTexts = new ArrayList<>();
         for (String line : text.strip().split("\\n")) {
             line = line.strip();
-            if (line.isEmpty() || line.startsWith("#")) continue;
+            if (line.isEmpty() || line.startsWith("#")) continue; // 빈 줄·주석 무시
             for (String b : line.split("\\|")) {
                 String bt = b.strip();
                 if (!bt.isEmpty()) barTexts.add(bt);
@@ -57,8 +68,10 @@ public class ChordSymbolParser {
         List<ParsedChord> parsed = new ArrayList<>();
         int barNum = 0;
 
+        // 마디별로 코드를 파싱하고 박 위치·지속시간을 계산
         for (String barText : barTexts) {
             barNum++;
+            // 마디 내 코드 기호를 공백으로 분할하고 N.C. 필터링
             String[] symbols = barText.split("\\s+");
             List<String> valid = new ArrayList<>();
             for (String s : symbols) {
@@ -66,6 +79,7 @@ public class ChordSymbolParser {
             }
             if (valid.isEmpty()) continue;
 
+            // 마디 내 코드 수에 따라 박 지속시간을 균등 분배
             int nChords = valid.size();
             double beatDuration = (double) beatsPerBar / nChords;
 
@@ -85,24 +99,28 @@ public class ChordSymbolParser {
     }
 
     /**
-     * Parse a single chord symbol string into a ParsedChord.
+     * 단일 코드 기호 문자열을 ParsedChord 객체로 변환한다.
+     * 정규식으로 근음/품질/베이스를 분리한 뒤, 각각을 피치클래스와 내부 품질명으로 변환한다.
      */
     public ParsedChord parseChordSymbol(String symbol, int bar, double beat, double durationBeats) {
         symbol = symbol.strip();
         if (symbol.isEmpty()) return null;
         if (NO_CHORD_RE.matcher(symbol).matches()) return null;
 
+        // 정규식으로 근음 / 품질+텐션 / 슬래시 베이스 3그룹 분리
         Matcher m = CHORD_RE.matcher(symbol);
         if (!m.matches()) throw new IllegalArgumentException("Cannot parse chord symbol: '" + symbol + "'");
 
-        String rootStr = m.group(1);
-        String qualitySuffix = m.group(2) != null ? m.group(2) : "";
-        String bassStr = m.group(3);
+        String rootStr = m.group(1);        // 근음 문자열 (예: "D", "Bb")
+        String qualitySuffix = m.group(2) != null ? m.group(2) : ""; // 품질+텐션 부분
+        String bassStr = m.group(3);        // 슬래시 베이스 (null 가능)
 
+        // 근음·베이스를 피치클래스로 변환
         int root = NoteUtils.parseNoteName(rootStr);
         if (root < 0) throw new IllegalArgumentException("Cannot parse root note: '" + rootStr + "'");
 
         Integer bass = bassStr != null ? boxedPc(NoteUtils.parseNoteName(bassStr)) : null;
+        // 품질 접미사를 내부 품질명 + 텐션 리스트로 파싱
         QualityTensions qt = parseQualityAndTensions(qualitySuffix);
 
         return ParsedChord.builder()
@@ -126,13 +144,21 @@ public class ChordSymbolParser {
     private record QualityTensions(String quality, List<String> tensions) {}
 
     /**
-     * Parse quality / extension suffix. Massive but faithful port of _parse_quality_and_tensions.
+     * 품질/확장 접미사를 파싱하여 내부 품질명(quality)과 텐션 리스트를 반환한다.
+     *
+     * 알고리즘:
+     * 1) 괄호 안의 텐션을 먼저 추출 (예: "(11)" → tensions에 "11" 추가)
+     * 2) 유니코드 특수문자를 표준 표기로 변환 (Δ→maj7, °→dim, ø→min7b5)
+     * 3) 우선순위 순으로 정규식 패턴 매칭 → quality 결정 (minmaj7이 가장 먼저, maj가 마지막)
+     * 4) 확장형(9, 11, 13)은 하위 텐션도 함께 추가 (예: 13 → 9,11,13)
+     * 5) 남은 문자열에서 추가 텐션 추출 (#11, b9 등)
+     * 6) 중복 제거 후 반환
      */
     private QualityTensions parseQualityAndTensions(String suffix) {
         List<String> tensions = new ArrayList<>();
         if (suffix == null || suffix.isEmpty()) return new QualityTensions("maj", tensions);
 
-        // Extract parenthesized tensions
+        // 1) 괄호 안 텐션 추출 – 단, (maj7)/(m7) 등 품질 표시는 제외
         List<String> parenTensions = new ArrayList<>();
         Pattern parenPat = Pattern.compile("\\(([^)]+)\\)");
         Matcher pm = parenPat.matcher(suffix);
@@ -148,18 +174,19 @@ public class ChordSymbolParser {
             }
         }
 
-        // Normalize unicode
-        suffix = suffix.replace("\u0394", "maj7")
-                       .replace("\u00B0", "dim")
-                       .replace("\u2205", "min7b5")
-                       .replace("\u00F8", "min7b5");
+        // 2) 유니코드 특수문자를 표준 표기로 치환
+        suffix = suffix.replace("\u0394", "maj7")    // Δ → maj7
+                       .replace("\u00B0", "dim")      // ° → dim
+                       .replace("\u2205", "min7b5")   // ∅ → min7b5
+                       .replace("\u00F8", "min7b5");  // ø → min7b5
 
         String s = suffix.strip();
         String quality = null;
 
-        // ── Pattern matching (order matters!) ──
+        // 3) 우선순위 순 정규식 패턴 매칭으로 quality 결정
+        //    순서 중요: 더 구체적인 패턴(minmaj7, m7b5)을 먼저 매칭해야 함
 
-        // minmaj7
+        // minmaj7: mMaj7, m(maj7), min(maj7), -(maj7)
         if (quality == null && matchAny(s, "(?i)^m\\s*\\(?\\s*maj\\s*7\\s*\\)?",
                 "(?i)^min\\s*\\(?\\s*maj\\s*7\\s*\\)?",
                 "(?i)^-\\s*\\(?\\s*maj\\s*7\\s*\\)?",
@@ -314,30 +341,33 @@ public class ChordSymbolParser {
         if (quality == null && matches(s, "^5$")) {
             quality = "power"; s = "";
         }
-        if (quality == null) quality = "maj";
+        if (quality == null) quality = "maj"; // 아무 패턴에도 안 걸리면 메이저 트라이어드
 
-        // remaining tensions
+        // 5) 남은 문자열에서 추가 텐션 추출 (#11, b9, 13 등)
         Matcher rm = Pattern.compile("[#b\\u266F\\u266D]*\\d+").matcher(s);
         while (rm.find()) tensions.add(rm.group());
         tensions.addAll(parenTensions);
 
-        // Deduplicate preserving order
+        // 6) 순서를 유지하면서 중복 제거
         List<String> unique = new ArrayList<>(new LinkedHashSet<>(tensions));
 
         return new QualityTensions(quality, unique);
     }
 
-    // ── regex helpers ──
+    // ── 정규식 헬퍼 메서드 ──
 
+    /** 문자열에서 정규식 패턴이 존재하는지 확인 */
     private static boolean matches(String s, String regex) {
         return Pattern.compile(regex).matcher(s).find();
     }
 
+    /** 여러 정규식 패턴 중 하나라도 매칭되는지 확인 */
     private static boolean matchAny(String s, String... patterns) {
         for (String p : patterns) if (matches(s, p)) return true;
         return false;
     }
 
+    /** 문자열에서 첫 번째 정규식 매칭을 치환 */
     private static String replaceFirst(String s, String regex, String replacement) {
         return Pattern.compile(regex).matcher(s).replaceFirst(replacement);
     }

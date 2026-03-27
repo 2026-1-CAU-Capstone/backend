@@ -29,8 +29,9 @@ import com.jazzify.backend.domain.analysis.service.implementation.TritoneSubDete
 import lombok.RequiredArgsConstructor;
 
 /**
- * Main harmonic analysis pipeline.
- * Ported from Python main.py → analyze().
+ * 화성 분석 파이프라인의 메인 오케스트레이터.
+ * 17개의 분석 컴포넌트를 정해진 순서(6단계 Phase)로 호출하여 전체 분석을 수행한다.
+ * Python main.py → analyze()에서 포팅됨.
  */
 @NullMarked
 @Service
@@ -56,16 +57,17 @@ public class HarmonicAnalysisService {
 	private final AnalysisAggregator aggregator;
 
 	/**
-	 * Run the full analysis pipeline.
+	 * 전체 분석 파이프라인을 실행한다.
+	 * 텍스트 코드 진행을 입력받아 6단계를 거쳐 완전한 분석 결과 Map을 반환한다.
 	 *
-	 * @param text          plain-text chord progression (bars separated by |)
-	 * @param key           song key, e.g. "C", "Bb", "F#m"
-	 * @param title         song title
-	 * @param timeSignature e.g. "4/4"
-	 * @return complete analysis output as a Map (ready for JSON serialization)
+	 * @param text          코드 진행 텍스트 (마디 구분: |, 코드 구분: 공백)
+	 * @param key           곡의 키 (예: "C", "Bb", "F#m")
+	 * @param title         곡 제목
+	 * @param timeSignature 박자 (예: "4/4")
+	 * @return JSON 직렬화 가능한 분석 결과 Map
 	 */
 	public Map<String, Object> analyze(String text, String key, String title, String timeSignature) {
-		// Phase 1: Parse
+		// Phase 1: 텍스트 파싱 → ParsedChord 리스트 생성
 		ParseResult pr = chordSymbolParser.parseProgressionText(text, title, key, timeSignature);
 		List<ParsedChord> chords = pr.chords();
 
@@ -73,34 +75,34 @@ public class HarmonicAnalysisService {
 			return Map.of("error", "No chords parsed from input");
 		}
 
-		// Phase 2: Layer 1 – individual chord analysis
+		// Phase 2: Layer 1 – 개별 코드 분석 (품질 정규화 → 다이어토닉 분류 → 기능 라벨링)
 		chordNormalizer.normalize(chords);
 		diatonicClassifier.classify(chords, key);
 		functionLabeler.label(chords, key);
 
-		// Phase 3: Layer 2 – contextual pattern detection
+		// Phase 3: Layer 2 – 문맥 패턴 감지 (앞뒤 코드 관계 분석)
 		IiViDetector.IiViResult iiViResult = iiViDetector.detect(chords, key);
 		chords = iiViResult.chords();
 		List<Map<String, Object>> groups = iiViResult.groups();
 
-		functionLabeler.labelFromGroups(chords);
-		tritoneSubDetector.detect(chords, groups);
-		secondaryDominantDetector.detect(chords, key);
-		diminishedClassifier.detect(chords, key);
-		chromaticApproachDetector.detect(chords);
-		deceptiveResolutionDetector.detect(chords, key);
-		pedalPointDetector.detect(chords, key);
+		functionLabeler.labelFromGroups(chords);           // ii-V-I 역할 기반 기능 보완
+		tritoneSubDetector.detect(chords, groups);         // 트라이톤 대리 감지
+		secondaryDominantDetector.detect(chords, key);     // 세컨더리 도미넌트 감지
+		diminishedClassifier.detect(chords, key);          // 감화음 기능 분류
+		chromaticApproachDetector.detect(chords);          // 반음계적 접근 감지
+		deceptiveResolutionDetector.detect(chords, key);   // 기만 종지 감지
+		pedalPointDetector.detect(chords, key);            // 페달 포인트 감지
 
-		// Phase 4: Layer 3 – structural analysis
-		modalInterchangeDetector.detect(chords, key);
-		modeSegmentDetector.detect(chords, key);
-		tonicizationDetector.detect(chords, key, groups);
-		List<Map<String, Object>> sections = sectionBoundaryDetector.detect(chords, key);
+		// Phase 4: Layer 3 – 구조 분석 (곡 전체 차원)
+		modalInterchangeDetector.detect(chords, key);      // 모달 인터체인지(차용 화음) 감지
+		modeSegmentDetector.detect(chords, key);           // 모드 세그먼트 감지
+		tonicizationDetector.detect(chords, key, groups);  // 조성화 vs 전조 판별
+		List<Map<String, Object>> sections = sectionBoundaryDetector.detect(chords, key); // 섹션 경계
 
-		// Phase 5: Ambiguity scoring
+		// Phase 5: 모호성 채점 – 각 코드의 분석 확신도 0.0~1.0 계산
 		ambiguityScorer.score(chords);
 
-		// Phase 6: Aggregate
+		// Phase 6: 최종 집계 – 모든 결과를 하나의 JSON용 Map으로 합침
 		return aggregator.aggregate(title, key, timeSignature, chords, groups, sections);
 	}
 }

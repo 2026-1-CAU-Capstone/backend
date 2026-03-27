@@ -7,19 +7,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Static harmonic‑analysis configuration data.
- * Ported from Python config_data.py.
+ * 화성 분석에 필요한 정적 설정 데이터.
+ * 스케일 디그리 → 화성 기능(T/SD/D) 매핑 테이블과 모달 인터체인지 참조 데이터를 제공한다.
+ * Python config_data.py에서 포팅됨.
  */
 @Component
 public class AnalysisConfigData {
 
     // ─────────────────── FUNCTION MAP ───────────────────
+    // 3단계 맵 구조: (키 섹션) → (스케일 디그리) → (화성 기능 목록)
+    // 키 섹션: "major_key", "minor_key", "chromatic_degrees"
 
+    /** 스케일 디그리별 화성 기능 매핑 테이블을 반환한다 */
     public Map<String, Map<String, List<FunctionEntry>>> getFunctionMap() {
         return FUNCTION_MAP;
     }
 
     private static final Map<String, Map<String, List<FunctionEntry>>> FUNCTION_MAP = Map.of(
+            // 장조에서의 다이어토닉 코드 기능 매핑
             "major_key", Map.ofEntries(
                     Map.entry("I", List.of(fe("T", 1.0))),
                     Map.entry("ii", List.of(fe("SD", 1.0))),
@@ -32,6 +37,7 @@ public class AnalysisConfigData {
                     Map.entry("vii", List.of(fe("D", 0.9, "Leading tone chord, dominant function"))),
                     Map.entry("viio", List.of(fe("D", 0.9, "Leading tone chord, dominant function")))
             ),
+            // 반음계적(비다이어토닉) 코드의 기능 매핑 – 장/단조 공통
             "chromatic_degrees", Map.ofEntries(
                     Map.entry("bII", List.of(fe("SD", 0.6, "Neapolitan / Phrygian"),
                                               fe("D_substitute", 0.4, "Tritone sub of V when dom7"))),
@@ -60,6 +66,7 @@ public class AnalysisConfigData {
                     Map.entry("v", List.of(fe("D", 0.4, "Minor v, weaker dominant"),
                                             fe("T", 0.3)))
             ),
+            // 단조에서의 다이어토닉 코드 기능 매핑
             "minor_key", Map.ofEntries(
                     Map.entry("i", List.of(fe("T", 1.0))),
                     Map.entry("ii", List.of(fe("SD", 1.0))),
@@ -83,11 +90,16 @@ public class AnalysisConfigData {
     );
 
     // ─────────────────── MODAL INTERCHANGE ───────────────────
+    // 각 모드(에올리안, 도리안 등)에서 빌려올 수 있는 코드 정보
 
+    /** 모드별 사용 가능 코드 정보: interval(근음으로부터 반음 간격), quality(코드 품질), degreeLabel(디그리 표기) */
     public record DegreeInfo(int interval, String quality, String degreeLabel) {}
+    /** 흔히 빌려오는 코드 정보: degreeLabel(디그리 표기), note(설명) */
     public record CommonBorrow(String degreeLabel, String note) {}
+    /** 모드 인터체인지 데이터: 모드 이름, 사용 가능 코드 목록, 흔한 차용 코드 목록 */
     public record ModeInterchangeData(String name, List<DegreeInfo> availableDegrees, List<CommonBorrow> commonBorrows) {}
 
+    /** 모드별 인터체인지 데이터 테이블을 반환한다 (aeolian, dorian, phrygian, lydian, mixolydian) */
     public Map<String, ModeInterchangeData> getModalInterchange() {
         return MODAL_INTERCHANGE;
     }
@@ -127,7 +139,7 @@ public class AnalysisConfigData {
                             cb("I7", "Dominant I instead of maj7")))
     );
 
-    // ── factory helpers ──
+    // ── 팩토리 헬퍼: 설정 데이터 초기화 시 보일러플레이트를 줄이기 위한 축약 메서드 ──
     private static FunctionEntry fe(String func, double conf) {
         return new FunctionEntry(func, conf);
     }
@@ -141,4 +153,3 @@ public class AnalysisConfigData {
         return new CommonBorrow(degreeLabel, note);
     }
 }
-
