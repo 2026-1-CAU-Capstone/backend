@@ -1,17 +1,17 @@
-package com.jazzify.backend.domain.analysis.analyzer;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.model.DeceptiveResolutionInfo;
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils.KeyInfo;
+import com.jazzify.backend.domain.analysis.util.NoteUtils;
+import com.jazzify.backend.domain.analysis.util.NoteUtils.KeyInfo;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.jazzify.backend.domain.analysis.parser.NoteUtils.mod12;
-import static com.jazzify.backend.domain.analysis.parser.NoteUtils.pcToNoteName;
+import static com.jazzify.backend.domain.analysis.util.NoteUtils.mod12;
+import static com.jazzify.backend.domain.analysis.util.NoteUtils.pcToNoteName;
 
 /**
  * Layer 2‑9: Deceptive Resolution Detector.

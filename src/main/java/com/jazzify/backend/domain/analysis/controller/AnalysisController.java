@@ -1,43 +1,37 @@
 package com.jazzify.backend.domain.analysis.controller;
 
-import com.jazzify.backend.domain.analysis.dto.request.AnalysisRequest;
-import com.jazzify.backend.domain.analysis.service.HarmonicAnalysisService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
 
+import org.jspecify.annotations.NullMarked;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.jazzify.backend.domain.analysis.dto.request.AnalysisRequest;
+import com.jazzify.backend.domain.analysis.service.HarmonicAnalysisService;
+import com.jazzify.backend.shared.web.ApiResponse;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@NullMarked
 @RestController
-@RequestMapping("/api/analysis")
+@RequestMapping("/v1/analysis")
 @RequiredArgsConstructor
-public class AnalysisController {
+public class AnalysisController implements AnalysisControllerSpec {
 
-    private final HarmonicAnalysisService analysisService;
+	private final HarmonicAnalysisService harmonicAnalysisService;
 
-    /**
-     * Analyze a chord progression.
-     *
-     * <pre>
-     * POST /api/analysis
-     * {
-     *   "text": "Dm7 | G7 | Cmaj7",
-     *   "key": "C",
-     *   "title": "Example",
-     *   "timeSignature": "4/4"
-     * }
-     * </pre>
-     */
-    @PostMapping
-    public ResponseEntity<Map<String, Object>> analyze(@Valid @RequestBody AnalysisRequest request) {
-        Map<String, Object> result = analysisService.analyze(
-                request.text(),
-                request.key(),
-                request.title(),
-                request.timeSignature()
-        );
-        return ResponseEntity.ok(result);
-    }
+	@Override
+	@PostMapping
+	public ApiResponse<Map<String, Object>> analyze(@Valid @RequestBody AnalysisRequest request) {
+		Map<String, Object> result = harmonicAnalysisService.analyze(
+			request.text(),
+			request.key(),
+			request.title(),
+			request.timeSignature()
+		);
+		return ApiResponse.ok(result);
+	}
 }
-

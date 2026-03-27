@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.analysis.analyzer;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.model.ChromaticApproachInfo;
 import com.jazzify.backend.domain.analysis.model.FunctionEntry;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static com.jazzify.backend.domain.analysis.parser.NoteUtils.mod12;
+import static com.jazzify.backend.domain.analysis.util.NoteUtils.mod12;
 
 /**
  * Layer 2‑8: Chromatic Approach Detector.

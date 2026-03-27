@@ -1,12 +1,12 @@
-package com.jazzify.backend.domain.analysis.analyzer;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.config.AnalysisConfigData;
 import com.jazzify.backend.domain.analysis.model.AmbiguityFlag;
 import com.jazzify.backend.domain.analysis.model.FunctionEntry;
 import com.jazzify.backend.domain.analysis.model.GroupMembership;
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils.KeyInfo;
+import com.jazzify.backend.domain.analysis.util.NoteUtils;
+import com.jazzify.backend.domain.analysis.util.NoteUtils.KeyInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

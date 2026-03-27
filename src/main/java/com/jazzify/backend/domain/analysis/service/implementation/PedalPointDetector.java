@@ -1,15 +1,15 @@
-package com.jazzify.backend.domain.analysis.analyzer;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
 import com.jazzify.backend.domain.analysis.model.PedalInfo;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils.KeyInfo;
+import com.jazzify.backend.domain.analysis.util.NoteUtils;
+import com.jazzify.backend.domain.analysis.util.NoteUtils.KeyInfo;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static com.jazzify.backend.domain.analysis.parser.NoteUtils.mod12;
-import static com.jazzify.backend.domain.analysis.parser.NoteUtils.pcToNoteName;
+import static com.jazzify.backend.domain.analysis.util.NoteUtils.mod12;
+import static com.jazzify.backend.domain.analysis.util.NoteUtils.pcToNoteName;
 
 /**
  * Layer 2‑10: Pedal Point Detector.

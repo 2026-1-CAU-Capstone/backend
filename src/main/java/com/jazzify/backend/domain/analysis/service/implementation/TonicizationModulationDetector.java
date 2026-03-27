@@ -1,9 +1,9 @@
-package com.jazzify.backend.domain.analysis.analyzer;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
 import com.jazzify.backend.domain.analysis.model.TonicizationInfo;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils;
-import com.jazzify.backend.domain.analysis.parser.NoteUtils.KeyInfo;
+import com.jazzify.backend.domain.analysis.util.NoteUtils;
+import com.jazzify.backend.domain.analysis.util.NoteUtils.KeyInfo;
 import org.springframework.stereotype.Component;
 
 import java.util.*;

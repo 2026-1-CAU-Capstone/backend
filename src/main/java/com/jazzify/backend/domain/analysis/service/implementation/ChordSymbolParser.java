@@ -1,8 +1,9 @@
-package com.jazzify.backend.domain.analysis.parser;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.model.ChordEntry;
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
 import com.jazzify.backend.domain.analysis.model.SongInput;
+import com.jazzify.backend.domain.analysis.util.NoteUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

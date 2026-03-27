@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.analysis.analyzer;
+package com.jazzify.backend.domain.analysis.service.implementation;
 
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
 import org.springframework.stereotype.Component;
