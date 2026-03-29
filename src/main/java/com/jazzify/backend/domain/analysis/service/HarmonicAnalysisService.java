@@ -6,9 +6,11 @@ import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Service;
 
+import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.analysis.model.ParsedChord;
 import com.jazzify.backend.domain.analysis.service.implementation.AmbiguityScorer;
 import com.jazzify.backend.domain.analysis.service.implementation.AnalysisAggregator;
+import com.jazzify.backend.domain.analysis.service.implementation.AnalysisExplainer;
 import com.jazzify.backend.domain.analysis.service.implementation.ChordNormalizer;
 import com.jazzify.backend.domain.analysis.service.implementation.ChordSymbolParser;
 import com.jazzify.backend.domain.analysis.service.implementation.ChordSymbolParser.ParseResult;
@@ -25,6 +27,7 @@ import com.jazzify.backend.domain.analysis.service.implementation.SecondaryDomin
 import com.jazzify.backend.domain.analysis.service.implementation.SectionBoundaryDetector;
 import com.jazzify.backend.domain.analysis.service.implementation.TonicizationModulationDetector;
 import com.jazzify.backend.domain.analysis.service.implementation.TritoneSubDetector;
+import com.jazzify.backend.shared.exception.code.AnalysisErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -55,6 +58,7 @@ public class HarmonicAnalysisService {
 	private final SectionBoundaryDetector sectionBoundaryDetector;
 	private final AmbiguityScorer ambiguityScorer;
 	private final AnalysisAggregator aggregator;
+	private final AnalysisExplainer explainer;
 
 	/**
 	 * 전체 분석 파이프라인을 실행한다.
@@ -67,12 +71,43 @@ public class HarmonicAnalysisService {
 	 * @return JSON 직렬화 가능한 분석 결과 Map
 	 */
 	public Map<String, Object> analyze(String text, String key, String title, String timeSignature) {
+		PipelineResult pr = runPipeline(text, key, title, timeSignature);
+		return aggregator.aggregate(title, key, timeSignature, pr.chords, pr.groups, pr.sections);
+	}
+
+	/**
+	 * 분석 파이프라인을 실행한 뒤 결과를 자연어(한국어)로 설명한다.
+	 *
+	 * @param text          코드 진행 텍스트
+	 * @param key           곡의 키
+	 * @param title         곡 제목
+	 * @param timeSignature 박자
+	 * @return 자연어 설명 응답 DTO
+	 */
+	public AnalysisExplanationResponse explain(String text, String key, String title, String timeSignature) {
+		PipelineResult pr = runPipeline(text, key, title, timeSignature);
+		return explainer.explain(title, key, timeSignature, pr.chords, pr.groups, pr.sections);
+	}
+
+	// ── 내부 파이프라인 ──
+
+	private record PipelineResult(
+		List<ParsedChord> chords,
+		List<Map<String, Object>> groups,
+		List<Map<String, Object>> sections
+	) {
+	}
+
+	/**
+	 * 6단계 분석 파이프라인의 공통 로직.
+	 */
+	private PipelineResult runPipeline(String text, String key, String title, String timeSignature) {
 		// Phase 1: 텍스트 파싱 → ParsedChord 리스트 생성
 		ParseResult pr = chordSymbolParser.parseProgressionText(text, title, key, timeSignature);
 		List<ParsedChord> chords = pr.chords();
 
 		if (chords.isEmpty()) {
-			return Map.of("error", "No chords parsed from input");
+			throw AnalysisErrorCode.NO_CHORDS_PARSED.toException();
 		}
 
 		// Phase 2: Layer 1 – 개별 코드 분석 (품질 정규화 → 다이어토닉 분류 → 기능 라벨링)
@@ -102,7 +137,6 @@ public class HarmonicAnalysisService {
 		// Phase 5: 모호성 채점 – 각 코드의 분석 확신도 0.0~1.0 계산
 		ambiguityScorer.score(chords);
 
-		// Phase 6: 최종 집계 – 모든 결과를 하나의 JSON용 Map으로 합침
-		return aggregator.aggregate(title, key, timeSignature, chords, groups, sections);
+		return new PipelineResult(chords, groups, sections);
 	}
 }

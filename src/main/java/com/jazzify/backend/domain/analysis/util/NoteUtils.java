@@ -4,6 +4,8 @@ import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
 
+import com.jazzify.backend.shared.exception.code.AnalysisErrorCode;
+
 /**
  * 음악 이론 음표/키 유틸리티.
  * 음이름 ↔ 피치클래스(0~11) 변환, 키 문자열 파싱 등 기초 연산을 담당한다.
@@ -84,7 +86,7 @@ public final class NoteUtils {
 		// 접미사 제거 후 근음 파싱
 		int pc = parseNoteName(keyStr);
 		if (pc < 0) {
-			throw new IllegalArgumentException("Cannot parse key: " + keyStr);
+			throw AnalysisErrorCode.INVALID_KEY.toException(keyStr);
 		}
 		return new KeyInfo(pc, mode);
 	}
