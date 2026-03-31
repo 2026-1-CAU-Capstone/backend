@@ -12,6 +12,7 @@ public record ChordProjectResponse(
 	UUID publicId,
 	String title,
 	MusicKey keySignature,
+	String timeSignature,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt
 ) {

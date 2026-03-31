@@ -1,5 +1,6 @@
 package com.jazzify.backend.domain.chordproject.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -10,8 +11,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.jazzify.backend.core.security.CustomPrincipal;
+import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectUpdateRequest;
+import com.jazzify.backend.domain.chordproject.dto.response.AnalysisResultResponse;
+import com.jazzify.backend.domain.chordproject.dto.response.ChordInfoResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectResponse;
 import com.jazzify.backend.shared.web.ApiResponse;
 
@@ -48,6 +52,17 @@ public interface ChordProjectControllerSpec {
 
 	@Operation(summary = "코드 프로젝트 삭제")
 	ApiResponse<Void> delete(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId);
+
+	@Operation(summary = "코드 프로젝트에 코드 정보 등록 (기존 코드 덮어쓰기)")
+	ApiResponse<List<ChordInfoResponse>> addChords(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId,
+		@Valid @RequestBody AddChordsRequest request);
+
+	@Operation(summary = "코드 프로젝트 화성 분석 실행")
+	ApiResponse<AnalysisResultResponse> analyze(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@PathVariable UUID publicId);
 }

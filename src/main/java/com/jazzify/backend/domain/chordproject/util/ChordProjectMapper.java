@@ -19,6 +19,7 @@ public final class ChordProjectMapper {
 			Objects.requireNonNull(project.getPublicId()),
 			project.getTitle(),
 			project.getKeySignature(),
+			project.getTimeSignature(),
 			Objects.requireNonNull(project.getCreatedAt()),
 			Objects.requireNonNull(project.getUpdatedAt())
 		);

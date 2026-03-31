@@ -8,13 +8,13 @@ import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -28,16 +28,24 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ChordInfo extends BaseEntity {
 
+	// ── 위치 및 원본 ──
 	@Column
 	private @Nullable String chord;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, length = 10)
-	private ChordLength length;
+	@Column(nullable = false)
+	private int bar;
 
 	@Column(nullable = false)
-	private int sortOrder;
+	private double beat;
 
+	@Column(nullable = false)
+	private double durationBeats;
+
+	// ── 1:1 분석 결과 ──
+	@OneToOne(mappedBy = "chordInfo", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private @Nullable ChordAnalysis analysis;
+
+	// ── 연관 관계 ──
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "sheet_project_id")
 	private @Nullable SheetProject sheetProject;
@@ -47,19 +55,24 @@ public class ChordInfo extends BaseEntity {
 	private @Nullable ChordProject chordProject;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "session_id", nullable = false)
-	private Session session;
+	@JoinColumn(name = "session_id")
+	private @Nullable Session session;
 
 	@Builder
-	public ChordInfo(@Nullable String chord, ChordLength length, int sortOrder,
+	public ChordInfo(@Nullable String chord, int bar, double beat, double durationBeats,
 		@Nullable SheetProject sheetProject, @Nullable ChordProject chordProject,
-		Session session) {
+		@Nullable Session session) {
 		this.chord = chord;
-		this.length = length;
-		this.sortOrder = sortOrder;
+		this.bar = bar;
+		this.beat = beat;
+		this.durationBeats = durationBeats;
 		this.sheetProject = sheetProject;
 		this.chordProject = chordProject;
 		this.session = session;
+	}
+
+	public void assignAnalysis(ChordAnalysis analysis) {
+		this.analysis = analysis;
 	}
 }
 

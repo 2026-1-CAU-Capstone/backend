@@ -19,10 +19,11 @@ public class ChordProjectWriter {
 
 	private final ChordProjectRepository chordProjectRepository;
 
-	public ChordProject create(String title, MusicKey key, User user) {
+	public ChordProject create(String title, MusicKey key, String timeSignature, User user) {
 		ChordProject project = ChordProject.builder()
 			.title(title)
 			.keySignature(key)
+			.timeSignature(timeSignature)
 			.user(user)
 			.build();
 		return chordProjectRepository.save(project);
