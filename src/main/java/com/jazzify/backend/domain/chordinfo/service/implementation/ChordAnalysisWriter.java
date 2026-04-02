@@ -9,8 +9,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jazzify.backend.domain.chordinfo.entity.ChordAnalysis;
 import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;
 import com.jazzify.backend.domain.chordinfo.entity.ChordGroupMember;
@@ -22,6 +20,8 @@ import com.jazzify.backend.domain.chordinfo.repository.ChordSectionRepository;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
 
 import lombok.RequiredArgsConstructor;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 분석 결과를 DB 엔티티에 반영하는 Writer.
@@ -193,7 +193,7 @@ public class ChordAnalysisWriter {
 		}
 		try {
 			return objectMapper.writeValueAsString(obj);
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			return null;
 		}
 	}
