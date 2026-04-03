@@ -13,10 +13,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.analysis.service.HarmonicAnalysisService;
 import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordinfo.entity.ChordSection;
+import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysisReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysisWriter;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
@@ -31,6 +33,7 @@ import com.jazzify.backend.domain.chordproject.entity.ChordProject;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectReader;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectWriter;
 import com.jazzify.backend.domain.chordproject.util.ChordProjectMapper;
+import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.domain.user.service.implementation.UserReader;
 import com.jazzify.backend.shared.exception.code.ChordProjectErrorCode;
@@ -47,6 +50,7 @@ public class ChordProjectService {
 	private final UserReader userReader;
 	private final ChordInfoReader chordInfoReader;
 	private final ChordInfoWriter chordInfoWriter;
+	private final ChordAnalysisReader chordAnalysisReader;
 	private final ChordAnalysisWriter chordAnalysisWriter;
 	private final HarmonicAnalysisService harmonicAnalysisService;
 
@@ -96,20 +100,32 @@ public class ChordProjectService {
 		// 기존 코드 정보 삭제 (덮어쓰기)
 		chordInfoWriter.deleteAllByChordProject(project);
 
-		List<ChordInfo> chordInfos = request.chords().stream()
-			.map(entry -> ChordInfo.builder()
-				.chord(entry.chord())
-				.bar(entry.bar())
-				.beat(entry.beat())
-				.durationBeats(entry.durationBeats())
-				.chordProject(project)
-				.build())
-			.toList();
+		// iRealPro 형식 문자열을 파싱하여 ChordInfo 리스트로 변환
+		List<ChordInfo> chordInfos = IRealProChordParser.parse(
+			request.progression(), project.getTimeSignature(), project);
 
 		List<ChordInfo> saved = chordInfoWriter.saveAll(chordInfos);
 		return saved.stream()
 			.map(ChordInfoMapper::toChordInfoResponse)
 			.toList();
+	}
+
+	// ── 분석 결과 조회 ──
+
+	@Transactional(readOnly = true)
+	public AnalysisResultResponse getAnalysisResult(UUID userPublicId, UUID projectPublicId) {
+		User user = userReader.getByPublicId(userPublicId);
+		ChordProject project = chordProjectReader.getByPublicIdAndUser(projectPublicId, user);
+
+		if (project.getLastAnalyzedAt() == null) {
+			throw ChordProjectErrorCode.CHORD_PROJECT_NOT_ANALYZED.toException();
+		}
+
+		List<ChordInfo> chordInfos = chordInfoReader.getAllByChordProject(project);
+		List<ChordGroup> groups = chordAnalysisReader.getGroupsByProject(project);
+		List<ChordSection> sections = chordAnalysisReader.getSectionsByProject(project);
+
+		return ChordInfoMapper.toAnalysisResultResponse(project, chordInfos, groups, sections);
 	}
 
 	// ── 분석 실행 ──
@@ -156,6 +172,26 @@ public class ChordProjectService {
 		chordAnalysisWriter.updateProjectStats(project, analysisResult);
 
 		return ChordInfoMapper.toAnalysisResultResponse(project, chordInfos, savedGroups, savedSections);
+	}
+
+	// ── 자연어 설명 ──
+
+	@Transactional(readOnly = true)
+	public AnalysisExplanationResponse explain(UUID userPublicId, UUID projectPublicId) {
+		User user = userReader.getByPublicId(userPublicId);
+		ChordProject project = chordProjectReader.getByPublicIdAndUser(projectPublicId, user);
+
+		List<ChordInfo> chordInfos = chordInfoReader.getAllByChordProject(project);
+		if (chordInfos.isEmpty()) {
+			throw ChordProjectErrorCode.CHORD_PROJECT_NO_CHORDS.toException();
+		}
+
+		String text = buildProgressionText(chordInfos);
+		String key = project.getKeySignature().getAnalysisKey();
+		String title = project.getTitle();
+		String timeSignature = project.getTimeSignature();
+
+		return harmonicAnalysisService.explain(text, key, title, timeSignature);
 	}
 
 	// ── private helpers ──

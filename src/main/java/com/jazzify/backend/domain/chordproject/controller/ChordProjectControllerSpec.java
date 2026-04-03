@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.jazzify.backend.core.security.CustomPrincipal;
+import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectUpdateRequest;
@@ -100,19 +101,22 @@ public interface ChordProjectControllerSpec {
 			프로젝트에 속한 **기존 코드를 전부 삭제**하고 새로운 코드 목록으로 교체합니다.
 			처음 입력할 때와 수정할 때 모두 이 API를 사용합니다.
 			
-			**`chords` 배열 항목 필드**
-			- `chord`: 코드 이름 (예: `"Dm7"`, `"G7b9"`). 쉬는 마디나 반복 마디는 `null`로 전달합니다.
-			- `bar`: 마디 번호 (1부터 시작, 필수)
-			- `beat`: 마디 안에서 코드가 시작하는 박 위치 (예: 1번째 박 → `1.0`, 3번째 박 → `3.0`, 필수)
-			- `durationBeats`: 코드가 지속되는 박 수 (0 이상, 필수)
+			**iRealPro 스타일 입력 형식**
+			- `progression`: `|` 로 마디를 구분하고, 한 마디 안에 코드를 공백으로 나열합니다.
+			- 마디 내 코드 수에 따라 박자가 균등 분배됩니다 (프로젝트의 박자표 기준).
+			- **동일 마디 내에서** 연속되는 동일 코드는 하나로 병합하여 저장됩니다. 마디 경계를 넘는 경우 같은 코드라도 별도로 저장됩니다.
+			- 쉬는 마디는 `N.C.`로 표기합니다.
 			
-			**예시 – 4/4 박자 한 마디에 코드 2개:**
+			**예시 (4/4 박자 기준):**
 			```json
-			[
-			  { "chord": "Dm7", "bar": 1, "beat": 1.0, "durationBeats": 2.0 },
-			  { "chord": "G7",  "bar": 1, "beat": 3.0, "durationBeats": 2.0 }
-			]
+			{ "progression": "Dm7 G7 | Cmaj7 | Am7 D7 | Gmaj7" }
 			```
+			→ Dm7 2박, G7 2박 | Cmaj7 4박 | Am7 2박, D7 2박 | Gmaj7 4박
+			
+			```json
+			{ "progression": "C C D E | C" }
+			```
+			→ C 2박(병합), D 1박, E 1박 | C 4박 (마디 경계를 넘는 C는 별도 저장)
 			
 			등록 직후 각 코드의 `analysis` 필드는 `null`입니다. 분석 API 호출 후 채워집니다.
 			"""
@@ -139,6 +143,38 @@ public interface ChordProjectControllerSpec {
 			"""
 	)
 	ApiResponse<AnalysisResultResponse> analyze(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId);
+
+	@Operation(
+		summary = "코드 프로젝트 분석 결과 조회",
+		description = """
+			이전에 실행된 화성 분석 결과를 DB에서 조회하여 반환합니다.
+			분석을 재실행하지 않으므로 빠르게 결과를 확인할 수 있습니다.
+			**분석이 한 번도 실행되지 않은 경우 에러를 반환합니다.**
+			
+			응답 구조는 분석 실행 API(`POST /{publicId}/analyze`)와 동일합니다.
+			"""
+	)
+	ApiResponse<AnalysisResultResponse> getAnalysisResult(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId);
+
+	@Operation(
+		summary = "코드 프로젝트 화성 분석 자연어 설명",
+		description = """
+			저장된 코드 정보를 기반으로 화성 분석을 수행한 뒤, 결과를 한국어 자연어로 설명합니다.
+			**코드를 먼저 등록(`POST /{publicId}/chords`)한 후 호출해야 합니다.**
+			
+			**응답 구조 요약**
+			- `overview`: 곡 전체에 대한 개요 설명
+			- `chordExplanations[]`: 각 코드의 상세 화성 분석 설명 (디그리, 기능, 패턴 역할, 성부 진행 등)
+			- `sectionExplanations[]`: 구간별 분석 설명
+			- `notablePatterns[]`: 주목할 만한 화성 패턴 목록
+			- `harmonicSummary`: 화성 구조 종합 요약
+			"""
+	)
+	ApiResponse<AnalysisExplanationResponse> explain(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@PathVariable UUID publicId);
 }

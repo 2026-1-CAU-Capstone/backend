@@ -186,15 +186,32 @@ C_MAJOR("C"), D_FLAT_MAJOR("Db"), C_MINOR("Cm"), ...
 
 ### POST /v1/chord-projects/{publicId}/chords
 
+**입력 형식: iRealPro 스타일 문자열**
+
+`|` 로 마디를 구분하고, 한 마디 안에 코드를 공백으로 나열한다.
+마디 내 코드 수에 따라 프로젝트의 박자표(`timeSignature`) 기준으로 박자가 균등 분배된다.
+**동일 마디 내에서** 연속되는 동일 코드는 하나로 병합된다 (마디 경계를 넘는 경우는 별도 저장).
+쉬는 마디는 `N.C.`로 표기한다.
+
 **Request Body:**
 ```json
-{
-  "chords": [
-    { "chord": "Dm7", "bar": 1, "beat": 1.0, "durationBeats": 2.0 },
-    { "chord": "G7",  "bar": 1, "beat": 3.0, "durationBeats": 2.0 },
-    { "chord": "Cmaj7", "bar": 2, "beat": 1.0, "durationBeats": 4.0 }
-  ]
-}
+{ "progression": "Dm7 G7 | Cmaj7 | Am7 D7 | Gmaj7" }
+```
+
+**파싱 결과 (4/4 박자 기준):**
+| bar | beat | chord | durationBeats |
+|-----|------|-------|---------------|
+| 1 | 1.0 | Dm7 | 2.0 |
+| 1 | 3.0 | G7 | 2.0 |
+| 2 | 1.0 | Cmaj7 | 4.0 |
+| 3 | 1.0 | Am7 | 2.0 |
+| 3 | 3.0 | D7 | 2.0 |
+| 4 | 1.0 | Gmaj7 | 4.0 |
+
+**병합 예시 (동일 마디 내에서만):**
+```
+"C C D E | C"  →  C 2박(병합), D 1박, E 1박 | C 4박
+                   (마디 경계를 넘는 C는 별도 저장)
 ```
 
 ### POST /v1/chord-projects/{publicId}/analyze
@@ -282,7 +299,8 @@ C_MAJOR("C"), D_FLAT_MAJOR("Db"), C_MINOR("Cm"), ...
 | `ChordInfoWriter.java` | 쓰기 전용 Component |
 | `ChordAnalysisWriter.java` | 분석 결과 저장 Component |
 | `ChordInfoMapper.java` | DTO ↔ Entity 변환 |
-| `AddChordsRequest.java` | 코드 등록 요청 DTO |
+| `AddChordsRequest.java` | 코드 등록 요청 DTO (iRealPro 형식 `progression` 문자열) |
+| `IRealProChordParser.java` | iRealPro 형식 문자열 → ChordInfo 리스트 파서 (동일 마디 내 병합 포함) |
 | `ChordInfoResponse.java` | 코드 정보 + 분석 결과 응답 DTO |
 | `AnalysisResultResponse.java` | 전체 분석 결과 응답 DTO |
 

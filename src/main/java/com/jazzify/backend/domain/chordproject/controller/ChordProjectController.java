@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jazzify.backend.core.security.CustomPrincipal;
+import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectUpdateRequest;
@@ -101,5 +102,21 @@ public class ChordProjectController implements ChordProjectControllerSpec {
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@PathVariable UUID publicId) {
 		return ApiResponse.ok(chordProjectService.analyze(principal.publicId(), publicId));
+	}
+
+	@Override
+	@GetMapping("/{publicId}/analysis")
+	public ApiResponse<AnalysisResultResponse> getAnalysisResult(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId) {
+		return ApiResponse.ok(chordProjectService.getAnalysisResult(principal.publicId(), publicId));
+	}
+
+	@Override
+	@GetMapping("/{publicId}/explain")
+	public ApiResponse<AnalysisExplanationResponse> explain(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId) {
+		return ApiResponse.ok(chordProjectService.explain(principal.publicId(), publicId));
 	}
 }
