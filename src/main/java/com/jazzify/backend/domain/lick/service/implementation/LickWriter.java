@@ -18,11 +18,11 @@ public class LickWriter {
 
 	private final LickRepository lickRepository;
 
-	public Lick create(String title, @Nullable String composer, String contents) {
+	public Lick create(String title, @Nullable String composer, String content) {
 		Lick lick = Lick.builder()
 			.title(title)
 			.composer(composer)
-			.contents(contents)
+			.content(content)
 			.build();
 		return lickRepository.save(lick);
 	}

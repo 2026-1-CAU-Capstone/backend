@@ -19,7 +19,7 @@ public final class LickMapper {
 			Objects.requireNonNull(lick.getPublicId()),
 			lick.getTitle(),
 			lick.getComposer(),
-			lick.getContents(),
+			lick.getContent(),
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt())
 		);

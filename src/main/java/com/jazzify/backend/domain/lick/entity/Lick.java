@@ -32,12 +32,12 @@ public class Lick extends BaseEntity {
 
 	@Lob
 	@Column(nullable = false, columnDefinition = "TEXT")
-	private String contents;
+	private String content;
 
-	public void update(String title, @Nullable String composer, String contents) {
+	public void update(String title, @Nullable String composer, String content) {
 		this.title = title;
 		this.composer = composer;
-		this.contents = contents;
+		this.content = content;
 	}
 }
 

@@ -11,7 +11,7 @@ public record LickResponse(
 	UUID publicId,
 	String title,
 	@Nullable String composer,
-	String contents,
+	String content,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt
 ) {

@@ -17,7 +17,7 @@ public record LickCreateRequest(
 	String composer,
 
 	@NotBlank(message = "내용은 필수입니다.")
-	String contents
+	String content
 ) {
 }
 
