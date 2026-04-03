@@ -1,26 +1,33 @@
 package com.jazzify.backend.shared.domain;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum MusicKey {
 	// C
-	C_MAJOR, C_SHARP_MAJOR, C_FLAT_MAJOR,
-	C_MINOR, C_SHARP_MINOR, C_FLAT_MINOR,
+	C_MAJOR("C"), C_SHARP_MAJOR("C#"), C_FLAT_MAJOR("Cb"),
+	C_MINOR("Cm"), C_SHARP_MINOR("C#m"), C_FLAT_MINOR("Cbm"),
 	// D
-	D_MAJOR, D_SHARP_MAJOR, D_FLAT_MAJOR,
-	D_MINOR, D_SHARP_MINOR, D_FLAT_MINOR,
+	D_MAJOR("D"), D_SHARP_MAJOR("D#"), D_FLAT_MAJOR("Db"),
+	D_MINOR("Dm"), D_SHARP_MINOR("D#m"), D_FLAT_MINOR("Dbm"),
 	// E
-	E_MAJOR, E_SHARP_MAJOR, E_FLAT_MAJOR,
-	E_MINOR, E_SHARP_MINOR, E_FLAT_MINOR,
+	E_MAJOR("E"), E_SHARP_MAJOR("E#"), E_FLAT_MAJOR("Eb"),
+	E_MINOR("Em"), E_SHARP_MINOR("E#m"), E_FLAT_MINOR("Ebm"),
 	// F
-	F_MAJOR, F_SHARP_MAJOR, F_FLAT_MAJOR,
-	F_MINOR, F_SHARP_MINOR, F_FLAT_MINOR,
+	F_MAJOR("F"), F_SHARP_MAJOR("F#"), F_FLAT_MAJOR("Fb"),
+	F_MINOR("Fm"), F_SHARP_MINOR("F#m"), F_FLAT_MINOR("Fbm"),
 	// G
-	G_MAJOR, G_SHARP_MAJOR, G_FLAT_MAJOR,
-	G_MINOR, G_SHARP_MINOR, G_FLAT_MINOR,
+	G_MAJOR("G"), G_SHARP_MAJOR("G#"), G_FLAT_MAJOR("Gb"),
+	G_MINOR("Gm"), G_SHARP_MINOR("G#m"), G_FLAT_MINOR("Gbm"),
 	// A
-	A_MAJOR, A_SHARP_MAJOR, A_FLAT_MAJOR,
-	A_MINOR, A_SHARP_MINOR, A_FLAT_MINOR,
+	A_MAJOR("A"), A_SHARP_MAJOR("A#"), A_FLAT_MAJOR("Ab"),
+	A_MINOR("Am"), A_SHARP_MINOR("A#m"), A_FLAT_MINOR("Abm"),
 	// B
-	B_MAJOR, B_SHARP_MAJOR, B_FLAT_MAJOR,
-	B_MINOR, B_SHARP_MINOR, B_FLAT_MINOR
+	B_MAJOR("B"), B_SHARP_MAJOR("B#"), B_FLAT_MAJOR("Bb"),
+	B_MINOR("Bm"), B_SHARP_MINOR("B#m"), B_FLAT_MINOR("Bbm");
+
+	private final String analysisKey;
 }
 

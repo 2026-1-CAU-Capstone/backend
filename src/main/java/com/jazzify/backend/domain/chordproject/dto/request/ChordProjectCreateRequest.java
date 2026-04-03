@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.chordproject.dto.request;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.shared.domain.MusicKey;
 
@@ -15,7 +16,15 @@ public record ChordProjectCreateRequest(
 	String title,
 
 	@NotNull(message = "키는 필수입니다.")
-	MusicKey key
+	MusicKey key,
+
+	@Nullable String timeSignature
 ) {
+
+	public ChordProjectCreateRequest {
+		if (timeSignature == null || timeSignature.isBlank()) {
+			timeSignature = "4/4";
+		}
+	}
 }
 
