@@ -4,11 +4,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
 public record LickResponse(
 	UUID publicId,
 	String title,
+	@Nullable String composer,
 	String contents,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt

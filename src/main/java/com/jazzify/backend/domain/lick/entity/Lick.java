@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.lick.entity;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.shared.persistence.BaseEntity;
 
@@ -26,12 +27,16 @@ public class Lick extends BaseEntity {
 	@Column(nullable = false)
 	private String title;
 
+	@Column
+	private @Nullable String composer;
+
 	@Lob
 	@Column(nullable = false, columnDefinition = "TEXT")
 	private String contents;
 
-	public void update(String title, String contents) {
+	public void update(String title, @Nullable String composer, String contents) {
 		this.title = title;
+		this.composer = composer;
 		this.contents = contents;
 	}
 }

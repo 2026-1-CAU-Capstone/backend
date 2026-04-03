@@ -27,6 +27,7 @@ public interface LickControllerSpec {
 			새로운 릭을 생성합니다.
 			
 			- `title`: 릭 제목 (최대 255자, 필수)
+			- `composer`: 작곡자 (최대 255자, 선택)
 			- `contents`: 릭 내용 (JSON 문자열, 필수)
 			"""
 	)
@@ -56,7 +57,9 @@ public interface LickControllerSpec {
 	@Operation(
 		summary = "릭 수정",
 		description = """
-			릭의 제목(`title`)과 내용(`contents`)을 수정합니다.
+			릭의 제목(`title`), 작곡자(`composer`), 내용(`contents`)을 수정합니다.
+			
+			- `composer`는 생략하거나 `null`로 전달하면 작곡자 정보가 제거됩니다.
 			"""
 	)
 	ApiResponse<LickResponse> update(

@@ -28,7 +28,7 @@ public class LickService {
 
 	@Transactional
 	public LickResponse create(LickCreateRequest request) {
-		Lick lick = lickWriter.create(request.title(), request.contents());
+		Lick lick = lickWriter.create(request.title(), request.composer(), request.contents());
 		return LickMapper.toResponse(lick);
 	}
 
@@ -47,7 +47,7 @@ public class LickService {
 	@Transactional
 	public LickResponse update(UUID publicId, LickUpdateRequest request) {
 		Lick lick = lickReader.getByPublicId(publicId);
-		lick.update(request.title(), request.contents());
+		lick.update(request.title(), request.composer(), request.contents());
 		return LickMapper.toResponse(lick);
 	}
 

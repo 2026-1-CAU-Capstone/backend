@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +18,10 @@ public class LickWriter {
 
 	private final LickRepository lickRepository;
 
-	public Lick create(String title, String contents) {
+	public Lick create(String title, @Nullable String composer, String contents) {
 		Lick lick = Lick.builder()
 			.title(title)
+			.composer(composer)
 			.contents(contents)
 			.build();
 		return lickRepository.save(lick);

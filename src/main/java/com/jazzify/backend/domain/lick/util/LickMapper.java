@@ -18,6 +18,7 @@ public final class LickMapper {
 		return new LickResponse(
 			Objects.requireNonNull(lick.getPublicId()),
 			lick.getTitle(),
+			lick.getComposer(),
 			lick.getContents(),
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt())
