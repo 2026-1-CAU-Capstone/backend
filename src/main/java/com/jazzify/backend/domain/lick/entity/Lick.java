@@ -1,0 +1,38 @@
+package com.jazzify.backend.domain.lick.entity;
+
+import org.jspecify.annotations.NullMarked;
+
+import com.jazzify.backend.shared.persistence.BaseEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "tb_lick")
+@Getter
+@NullMarked
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class Lick extends BaseEntity {
+
+	@Column(nullable = false)
+	private String title;
+
+	@Lob
+	@Column(nullable = false, columnDefinition = "TEXT")
+	private String contents;
+
+	public void update(String title, String contents) {
+		this.title = title;
+		this.contents = contents;
+	}
+}
+
