@@ -1,5 +1,7 @@
 package com.jazzify.backend.domain.lick.entity;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -8,12 +10,15 @@ import org.jspecify.annotations.Nullable;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 import com.jazzify.backend.shared.persistence.converter.UuidBinaryConverter;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Lob;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -88,10 +93,11 @@ public class Lick extends BaseEntity {
 	private @Nullable String targetChord;
 
 	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
-	// Full VexFlow-renderable JSON stored as TEXT
-	@Lob
-	@Column(nullable = false, columnDefinition = "TEXT")
-	private String sheetData;
+	// 마디(LickMeasure) → 음표(LickNote) 계층으로 정규화하여 저장한다.
+	@Builder.Default
+	@OneToMany(mappedBy = "lick", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OrderBy("measureIndex ASC")
+	private List<LickMeasure> measures = new ArrayList<>();
 
 	// ─── 5. SIMILARITY FEATURES ────────────────────────────────────────
 	@Column
@@ -136,6 +142,13 @@ public class Lick extends BaseEntity {
 	private @Nullable Integer endPitch;
 
 	// ─── Update ────────────────────────────────────────────────────────
+
+	/**
+	 * 메타데이터 및 유사도 특징값을 일괄 갱신한다.
+	 * <p>
+	 * 악보 데이터(마디/음표)는 {@code measures} 컬렉션을 통해
+	 * 서비스 레이어에서 orphanRemoval + cascade로 교체한다.
+	 */
 	public void update(
 		// 2. Performance
 		@Nullable String performer,
@@ -152,8 +165,6 @@ public class Lick extends BaseEntity {
 		@Nullable String chordsPerNote,
 		@Nullable HarmonicContext harmonicContext,
 		@Nullable String targetChord,
-		// 4. Sheet Data
-		String sheetData,
 		// 5. Similarity Features
 		@Nullable Integer nEvents,
 		@Nullable String pitches,
@@ -181,7 +192,6 @@ public class Lick extends BaseEntity {
 		this.chordsPerNote = chordsPerNote;
 		this.harmonicContext = harmonicContext;
 		this.targetChord = targetChord;
-		this.sheetData = sheetData;
 		this.nEvents = nEvents;
 		this.pitches = pitches;
 		this.intervals = intervals;
@@ -194,5 +204,17 @@ public class Lick extends BaseEntity {
 		this.pitchMean = pitchMean;
 		this.startPitch = startPitch;
 		this.endPitch = endPitch;
+	}
+
+	/**
+	 * 악보 마디 전체를 교체한다.
+	 * <p>
+	 * 기존 마디를 모두 제거(orphanRemoval)한 뒤 새 마디 목록을 추가한다.
+	 *
+	 * @param newMeasures 새로 저장할 마디 목록 (measureIndex가 0부터 순서대로 채워져 있어야 함)
+	 */
+	public void replaceMeasures(List<LickMeasure> newMeasures) {
+		this.measures.clear();
+		this.measures.addAll(newMeasures);
 	}
 }
