@@ -5,8 +5,6 @@ import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
@@ -14,8 +12,10 @@ import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.shared.web.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 
 @NullMarked
 @Tag(name = "Lick", description = "릭(Lick) CRUD API — 재즈 프레이즈(릭) 저장·조회·수정·삭제")
@@ -170,10 +170,81 @@ public interface LickControllerSpec {
 			
 			> **타이 처리**: 타이로 묶인 음은 첫 번째 음만 피처 계산에 포함됩니다.
 			> **쉼표 처리**: `nEvents`, `pitches`, `intervals` 계산 시 쉼표는 제외됩니다.
-			"""
+			""",
+		requestBody = @RequestBody(
+			content = @Content(
+				mediaType = "application/json",
+				examples = @ExampleObject(
+					name = "Charlie Parker — ii-V-I Bebop Lick (알토 색소폰, 비밥) — 특수 기능 전체 포함",
+					summary = "임시표·점음표·셋잇단·beamBreak·쉼표·타이·글리산도·화음 전 기능 포함 예시",
+					value = """
+						{
+						  "source": "user",
+						  "userId": null,
+						  "performer": "Charlie Parker",
+						  "title": "Ko-Ko — ii-V-I Bebop Lick",
+						  "album": null,
+						  "instrument": "as",
+						  "style": "BEBOP",
+						  "tempo": 200,
+						  "key": "C-maj",
+						  "rhythmFeel": "SWING",
+						  "timeSignature": "4/4",
+						  "chords": ["D-7", "G7", "CMaj7"],
+						  "chordsPerNote": null,
+						  "harmonicContext": "ii-V-I",
+						  "targetChord": "CMaj7",
+						  "sheetData": {
+						    "title": "Ko-Ko — ii-V-I Bebop Lick",
+						    "composer": "Charlie Parker",
+						    "key": "C",
+						    "timeSignature": "4/4",
+						    "tempo": 200,
+						    "measures": [
+						      {
+						        "chord": "D-7",
+						        "notes": [
+						          { "keys": ["d/5"], "duration": "8" },
+						          { "keys": ["f/5"], "duration": "8" },
+						          { "keys": ["a/5"], "duration": "8" },
+						          { "keys": ["e/5"], "duration": "8", "accidentals": {"0": "b"} },
+						          { "keys": ["d/5"], "duration": "q", "dotted": true },
+						          { "keys": ["c/5"], "duration": "8" }
+						        ]
+						      },
+						      {
+						        "chord": "G7",
+						        "notes": [
+						          { "keys": ["b/4"], "duration": "8", "tuplet": 3 },
+						          { "keys": ["d/5"], "duration": "8", "tuplet": 3 },
+						          { "keys": ["f/5"], "duration": "8", "tuplet": 3, "beamBreak": true },
+						          { "keys": ["g/5"], "duration": "8", "tuplet": 3 },
+						          { "keys": ["b/4"], "duration": "8r", "tuplet": 3 },
+						          { "keys": ["a/5"], "duration": "8", "tuplet": 3, "beamBreak": true },
+						          { "keys": ["g/5"], "duration": "q" },
+						          { "keys": ["f/5"], "duration": "q", "tie": true }
+						        ]
+						      },
+						      {
+						        "chord": "CMaj7",
+						        "notes": [
+						          { "keys": ["f/5"], "duration": "8" },
+						          { "keys": ["b/4"], "duration": "8r" },
+						          { "keys": ["e/5"], "duration": "8", "gliss": true },
+						          { "keys": ["g/5"], "duration": "8" },
+						          { "keys": ["c/5", "e/5", "g/5"], "duration": "h" }
+						        ]
+						      }
+						    ]
+						  },
+						  "features": null
+						}
+						"""
+				)
+			)
+		)
 	)
-	ApiResponse<LickResponse> create(
-		@Valid @RequestBody LickCreateRequest request);
+	ApiResponse<LickResponse> create(LickCreateRequest request);
 
 	@Operation(
 		summary = "릭 목록 조회 (페이징)",
@@ -214,8 +285,7 @@ public interface LickControllerSpec {
 			- `404 LICK_001`: 해당 `publicId`의 릭이 존재하지 않을 경우 반환됩니다.
 			"""
 	)
-	ApiResponse<LickResponse> getByPublicId(
-		@PathVariable UUID publicId);
+	ApiResponse<LickResponse> getByPublicId(UUID publicId);
 
 	@Operation(
 		summary = "릭 수정",
@@ -241,9 +311,7 @@ public interface LickControllerSpec {
 			- `404 LICK_001`: 해당 `publicId`의 릭이 존재하지 않을 경우 반환됩니다.
 			"""
 	)
-	ApiResponse<LickResponse> update(
-		@PathVariable UUID publicId,
-		@Valid @RequestBody LickUpdateRequest request);
+	ApiResponse<LickResponse> update(UUID publicId, LickUpdateRequest request);
 
 	@Operation(
 		summary = "릭 삭제",
@@ -259,6 +327,5 @@ public interface LickControllerSpec {
 			- `404 LICK_001`: 해당 `publicId`의 릭이 존재하지 않을 경우 반환됩니다.
 			"""
 	)
-	ApiResponse<Void> delete(
-		@PathVariable UUID publicId);
+	ApiResponse<Void> delete(UUID publicId);
 }

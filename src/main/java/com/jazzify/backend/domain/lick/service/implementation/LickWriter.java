@@ -1,5 +1,7 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
+import java.util.List;
+
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -7,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.entity.Lick;
+import com.jazzify.backend.domain.lick.entity.LickMeasure;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
 import com.jazzify.backend.domain.lick.model.LickHarmonicData;
 import com.jazzify.backend.domain.lick.repository.LickRepository;
@@ -42,8 +45,6 @@ public class LickWriter {
 			.chordsPerNote(LickMapper.serializeList(harmonic.chordsPerNote()))
 			.harmonicContext(harmonic.harmonicContext())
 			.targetChord(harmonic.targetChord())
-			// 4. Sheet Data
-			.sheetData(LickMapper.serializeSheetData(request.sheetData()))
 			// 5. Similarity Features
 			.nEvents(features.nEvents())
 			.pitches(LickMapper.serializeList(features.pitches()))
@@ -58,7 +59,14 @@ public class LickWriter {
 			.startPitch(features.startPitch())
 			.endPitch(features.endPitch())
 			.build();
-		return lickRepository.save(lick);
+
+		Lick saved = lickRepository.save(lick);
+
+		// 4. Sheet Data — 마디/음표를 개별 엔티티로 저장
+		List<LickMeasure> measures = LickMapper.toMeasureEntities(saved, request.sheetData());
+		saved.replaceMeasures(measures);
+
+		return saved;
 	}
 
 	public void update(Lick lick, LickUpdateRequest request, LickHarmonicData harmonic, LickFeatures features) {
@@ -78,8 +86,6 @@ public class LickWriter {
 			LickMapper.serializeList(harmonic.chordsPerNote()),
 			harmonic.harmonicContext(),
 			harmonic.targetChord(),
-			// 4. Sheet Data
-			LickMapper.serializeSheetData(request.sheetData()),
 			// 5. Similarity Features
 			features.nEvents(),
 			LickMapper.serializeList(features.pitches()),
@@ -94,6 +100,10 @@ public class LickWriter {
 			features.startPitch(),
 			features.endPitch()
 		);
+
+		// 4. Sheet Data — 기존 마디/음표를 새 내용으로 교체 (orphanRemoval로 자동 삭제)
+		List<LickMeasure> measures = LickMapper.toMeasureEntities(lick, request.sheetData());
+		lick.replaceMeasures(measures);
 	}
 
 	public void delete(Lick lick) {
