@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.jazzify.backend.domain.lick.entity.Lick;
@@ -12,5 +13,7 @@ import com.jazzify.backend.domain.lick.entity.Lick;
 public interface LickRepository extends JpaRepository<Lick, Long> {
 
 	Optional<Lick> findByPublicId(UUID publicId);
+
+	boolean existsByTitleAndPerformer(String title, @Nullable String performer);
 }
 

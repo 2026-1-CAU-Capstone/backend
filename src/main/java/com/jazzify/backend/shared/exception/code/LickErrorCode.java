@@ -11,7 +11,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum LickErrorCode implements BaseErrorCode {
 
-	LICK_NOT_FOUND(HttpStatus.NOT_FOUND, "LICK_001", "릭을 찾을 수 없습니다.");
+	LICK_NOT_FOUND(HttpStatus.NOT_FOUND, "LICK_001", "릭을 찾을 수 없습니다."),
+	LICK_DUPLICATE(HttpStatus.CONFLICT, "LICK_002", "동일한 제목과 연주자의 릭이 이미 존재합니다.");
 
 	private final HttpStatus httpStatus;
 	private final String code;
