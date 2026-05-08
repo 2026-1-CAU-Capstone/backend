@@ -3,6 +3,7 @@ package com.jazzify.backend.domain.lick.service.implementation;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,15 @@ public class LickReader {
 
 	public Page<Lick> getAll(Pageable pageable) {
 		return lickRepository.findAll(pageable);
+	}
+
+	public void validateNoDuplicate(String title, @Nullable String performer) {
+		if (performer == null) {
+			return;
+		}
+		if (lickRepository.existsByTitleAndPerformer(title, performer)) {
+			throw LickErrorCode.LICK_DUPLICATE.toException();
+		}
 	}
 }
 
