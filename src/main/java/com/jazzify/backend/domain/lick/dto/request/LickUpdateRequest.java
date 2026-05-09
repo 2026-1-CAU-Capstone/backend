@@ -23,7 +23,7 @@ public record LickUpdateRequest(
 	@Nullable @Size(max = 255) String performer,
 	@NotBlank @Size(max = 255) String title,
 	@Nullable @Size(max = 255) String album,
-	@NotNull Instrument instrument,
+	@Nullable Instrument instrument,
 	@Nullable JazzStyle style,
 	@Nullable @Min(1) @Max(500) Integer tempo,
 	@Nullable @Size(max = 20) String key,

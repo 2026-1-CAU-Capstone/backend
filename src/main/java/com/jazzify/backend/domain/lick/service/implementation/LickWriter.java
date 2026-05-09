@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
+import com.jazzify.backend.domain.lick.entity.Instrument;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.entity.LickMeasure;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
@@ -34,7 +35,7 @@ public class LickWriter {
 			.performer(request.performer())
 			.title(request.title())
 			.album(request.album())
-			.instrument(request.instrument())
+			.instrument(request.instrument() != null ? request.instrument() : Instrument.UNKNOWN)
 			.style(request.style())
 			.tempo(request.tempo())
 			.musicalKey(request.key())
@@ -75,7 +76,7 @@ public class LickWriter {
 			request.performer(),
 			request.title(),
 			request.album(),
-			request.instrument(),
+			request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,
 			request.style(),
 			request.tempo(),
 			request.key(),

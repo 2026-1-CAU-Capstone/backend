@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.lick.entity;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -25,7 +26,8 @@ public enum RhythmFeel {
 	}
 
 	@JsonCreator
-	public static RhythmFeel from(String value) {
+	public static @Nullable RhythmFeel from(@Nullable String value) {
+		if (value == null) return null;
 		for (RhythmFeel r : values()) {
 			if (r.value.equalsIgnoreCase(value)) {
 				return r;
