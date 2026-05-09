@@ -27,7 +27,7 @@ public enum RhythmFeel {
 
 	@JsonCreator
 	public static @Nullable RhythmFeel from(@Nullable String value) {
-		if (value == null) return null;
+		if (value == null || value.isBlank()) return null;
 		for (RhythmFeel r : values()) {
 			if (r.value.equalsIgnoreCase(value)) {
 				return r;

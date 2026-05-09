@@ -29,7 +29,7 @@ public enum JazzStyle {
 
 	@JsonCreator
 	public static @Nullable JazzStyle from(@Nullable String value) {
-		if (value == null) return null;
+		if (value == null || value.isBlank()) return null;
 		for (JazzStyle s : values()) {
 			if (s.value.equalsIgnoreCase(value)) {
 				return s;

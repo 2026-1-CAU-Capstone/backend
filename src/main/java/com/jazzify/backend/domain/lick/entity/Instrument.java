@@ -31,7 +31,7 @@ public enum Instrument {
 
 	@JsonCreator
 	public static Instrument from(String value) {
-		if (value == null) return UNKNOWN;
+		if (value == null || value.isBlank()) return UNKNOWN;
 		for (Instrument i : values()) {
 			if (i.value.equalsIgnoreCase(value)) {
 				return i;
