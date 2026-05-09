@@ -29,7 +29,7 @@ public enum HarmonicContext {
 
 	@JsonCreator
 	public static @Nullable HarmonicContext from(@Nullable String value) {
-		if (value == null) return null;
+		if (value == null || value.isBlank()) return null;
 		for (HarmonicContext h : values()) {
 			if (h.value.equalsIgnoreCase(value)) {
 				return h;
