@@ -33,7 +33,7 @@ public class LickReader {
 	}
 
 	public void validateNoDuplicate(String title, @Nullable String performer) {
-		if (performer == null) {
+		if (performer == null || performer.equalsIgnoreCase("unknown")) {
 			return;
 		}
 		if (lickRepository.existsByTitleAndPerformer(title, performer)) {
