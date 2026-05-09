@@ -15,7 +15,8 @@ public enum Instrument {
 	G("g"),
 	B("b"),
 	VOC("voc"),
-	CL("cl");
+	CL("cl"),
+	UNKNOWN("unknown");
 
 	private final String value;
 
@@ -30,12 +31,13 @@ public enum Instrument {
 
 	@JsonCreator
 	public static Instrument from(String value) {
+		if (value == null) return UNKNOWN;
 		for (Instrument i : values()) {
 			if (i.value.equalsIgnoreCase(value)) {
 				return i;
 			}
 		}
-		throw new IllegalArgumentException("Unknown Instrument: " + value);
+		return UNKNOWN;
 	}
 }
 

@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.lick.entity;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -27,7 +28,8 @@ public enum JazzStyle {
 	}
 
 	@JsonCreator
-	public static JazzStyle from(String value) {
+	public static @Nullable JazzStyle from(@Nullable String value) {
+		if (value == null) return null;
 		for (JazzStyle s : values()) {
 			if (s.value.equalsIgnoreCase(value)) {
 				return s;
