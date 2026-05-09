@@ -10,7 +10,8 @@ public enum LickSource {
 
 	USER("user"),
 	WEIMAR("weimar"),
-	CURATED("curated");
+	CURATED("curated"),
+	UNKNOWN("unknown");
 
 	private final String value;
 
@@ -24,13 +25,13 @@ public enum LickSource {
 	}
 
 	@JsonCreator
-	public static LickSource from(String value) {
+	public static LickSource from(@org.jspecify.annotations.Nullable String value) {
+		if (value == null || value.isBlank()) return UNKNOWN;
 		for (LickSource s : values()) {
 			if (s.value.equalsIgnoreCase(value)) {
 				return s;
 			}
 		}
-		throw new IllegalArgumentException("Unknown LickSource: " + value);
+		return UNKNOWN;
 	}
 }
-
