@@ -44,6 +44,10 @@ public class Lick extends BaseEntity {
 	@Column(columnDefinition = "BINARY(16)")
 	private @Nullable UUID userId;
 
+	/** 출처 영상/링크 URL (YouTube, Spotify, SoundCloud 등). 선택 입력. */
+	@Column(name = "source_url", length = 512)
+	private @Nullable String sourceUrl;
+
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Column(length = 255)
 	private @Nullable String performer;
@@ -150,6 +154,8 @@ public class Lick extends BaseEntity {
 	 * 서비스 레이어에서 orphanRemoval + cascade로 교체한다.
 	 */
 	public void update(
+		// 1. Identity (partial)
+		@Nullable String sourceUrl,
 		// 2. Performance
 		@Nullable String performer,
 		String title,
@@ -179,6 +185,7 @@ public class Lick extends BaseEntity {
 		@Nullable Integer startPitch,
 		@Nullable Integer endPitch
 	) {
+		this.sourceUrl = sourceUrl;
 		this.performer = performer;
 		this.title = title;
 		this.album = album;

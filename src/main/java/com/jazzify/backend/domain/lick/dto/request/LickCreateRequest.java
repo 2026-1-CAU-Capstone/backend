@@ -24,6 +24,7 @@ public record LickCreateRequest(
 	// ─── 1. IDENTITY ───────────────────────────────────────────────────
 	@NotNull LickSource source,
 	@Nullable UUID userId,
+	@Nullable @Size(max = 512) String sourceUrl,
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable @Size(max = 255) String performer,

@@ -41,6 +41,7 @@ public final class LickMapper {
 			Objects.requireNonNull(lick.getPublicId()),
 			lick.getSource(),
 			lick.getUserId(),
+			lick.getSourceUrl(),
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt()),
 			lick.getPerformer(),

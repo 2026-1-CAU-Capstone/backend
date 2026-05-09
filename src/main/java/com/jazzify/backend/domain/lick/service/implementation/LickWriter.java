@@ -31,6 +31,7 @@ public class LickWriter {
 			// 1. Identity
 			.source(request.source())
 			.userId(request.userId())
+			.sourceUrl(request.sourceUrl())
 			// 2. Performance
 			.performer(request.performer())
 			.title(request.title())
@@ -72,6 +73,8 @@ public class LickWriter {
 
 	public void update(Lick lick, LickUpdateRequest request, LickHarmonicData harmonic, LickFeatures features) {
 		lick.update(
+			// 1. Identity (partial)
+			request.sourceUrl(),
 			// 2. Performance
 			request.performer(),
 			request.title(),

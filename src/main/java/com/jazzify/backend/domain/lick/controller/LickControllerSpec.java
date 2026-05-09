@@ -39,6 +39,7 @@ public interface LickControllerSpec {
 			|------|------|------|------|
 			| `source` | string | ✅ | 출처: `user` (사용자 입력) · `weimar` (Weimar Jazz Database) · `curated` (큐레이션) |
 			| `userId` | UUID | - | 릭 소유자 ID. 생략하거나 `null`이면 공개/내장 릭으로 처리됩니다. |
+			| `sourceUrl` | string | - | 출처 영상·링크 URL (YouTube, Spotify, SoundCloud 등). 최대 512자. |
 			
 			---
 			
@@ -181,6 +182,7 @@ public interface LickControllerSpec {
 						{
 						  "source": "user",
 						  "userId": null,
+						  "sourceUrl": "https://www.youtube.com/watch?v=example",
 						  "performer": "Charlie Parker",
 						  "title": "Ko-Ko — ii-V-I Bebop Lick",
 						  "album": null,
@@ -275,7 +277,7 @@ public interface LickControllerSpec {
 			### 응답 구조
 			
 			응답 바디는 생성 시 저장된 5개 섹션 데이터를 모두 포함합니다.
-			- **섹션 1 (identity)**: `publicId`, `source`, `userId`, `createdAt`, `updatedAt`
+			- **섹션 1 (identity)**: `publicId`, `source`, `userId`, `sourceUrl`, `createdAt`, `updatedAt`
 			- **섹션 2 (performance)**: `performer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
 			- **섹션 3 (harmonic)**: `chords`, `chordsPerNote`, `harmonicContext`, `targetChord`
 			- **섹션 4 (sheetData)**: VexFlow 렌더링용 중첩 객체 (`measures[].notes[]` 포함)
@@ -297,6 +299,7 @@ public interface LickControllerSpec {
 			- `publicId`, `createdAt`: BaseEntity 관리 필드로 변경 불가.
 			
 			### 수정 가능 필드
+			- **섹션 1 (identity partial)**: `sourceUrl` — 출처 영상·링크 URL
 			- **섹션 2 (performance)**: `performer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
 			- **섹션 3 (harmonic)**: `chords`, `chordsPerNote`, `harmonicContext`, `targetChord`
 			  — 생략 시 변경된 `sheetData` 기반으로 **자동 재계산**됩니다.
