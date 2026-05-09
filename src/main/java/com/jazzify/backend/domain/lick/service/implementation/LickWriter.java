@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.entity.Instrument;
+import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.entity.LickMeasure;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
@@ -29,7 +30,7 @@ public class LickWriter {
 	public Lick create(LickCreateRequest request, LickHarmonicData harmonic, LickFeatures features) {
 		Lick lick = Lick.builder()
 			// 1. Identity
-			.source(request.source())
+			.source(request.source() != null ? request.source() : LickSource.UNKNOWN)
 			.userId(request.userId())
 			.sourceUrl(request.sourceUrl())
 			// 2. Performance

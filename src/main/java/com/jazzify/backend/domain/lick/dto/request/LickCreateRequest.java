@@ -22,7 +22,7 @@ import jakarta.validation.constraints.Size;
 @NullMarked
 public record LickCreateRequest(
 	// ─── 1. IDENTITY ───────────────────────────────────────────────────
-	@NotNull LickSource source,
+	@Nullable LickSource source,
 	@Nullable UUID userId,
 	@Nullable @Size(max = 512) String sourceUrl,
 
