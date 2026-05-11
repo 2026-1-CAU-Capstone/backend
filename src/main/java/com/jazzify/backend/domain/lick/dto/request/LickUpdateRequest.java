@@ -19,8 +19,6 @@ import jakarta.validation.constraints.Size;
 
 @NullMarked
 public record LickUpdateRequest(
-	// ─── 1. IDENTITY (partial) ──────────────────────────────────────────
-	@Nullable @Size(max = 512) String sourceUrl,
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable @Size(max = 255) String performer,

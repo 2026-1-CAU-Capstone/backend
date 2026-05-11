@@ -1,5 +1,6 @@
 package com.jazzify.backend.domain.lick.util;
 
+import com.jazzify.backend.domain.lick.entity.LickVideo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import com.jazzify.backend.domain.lick.dto.request.MeasureRequest;
 import com.jazzify.backend.domain.lick.dto.request.NoteInfoRequest;
 import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
+import com.jazzify.backend.domain.lick.dto.response.LickVideoResponse;
 import com.jazzify.backend.domain.lick.dto.response.MeasureResponse;
 import com.jazzify.backend.domain.lick.dto.response.NoteInfoResponse;
 import com.jazzify.backend.domain.lick.dto.response.SheetDataResponse;
@@ -37,11 +39,15 @@ public final class LickMapper {
 	// ─── Entity → Response ─────────────────────────────────────────────
 
 	public static LickResponse toResponse(Lick lick) {
+		LickVideo v = lick.getVideo();
+		LickVideoResponse videoResponse = v != null
+			? new LickVideoResponse(v.getVideoId(), v.getStartSec(), v.getEndSec(), v.getUrl())
+			: null;
+
 		return new LickResponse(
 			Objects.requireNonNull(lick.getPublicId()),
 			lick.getSource(),
 			lick.getUserId(),
-			lick.getSourceUrl(),
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt()),
 			lick.getPerformer(),
@@ -69,7 +75,8 @@ public final class LickMapper {
 			lick.getPitchRange(),
 			lick.getPitchMean(),
 			lick.getStartPitch(),
-			lick.getEndPitch()
+			lick.getEndPitch(),
+			videoResponse
 		);
 	}
 
