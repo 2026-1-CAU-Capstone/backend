@@ -16,8 +16,10 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -44,9 +46,6 @@ public class Lick extends BaseEntity {
 	@Column(columnDefinition = "BINARY(16)")
 	private @Nullable UUID userId;
 
-	/** 출처 영상/링크 URL (YouTube, Spotify, SoundCloud 등). 선택 입력. */
-	@Column(name = "source_url", length = 512)
-	private @Nullable String sourceUrl;
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Column(length = 255)
@@ -103,6 +102,11 @@ public class Lick extends BaseEntity {
 	@OrderBy("measureIndex ASC")
 	private List<LickMeasure> measures = new ArrayList<>();
 
+	// ─── 6. VIDEO ──────────────────────────────────────────────────────
+	/** 이 릭에 연결된 영상 정보 (없을 수 있음). */
+	@OneToOne(mappedBy = "lick", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	private @Nullable LickVideo video;
+
 	// ─── 5. SIMILARITY FEATURES ────────────────────────────────────────
 	@Column
 	private @Nullable Integer nEvents;
@@ -154,8 +158,6 @@ public class Lick extends BaseEntity {
 	 * 서비스 레이어에서 orphanRemoval + cascade로 교체한다.
 	 */
 	public void update(
-		// 1. Identity (partial)
-		@Nullable String sourceUrl,
 		// 2. Performance
 		@Nullable String performer,
 		String title,
@@ -185,7 +187,6 @@ public class Lick extends BaseEntity {
 		@Nullable Integer startPitch,
 		@Nullable Integer endPitch
 	) {
-		this.sourceUrl = sourceUrl;
 		this.performer = performer;
 		this.title = title;
 		this.album = album;
@@ -223,5 +224,14 @@ public class Lick extends BaseEntity {
 	public void replaceMeasures(List<LickMeasure> newMeasures) {
 		this.measures.clear();
 		this.measures.addAll(newMeasures);
+	}
+
+	/**
+	 * 연결 영상 정보를 교체한다.
+	 *
+	 * @param newVideo 새로 연결할 영상 (null이면 기존 영상 삭제)
+	 */
+	public void replaceVideo(@Nullable LickVideo newVideo) {
+		this.video = newVideo;
 	}
 }

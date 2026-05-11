@@ -19,7 +19,6 @@ public record LickResponse(
 	UUID publicId,
 	LickSource source,
 	@Nullable UUID userId,
-	@Nullable String sourceUrl,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt,
 
@@ -43,7 +42,7 @@ public record LickResponse(
 	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
 	SheetDataResponse sheetData,
 
-	// ─── 5. SIMILARITY FEATURES ────────────────────────────────────────
+	// ─── 5. SIMILARITY FEATURES ──────────────────────────────────────── ────────────────────────────────────────
 	@Nullable Integer nEvents,
 	@Nullable List<Integer> pitches,
 	@Nullable List<Integer> intervals,
@@ -55,6 +54,9 @@ public record LickResponse(
 	@Nullable Integer pitchRange,
 	@Nullable Double pitchMean,
 	@Nullable Integer startPitch,
-	@Nullable Integer endPitch
+	@Nullable Integer endPitch,
+
+	// ─── 6. VIDEOS ─────────────────────────────────────────────────────
+	@Nullable LickVideoResponse video
 ) {
 }

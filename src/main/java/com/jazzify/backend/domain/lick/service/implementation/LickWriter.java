@@ -8,10 +8,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
+import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.domain.lick.entity.Instrument;
 import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.entity.LickMeasure;
+import com.jazzify.backend.domain.lick.entity.LickVideo;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
 import com.jazzify.backend.domain.lick.model.LickHarmonicData;
 import com.jazzify.backend.domain.lick.repository.LickRepository;
@@ -32,7 +34,6 @@ public class LickWriter {
 			// 1. Identity
 			.source(request.source() != null ? request.source() : LickSource.UNKNOWN)
 			.userId(request.userId())
-			.sourceUrl(request.sourceUrl())
 			// 2. Performance
 			.performer(request.performer())
 			.title(request.title())
@@ -74,8 +75,6 @@ public class LickWriter {
 
 	public void update(Lick lick, LickUpdateRequest request, LickHarmonicData harmonic, LickFeatures features) {
 		lick.update(
-			// 1. Identity (partial)
-			request.sourceUrl(),
 			// 2. Performance
 			request.performer(),
 			request.title(),
@@ -113,5 +112,26 @@ public class LickWriter {
 
 	public void delete(Lick lick) {
 		lickRepository.delete(lick);
+	}
+
+	/**
+	 * 릭에 영상을 연결하거나 기존 영상을 갱신한다 (upsert).
+	 */
+	public void upsertVideo(Lick lick, LickVideoRequest request) {
+		LickVideo video = LickVideo.builder()
+			.lick(lick)
+			.videoId(request.videoId())
+			.startSec(request.startSec())
+			.endSec(request.endSec())
+			.url(request.url())
+			.build();
+		lick.replaceVideo(video);
+	}
+
+	/**
+	 * 릭에 연결된 영상을 삭제한다.
+	 */
+	public void deleteVideo(Lick lick) {
+		lick.replaceVideo(null);
 	}
 }

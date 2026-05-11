@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
+import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
@@ -80,6 +81,19 @@ public class LickService {
 	public void delete(UUID publicId) {
 		Lick lick = lickReader.getByPublicId(publicId);
 		lickWriter.delete(lick);
+	}
+
+	@Transactional
+	public LickResponse updateVideo(UUID publicId, LickVideoRequest request) {
+		Lick lick = lickReader.getByPublicId(publicId);
+		lickWriter.upsertVideo(lick, request);
+		return LickMapper.toResponse(lick);
+	}
+
+	@Transactional
+	public void deleteVideo(UUID publicId) {
+		Lick lick = lickReader.getByPublicId(publicId);
+		lickWriter.deleteVideo(lick);
 	}
 }
 

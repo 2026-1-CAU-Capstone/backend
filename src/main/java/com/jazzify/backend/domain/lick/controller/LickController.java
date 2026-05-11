@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
+import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.service.LickService;
 import com.jazzify.backend.shared.web.ApiResponse;
@@ -71,6 +72,23 @@ public class LickController implements LickControllerSpec {
 	public ApiResponse<Void> delete(
 		@PathVariable UUID publicId) {
 		lickService.delete(publicId);
+		return ApiResponse.ok();
+	}
+
+	@Override
+	@PutMapping("/{publicId}/video")
+	public ApiResponse<LickResponse> updateVideo(
+		@PathVariable UUID publicId,
+		@Valid @RequestBody LickVideoRequest request) {
+		return ApiResponse.ok(lickService.updateVideo(publicId, request));
+	}
+
+	@Override
+	@DeleteMapping("/{publicId}/video")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public ApiResponse<Void> deleteVideo(
+		@PathVariable UUID publicId) {
+		lickService.deleteVideo(publicId);
 		return ApiResponse.ok();
 	}
 }

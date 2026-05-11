@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
+import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.shared.web.ApiResponse;
 
@@ -331,4 +332,56 @@ public interface LickControllerSpec {
 			"""
 	)
 	ApiResponse<Void> delete(UUID publicId);
+
+	@Operation(
+		summary = "릭 영상 연결/갱신",
+		description = """
+			릭에 영상을 연결하거나 기존 영상을 갱신합니다. **(PUT — upsert 방식)**
+			
+			이미 영상이 연결되어 있으면 새 영상 정보로 교체되고, 없으면 새로 생성됩니다.
+			
+			### 요청 필드
+			
+			| 필드 | 타입 | 필수 | 설명 |
+			|------|------|------|------|
+			| `videoId` | string | ✅ | 영상 플랫폼 내부 ID (예: YouTube `dQw4w9WgXcQ`). 최대 255자. |
+			| `startSec` | double | - | 재생 시작 시각 (초). null이면 처음부터 재생. |
+			| `endSec` | double | - | 재생 종료 시각 (초). null이면 끝까지 재생. |
+			| `url` | string | ✅ | 영상 전체 URL. 최대 512자. |
+			
+			### 에러
+			- `404 LICK_001`: 해당 `publicId`의 릭이 존재하지 않을 경우 반환됩니다.
+			""",
+		requestBody = @RequestBody(
+			content = @Content(
+				mediaType = "application/json",
+				examples = @ExampleObject(
+					name = "YouTube 영상 연결 예시",
+					value = """
+						{
+						  "videoId": "dQw4w9WgXcQ",
+						  "startSec": 32.5,
+						  "endSec": 45.0,
+						  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+						}
+						"""
+				)
+			)
+		)
+	)
+	ApiResponse<LickResponse> updateVideo(UUID publicId, LickVideoRequest request);
+
+	@Operation(
+		summary = "릭 영상 연결 해제",
+		description = """
+			릭에 연결된 영상 정보를 삭제합니다.
+			
+			### 응답
+			- 성공 시 HTTP `204 No Content`를 반환합니다.
+			
+			### 에러
+			- `404 LICK_001`: 해당 `publicId`의 릭이 존재하지 않을 경우 반환됩니다.
+			"""
+	)
+	ApiResponse<Void> deleteVideo(UUID publicId);
 }
