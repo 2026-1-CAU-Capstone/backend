@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.entity;
+package com.jazzify.backend.shared.domain;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
-import com.jazzify.backend.domain.lick.entity.Instrument;
+import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.entity.LickMeasure;

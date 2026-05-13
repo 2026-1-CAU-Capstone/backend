@@ -1,7 +1,6 @@
-package com.jazzify.backend.domain.lick.dto.request;
+package com.jazzify.backend.domain.solo.dto.request;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -9,7 +8,6 @@ import org.jspecify.annotations.Nullable;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
-import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.shared.domain.RhythmFeel;
 
 import jakarta.validation.Valid;
@@ -20,10 +18,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 @NullMarked
-public record LickCreateRequest(
-	// ─── 1. IDENTITY ───────────────────────────────────────────────────
-	@Nullable LickSource source,
-	@Nullable UUID userId,
+public record SoloUpdateRequest(
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable @Size(max = 255) String performer,
@@ -45,7 +40,7 @@ public record LickCreateRequest(
 	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
 	@NotNull @Valid SheetDataRequest sheetData,
 
-	// ─── 5. SIMILARITY FEATURES (선택 — 미입력 시 sheetData에서 자동 계산) ���
+	// ─── 5. SIMILARITY FEATURES (선택 — 미입력 시 sheetData에서 자동 계산) ──
 	@Nullable SimilarityFeaturesRequest features
 ) {
 }

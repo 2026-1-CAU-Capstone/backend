@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.dto.response;
+package com.jazzify.backend.domain.solo.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,14 +10,14 @@ import org.jspecify.annotations.Nullable;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
-import com.jazzify.backend.domain.lick.entity.LickSource;
+import com.jazzify.backend.domain.solo.entity.SoloSource;
 import com.jazzify.backend.shared.domain.RhythmFeel;
 
 @NullMarked
-public record LickResponse(
+public record SoloResponse(
 	// ─── 1. IDENTITY ───────────────────────────────────────────────────
 	UUID publicId,
-	LickSource source,
+	SoloSource source,
 	@Nullable UUID userId,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt,
@@ -57,6 +57,6 @@ public record LickResponse(
 	@Nullable Integer endPitch,
 
 	// ─── 6. VIDEOS ─────────────────────────────────────────────────────
-	@Nullable LickVideoResponse video
+	@Nullable SoloVideoResponse video
 ) {
 }

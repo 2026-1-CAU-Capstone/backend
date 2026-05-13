@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.entity;
+package com.jazzify.backend.shared.domain;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -7,16 +7,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 @NullMarked
-public enum RhythmFeel {
+public enum JazzStyle {
 
 	SWING("SWING"),
-	STRAIGHT("STRAIGHT"),
-	BOSSA("BOSSA"),
-	LATIN("LATIN");
+	BEBOP("BEBOP"),
+	HARDBOP("HARDBOP"),
+	COOL("COOL"),
+	MODAL("MODAL"),
+	FUSION("FUSION");
 
 	private final String value;
 
-	RhythmFeel(String value) {
+	JazzStyle(String value) {
 		this.value = value;
 	}
 
@@ -26,14 +28,14 @@ public enum RhythmFeel {
 	}
 
 	@JsonCreator
-	public static @Nullable RhythmFeel from(@Nullable String value) {
+	public static @Nullable JazzStyle from(@Nullable String value) {
 		if (value == null || value.isBlank()) return null;
-		for (RhythmFeel r : values()) {
-			if (r.value.equalsIgnoreCase(value)) {
-				return r;
+		for (JazzStyle s : values()) {
+			if (s.value.equalsIgnoreCase(value)) {
+				return s;
 			}
 		}
-		throw new IllegalArgumentException("Unknown RhythmFeel: " + value);
+		throw new IllegalArgumentException("Unknown JazzStyle: " + value);
 	}
 }
 

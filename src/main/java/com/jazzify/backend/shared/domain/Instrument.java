@@ -1,6 +1,7 @@
-package com.jazzify.backend.domain.lick.entity;
+package com.jazzify.backend.shared.domain;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -30,7 +31,7 @@ public enum Instrument {
 	}
 
 	@JsonCreator
-	public static Instrument from(String value) {
+	public static Instrument from(@Nullable String value) {
 		if (value == null || value.isBlank()) return UNKNOWN;
 		for (Instrument i : values()) {
 			if (i.value.equalsIgnoreCase(value)) {

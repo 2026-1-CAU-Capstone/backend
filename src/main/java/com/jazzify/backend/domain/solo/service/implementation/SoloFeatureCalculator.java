@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.service.implementation;
+package com.jazzify.backend.domain.solo.service.implementation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,13 +8,13 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-import com.jazzify.backend.domain.lick.dto.request.MeasureRequest;
-import com.jazzify.backend.domain.lick.dto.request.NoteInfoRequest;
-import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
-import com.jazzify.backend.domain.lick.dto.request.SimilarityFeaturesRequest;
+import com.jazzify.backend.domain.solo.dto.request.MeasureRequest;
+import com.jazzify.backend.domain.solo.dto.request.NoteInfoRequest;
+import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;
+import com.jazzify.backend.domain.solo.dto.request.SimilarityFeaturesRequest;
 import com.jazzify.backend.shared.domain.HarmonicContext;
-import com.jazzify.backend.domain.lick.model.LickFeatures;
-import com.jazzify.backend.domain.lick.model.LickHarmonicData;
+import com.jazzify.backend.domain.solo.model.SoloFeatures;
+import com.jazzify.backend.domain.solo.model.SoloHarmonicData;
 
 /**
  * 섹션 3(화성 맥락)과 섹션 5(유사도 피처)를 계산하는 컴포넌트.
@@ -22,7 +22,7 @@ import com.jazzify.backend.domain.lick.model.LickHarmonicData;
  */
 @NullMarked
 @Component
-public class LickFeatureCalculator {
+public class SoloFeatureCalculator {
 
 	private static final Map<Character, Integer> NOTE_OFFSET = Map.of(
 		'c', 0, 'd', 2, 'e', 4, 'f', 5, 'g', 7, 'a', 9, 'b', 11
@@ -30,7 +30,7 @@ public class LickFeatureCalculator {
 
 	// ─── 섹션 3: 화성 맥락 ─────────────────────────────────────────────
 
-	public LickHarmonicData computeHarmonicData(
+	public SoloHarmonicData computeHarmonicData(
 		SheetDataRequest sheetData,
 		@Nullable List<String> overrideChords,
 		@Nullable List<String> overrideChordsPerNote,
@@ -53,12 +53,12 @@ public class LickFeatureCalculator {
 			? overrideTargetChord
 			: (chords.isEmpty() ? null : chords.get(chords.size() - 1));
 
-		return new LickHarmonicData(chords, chordsPerNote, harmonicContext, targetChord);
+		return new SoloHarmonicData(chords, chordsPerNote, harmonicContext, targetChord);
 	}
 
 	// ─── 섹션 5: 유사도 피처 ───────────────────────────────────────────
 
-	public LickFeatures computeFeatures(
+	public SoloFeatures computeFeatures(
 		SheetDataRequest sheetData,
 		@Nullable SimilarityFeaturesRequest overrides
 	) {
@@ -101,7 +101,7 @@ public class LickFeatureCalculator {
 		int startPitch = pitches.get(0);
 		int endPitch = pitches.get(pitches.size() - 1);
 
-		return new LickFeatures(
+		return new SoloFeatures(
 			nEvents, pitches, intervals, parsons, fuzzyIntervals, durationClasses,
 			pitchMin, pitchMax, pitchRange, pitchMean, startPitch, endPitch
 		);
@@ -306,8 +306,8 @@ public class LickFeatureCalculator {
 
 	// ─── 헬퍼 ──────────────────────────────────────────────────────────
 
-	private LickFeatures fromOverrides(SimilarityFeaturesRequest o) {
-		return new LickFeatures(
+	private SoloFeatures fromOverrides(SimilarityFeaturesRequest o) {
+		return new SoloFeatures(
 			o.nEvents(), o.pitches(), o.intervals(), o.parsons(),
 			o.fuzzyIntervals(), o.durationClasses(),
 			o.pitchMin(), o.pitchMax(), o.pitchRange(), o.pitchMean(),
@@ -315,8 +315,8 @@ public class LickFeatureCalculator {
 		);
 	}
 
-	private LickFeatures emptyFeatures() {
-		return new LickFeatures(null, null, null, null, null, null,
+	private SoloFeatures emptyFeatures() {
+		return new SoloFeatures(null, null, null, null, null, null,
 			null, null, null, null, null, null);
 	}
 }
