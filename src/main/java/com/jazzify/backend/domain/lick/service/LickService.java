@@ -33,7 +33,6 @@ public class LickService {
 
 	@Transactional
 	public LickResponse create(LickCreateRequest request) {
-		lickReader.validateNoDuplicate(request.title(), request.performer());
 		LickHarmonicData harmonic = lickFeatureCalculator.computeHarmonicData(
 			request.sheetData(),
 			request.chords(),
