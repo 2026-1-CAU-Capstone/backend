@@ -5,10 +5,10 @@ import java.util.List;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import com.jazzify.backend.domain.lick.entity.HarmonicContext;
-import com.jazzify.backend.domain.lick.entity.Instrument;
-import com.jazzify.backend.domain.lick.entity.JazzStyle;
-import com.jazzify.backend.domain.lick.entity.RhythmFeel;
+import com.jazzify.backend.shared.domain.HarmonicContext;
+import com.jazzify.backend.shared.domain.Instrument;
+import com.jazzify.backend.shared.domain.JazzStyle;
+import com.jazzify.backend.shared.domain.RhythmFeel;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;

@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.entity;
+package com.jazzify.backend.domain.solo.entity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,18 +33,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "tb_lick")
+@Table(name = "tb_solo")
 @Getter
 @NullMarked
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Lick extends BaseEntity {
+public class Solo extends BaseEntity {
 
 	// ─── 1. IDENTITY ────────────────────────────────────────────────────
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
-	private LickSource source;
+	private SoloSource source;
 
 	@Convert(converter = UuidBinaryConverter.class)
 	@Column(columnDefinition = "BINARY(16)")
@@ -100,16 +100,16 @@ public class Lick extends BaseEntity {
 	private @Nullable String targetChord;
 
 	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
-	// 마디(LickMeasure) → 음표(LickNote) 계층으로 정규화하여 저장한다.
+	// 마디(SoloMeasure) → 음표(SoloNote) 계층으로 정규화하여 저장한다.
 	@Builder.Default
-	@OneToMany(mappedBy = "lick", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OneToMany(mappedBy = "solo", cascade = CascadeType.ALL, orphanRemoval = true)
 	@OrderBy("measureIndex ASC")
-	private List<LickMeasure> measures = new ArrayList<>();
+	private List<SoloMeasure> measures = new ArrayList<>();
 
 	// ─── 6. VIDEO ──────────────────────────────────────────────────────
-	/** 이 릭에 연결된 영상 정보 (없을 수 있음). */
-	@OneToOne(mappedBy = "lick", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-	private @Nullable LickVideo video;
+	/** 이 솔로에 연결된 영상 정보 (없을 수 있음). */
+	@OneToOne(mappedBy = "solo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	private @Nullable SoloVideo video;
 
 	// ─── 5. SIMILARITY FEATURES ────────────────────────────────────────
 	@Column
@@ -225,7 +225,7 @@ public class Lick extends BaseEntity {
 	 *
 	 * @param newMeasures 새로 저장할 마디 목록 (measureIndex가 0부터 순서대로 채워져 있어야 함)
 	 */
-	public void replaceMeasures(List<LickMeasure> newMeasures) {
+	public void replaceMeasures(List<SoloMeasure> newMeasures) {
 		this.measures.clear();
 		this.measures.addAll(newMeasures);
 	}
@@ -235,7 +235,7 @@ public class Lick extends BaseEntity {
 	 *
 	 * @param newVideo 새로 연결할 영상 (null이면 기존 영상 삭제)
 	 */
-	public void replaceVideo(@Nullable LickVideo newVideo) {
+	public void replaceVideo(@Nullable SoloVideo newVideo) {
 		this.video = newVideo;
 	}
 }

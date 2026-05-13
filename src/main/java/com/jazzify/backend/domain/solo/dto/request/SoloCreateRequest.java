@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.dto.request;
+package com.jazzify.backend.domain.solo.dto.request;
 
 import java.util.List;
 import java.util.UUID;
@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
-import com.jazzify.backend.domain.lick.entity.LickSource;
+import com.jazzify.backend.domain.solo.entity.SoloSource;
 import com.jazzify.backend.shared.domain.RhythmFeel;
 
 import jakarta.validation.Valid;
@@ -20,9 +20,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 @NullMarked
-public record LickCreateRequest(
+public record SoloCreateRequest(
 	// ─── 1. IDENTITY ───────────────────────────────────────────────────
-	@Nullable LickSource source,
+	@Nullable SoloSource source,
 	@Nullable UUID userId,
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────

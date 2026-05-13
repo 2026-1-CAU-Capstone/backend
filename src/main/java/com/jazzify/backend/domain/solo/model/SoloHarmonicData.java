@@ -1,4 +1,4 @@
-package com.jazzify.backend.domain.lick.model;
+package com.jazzify.backend.domain.solo.model;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ import com.jazzify.backend.shared.domain.HarmonicContext;
  * sheetData에서 자동 추출되거나, 요청에서 직접 제공된 값을 담는다.
  */
 @NullMarked
-public record LickHarmonicData(
+public record SoloHarmonicData(
 	List<String> chords,
 	List<String> chordsPerNote,
 	@Nullable HarmonicContext harmonicContext,
