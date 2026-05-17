@@ -5,8 +5,10 @@ import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.solo.dto.request.SoloCreateRequest;
+import com.jazzify.backend.domain.solo.dto.request.SoloOmrRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloUpdateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloVideoRequest;
 import com.jazzify.backend.domain.solo.dto.response.SoloResponse;
@@ -384,4 +386,51 @@ public interface SoloControllerSpec {
 			"""
 	)
 	ApiResponse<Void> deleteVideo(UUID publicId);
+
+	@Operation(
+		summary = "OMR로 솔로 생성 (악보 이미지/PDF 업로드)",
+		description = """
+			악보 이미지(PNG/JPG) 또는 PDF 파일을 업로드하여 OMR 서버에서 인식한 뒤,
+			MusicXML로 변환된 데이터를 Solo로 저장합니다.
+			
+			### 요청 형식
+			`multipart/form-data`로 전송해야 합니다.
+			
+			### 필수 파트
+			| 파라미터 | 타입 | 설명 |
+			|---------|------|------|
+			| `file` | file | 악보 파일. **PDF · PNG · JPG** 만 허용. 최대 20MB. |
+			
+			### 선택 파라미터 (form field)
+			모든 필드가 선택(optional)이며, 미입력 시 MusicXML에서 추출된 값이 사용됩니다.
+			
+			| 파라미터 | 타입 | 설명 |
+			|---------|------|------|
+			| `title` | string | 곡 제목 (미입력 시 MusicXML work-title 사용) |
+			| `performer` | string | 연주자 이름 |
+			| `album` | string | 앨범명 |
+			| `source` | string | 출처: `user` · `weimar` · `curated` (기본: `user`) |
+			| `instrument` | string | 악기 코드: `as` · `ts` · `tp` · `p` · `g` 등 |
+			| `style` | string | 재즈 스타일: `SWING` · `BEBOP` · `HARDBOP` 등 |
+			| `tempo` | integer | 템포 BPM (미입력 시 MusicXML 값 사용) |
+			| `key` | string | 조성 (미입력 시 MusicXML fifths 값 사용) |
+			| `rhythmFeel` | string | 리듬감: `SWING` · `STRAIGHT` · `BOSSA` · `LATIN` |
+			| `userId` | string (UUID) | 소유자 ID |
+			
+			### 처리 흐름
+			1. 파일 형식 / 크기 검증
+			2. OMR 서버(`${OMR_SERVER_URL}`)로 파일 전송
+			3. MusicXML 수신 및 파싱 (조성·박자표·마디·음표 추출)
+			4. 화성 맥락 및 유사도 피처 자동 계산
+			5. DB 저장 후 솔로 응답 반환
+			
+			### 에러
+			- `400 OMR_004`: 지원하지 않는 파일 형식
+			- `400 OMR_005`: 빈 파일
+			- `503 OMR_001`: OMR 서버 미설정
+			- `502 OMR_002`: OMR 서버 인식 실패
+			- `422 OMR_003`: MusicXML 파싱 실패
+			"""
+	)
+	ApiResponse<SoloResponse> createFromOmr(MultipartFile file, SoloOmrRequest metadata);
 }

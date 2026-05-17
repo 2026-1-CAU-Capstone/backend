@@ -1,0 +1,105 @@
+package com.jazzify.backend.domain.solo.service.implementation;
+
+import java.util.List;
+import java.util.Set;
+
+import org.jspecify.annotations.NullMarked;
+import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.jazzify.backend.core.omr.OmrClient;
+import com.jazzify.backend.domain.solo.dto.request.MeasureRequest;
+import com.jazzify.backend.domain.solo.dto.request.NoteInfoRequest;
+import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;
+import com.jazzify.backend.shared.exception.CustomException;
+import com.jazzify.backend.shared.exception.code.OmrErrorCode;
+import com.jazzify.backend.shared.musicxml.MusicXmlParser;
+import com.jazzify.backend.shared.musicxml.ParsedSheetData;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Solo 도메인 OMR 처리기.
+ * <p>
+ * 업로드된 악보 파일(PDF/PNG/JPG)을 검증하고 OMR 서버에 전송한 후,
+ * 반환된 MusicXML을 {@link SheetDataRequest}(Solo 도메인 전용)로 변환한다.
+ */
+@NullMarked
+@Component
+@RequiredArgsConstructor
+public class SoloOmrProcessor {
+
+	private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+		"application/pdf",
+		"image/png",
+		"image/jpeg"
+	);
+
+	private final OmrClient omrClient;
+
+	/**
+	 * 파일을 검증 · OMR 인식 · MusicXML 파싱하여 {@link SheetDataRequest}를 반환한다.
+	 *
+	 * @param file 업로드된 악보 이미지 또는 PDF
+	 * @return 파싱된 악보 데이터 (Solo 도메인 SheetDataRequest)
+	 * @throws CustomException 파일 검증 실패, OMR 호출 실패, 파싱 실패 시
+	 */
+	public SheetDataRequest process(MultipartFile file) {
+		validateFile(file);
+
+		String musicXml = omrClient.recognize(file);
+
+		ParsedSheetData parsed;
+		try {
+			parsed = MusicXmlParser.parse(musicXml);
+		} catch (Exception e) {
+			throw OmrErrorCode.OMR_PARSE_FAILED.toException(e.getMessage());
+		}
+
+		return toSheetDataRequest(parsed);
+	}
+
+	// ─── Private ────────────────────────────────────────────────────────
+
+	private void validateFile(MultipartFile file) {
+		if (file.isEmpty()) {
+			throw OmrErrorCode.OMR_FILE_EMPTY.toException();
+		}
+		String contentType = file.getContentType();
+		if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+			throw OmrErrorCode.OMR_INVALID_FILE_TYPE.toException(
+				contentType != null ? contentType : "unknown"
+			);
+		}
+	}
+
+	private SheetDataRequest toSheetDataRequest(ParsedSheetData parsed) {
+		List<MeasureRequest> measures = parsed.measures().stream()
+			.map(m -> new MeasureRequest(
+				m.chord(),
+				m.notes().stream()
+					.map(n -> new NoteInfoRequest(
+						n.keys(),
+						n.duration(),
+						n.accidentals(),
+						null,  // tuplet — OMR 파싱에서 셋잇단 정보 미제공
+						n.dotted() ? Boolean.TRUE : null,
+						null,  // tie — OMR 파싱에서 타이 연결 정보 미제공
+						null,  // gliss
+						null   // beamBreak
+					))
+					.toList()
+			))
+			.toList();
+
+		return new SheetDataRequest(
+			parsed.title(),
+			parsed.composer(),
+			parsed.key(),
+			parsed.timeSignature(),
+			parsed.tempo(),
+			measures
+		);
+	}
+}
+

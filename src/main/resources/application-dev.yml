@@ -90,3 +90,15 @@ springdoc:
     enabled: true
     tags-sorter: alpha
     operations-sorter: method
+
+# ── OMR Server ────────────────────────────
+omr:
+  server-url: ${OMR_SERVER_URL:}   # OMR 서버 주소 미정 — 환경변수로 주입
+
+# ── Multipart Upload ──────────────────────
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
