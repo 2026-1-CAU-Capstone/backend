@@ -1,8 +1,10 @@
 package com.jazzify.backend.domain.lick.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,7 @@ import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickOmrRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
+import com.jazzify.backend.domain.lick.dto.response.LickMetadataValueCountResponse;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.service.LickService;
 import com.jazzify.backend.shared.web.ApiResponse;
@@ -52,8 +56,24 @@ public class LickController implements LickControllerSpec {
 	@Override
 	@GetMapping
 	public ApiResponse<Page<LickResponse>> getAll(
+		@RequestParam(required = false) @Nullable String composer,
+		@RequestParam(required = false) @Nullable String performer,
 		@PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return ApiResponse.ok(lickService.getAll(pageable));
+		return ApiResponse.ok(lickService.getAll(pageable, composer, performer));
+	}
+
+	@Override
+	@GetMapping("/composers")
+	public ApiResponse<List<LickMetadataValueCountResponse>> getComposerCounts(
+		@RequestParam(required = false) @Nullable String performer) {
+		return ApiResponse.ok(lickService.getComposerCounts(performer));
+	}
+
+	@Override
+	@GetMapping("/performers")
+	public ApiResponse<List<LickMetadataValueCountResponse>> getPerformerCounts(
+		@RequestParam(required = false) @Nullable String composer) {
+		return ApiResponse.ok(lickService.getPerformerCounts(composer));
 	}
 
 	@Override

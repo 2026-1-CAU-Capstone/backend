@@ -36,6 +36,7 @@ public class SoloWriter {
 			.userId(request.userId())
 			// 2. Performance
 			.performer(request.performer())
+			.composer(request.sheetData().composer())
 			.title(request.title())
 			.album(request.album())
 			.instrument(request.instrument() != null ? request.instrument() : Instrument.UNKNOWN)
@@ -77,6 +78,7 @@ public class SoloWriter {
 		solo.update(
 			// 2. Performance
 			request.performer(),
+			request.sheetData().composer(),
 			request.title(),
 			request.album(),
 			request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,

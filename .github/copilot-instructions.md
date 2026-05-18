@@ -1,5 +1,9 @@
 # Jazzify Backend – Copilot Instructions
 
+## 코드 생성시 지시
+
+코드를 생성하고 난 후에는 반드시 document를 생성해서 사람이 읽고 이해할 수 있도록 설명해줘야해
+
 ## 프로젝트 개요
 
 재즈 음악 학습·분석 플랫폼의 백엔드 API 서버.
