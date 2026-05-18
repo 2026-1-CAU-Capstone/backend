@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jazzify.backend.core.omr.OmrClient;
+import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.domain.solo.dto.request.MeasureRequest;
 import com.jazzify.backend.domain.solo.dto.request.NoteInfoRequest;
 import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;

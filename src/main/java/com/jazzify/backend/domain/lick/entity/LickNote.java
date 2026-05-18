@@ -21,7 +21,9 @@ import lombok.NoArgsConstructor;
 /**
  * 릭(Lick) 한 마디 안의 음표/쉼표 하나를 나타내는 엔티티.
  * <p>
- * sheetData.measures[i].notes[j] 각 요소를 DB 행으로 저장한다.
+ * 과거에는 {@code sheetData.measures[i].notes[j]} 각 요소를 DB 행으로 저장했으나,
+ * 현재는 {@link Lick}의 {@code sheetDataJson} 반정규화 전환 이후
+ * 기존 데이터 마이그레이션 및 레거시 호환 용도로만 유지된다.
  *
  * <h3>주요 필드</h3>
  * <ul>

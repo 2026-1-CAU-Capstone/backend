@@ -20,6 +20,7 @@ import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
 import com.jazzify.backend.domain.lick.model.LickHarmonicData;
 import com.jazzify.backend.domain.lick.repository.LickRepository;
+import com.jazzify.backend.domain.lick.util.LickMapper;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
 
@@ -40,6 +41,10 @@ class LickWriterTest {
 
 		assertThat(lick.isOMR()).isFalse();
 		assertThat(lickRepository.findById(Objects.requireNonNull(lick.getId())).orElseThrow().isOMR()).isFalse();
+		assertThat(LickMapper.parseSheetData(lick.getSheetDataJson()))
+			.isNotNull()
+			.extracting(it -> it.title(), it -> it.composer(), it -> it.key())
+			.containsExactly("So What Fragment", "Miles Davis", "C-maj");
 	}
 
 	@Test

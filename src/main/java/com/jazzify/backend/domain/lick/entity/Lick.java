@@ -106,7 +106,13 @@ public class Lick extends BaseEntity {
 	private @Nullable String targetChord;
 
 	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
-	// 마디(LickMeasure) → 음표(LickNote) 계층으로 정규화하여 저장한다.
+	/** sheetData 응답 구조 전체를 JSON으로 반정규화 저장한다. */
+	@Lob
+	@Column(name = "sheet_data_json", columnDefinition = "LONGTEXT")
+	private @Nullable String sheetDataJson;
+
+	// ─── Legacy Sheet Data (Migration Only) ────────────────────────────
+	// 기존 정규화 테이블 데이터 마이그레이션을 위해 일시적으로 유지한다.
 	@Builder.Default
 	@OneToMany(mappedBy = "lick", cascade = CascadeType.ALL, orphanRemoval = true)
 	@OrderBy("measureIndex ASC")
@@ -236,6 +242,11 @@ public class Lick extends BaseEntity {
 	public void replaceMeasures(List<LickMeasure> newMeasures) {
 		this.measures.clear();
 		this.measures.addAll(newMeasures);
+	}
+
+	/** 반정규화된 sheetData JSON을 교체한다. */
+	public void replaceSheetDataJson(String newSheetDataJson) {
+		this.sheetDataJson = newSheetDataJson;
 	}
 
 	/**

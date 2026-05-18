@@ -26,7 +26,9 @@ import lombok.NoArgsConstructor;
 /**
  * 릭(Lick) 한 마디를 나타내는 엔티티.
  * <p>
- * sheetData.measures 배열의 각 요소를 DB 행으로 저장한다.
+ * 과거에는 sheetData.measures 배열의 각 요소를 DB 행으로 저장했으나,
+ * 현재는 {@link Lick}의 {@code sheetDataJson} 반정규화 전환 이후
+ * 기존 데이터 마이그레이션 및 레거시 호환 용도로만 유지된다.
  * <pre>
  * {
  *   "chord": "D-7",

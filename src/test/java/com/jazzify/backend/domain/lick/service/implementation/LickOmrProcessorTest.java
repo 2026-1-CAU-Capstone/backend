@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jazzify.backend.core.omr.OmrClient;
-import com.jazzify.backend.core.omr.OmrProperties;
+import com.jazzify.backend.shared.omr.OmrClient;
+import com.jazzify.backend.shared.omr.OmrProperties;
 import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
 import com.jazzify.backend.shared.exception.CustomException;
 

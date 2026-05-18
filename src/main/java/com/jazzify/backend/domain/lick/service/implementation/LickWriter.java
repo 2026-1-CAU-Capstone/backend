@@ -1,7 +1,5 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
-import java.util.List;
-
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +10,6 @@ import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.entity.Lick;
-import com.jazzify.backend.domain.lick.entity.LickMeasure;
 import com.jazzify.backend.domain.lick.entity.LickVideo;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
 import com.jazzify.backend.domain.lick.model.LickHarmonicData;
@@ -51,6 +48,8 @@ public class LickWriter {
 			.chordsPerNote(LickMapper.serializeList(harmonic.chordsPerNote()))
 			.harmonicContext(harmonic.harmonicContext())
 			.targetChord(harmonic.targetChord())
+			// 4. Sheet Data
+			.sheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request)))
 			// 5. Similarity Features
 			.nEvents(features.nEvents())
 			.pitches(LickMapper.serializeList(features.pitches()))
@@ -66,13 +65,7 @@ public class LickWriter {
 			.endPitch(features.endPitch())
 			.build();
 
-		Lick saved = lickRepository.save(lick);
-
-		// 4. Sheet Data — 마디/음표를 개별 엔티티로 저장
-		List<LickMeasure> measures = LickMapper.toMeasureEntities(saved, request.sheetData());
-		saved.replaceMeasures(measures);
-
-		return saved;
+		return lickRepository.save(lick);
 	}
 
 	public void update(Lick lick, LickUpdateRequest request, LickHarmonicData harmonic, LickFeatures features) {
@@ -107,10 +100,7 @@ public class LickWriter {
 			features.startPitch(),
 			features.endPitch()
 		);
-
-		// 4. Sheet Data — 기존 마디/음표를 새 내용으로 교체 (orphanRemoval로 자동 삭제)
-		List<LickMeasure> measures = LickMapper.toMeasureEntities(lick, request.sheetData());
-		lick.replaceMeasures(measures);
+		lick.replaceSheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request)));
 	}
 
 	public void delete(Lick lick) {

@@ -1,4 +1,4 @@
-package com.jazzify.backend.core.omr;
+package com.jazzify.backend.shared.omr;
 
 import java.util.ArrayList;
 import java.util.Comparator;
