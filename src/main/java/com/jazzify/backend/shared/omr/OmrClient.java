@@ -9,6 +9,8 @@ import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -22,6 +24,7 @@ import com.jazzify.backend.shared.exception.CustomException;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * OMR(Optical Music Recognition) 서버와 통신하는 HTTP 클라이언트.
@@ -29,6 +32,7 @@ import lombok.RequiredArgsConstructor;
  * MusicVision 명세에 따라 악보 이미지를 업로드하고,
  * 생성된 {@code job_id}를 이용해 MusicXML과 chord assignments를 조회한다.
  */
+@Slf4j
 @NullMarked
 @Component
 @RequiredArgsConstructor
@@ -54,18 +58,74 @@ public class OmrClient {
 
 		try {
 			byte[] bytes = file.getBytes();
-			RestClient restClient = RestClient.create(serverUrl);
+			RestClient restClient = RestClient.builder()
+				.baseUrl(serverUrl)
+				.requestInterceptor((request, bodyBytes, execution) -> {
+					log.debug("[OMR] ▶ {} {}", request.getMethod(), request.getURI());
+					request.getHeaders().forEach((name, values) ->
+						log.debug("[OMR]   Header | {}: {}", name, String.join(", ", values)));
+					log.debug("[OMR]   Body   | {} bytes", bodyBytes.length);
+					var response = execution.execute(request, bodyBytes);
+					log.debug("[OMR] ◀ Status | {}", response.getStatusCode());
+					return response;
+				})
+				.build();
+
+			// getOriginalFilename()은 OS 파일 시스템 기반이므로 getContentType()보다 신뢰할 수 있다.
+			String filename = file.getOriginalFilename();
+			if (filename == null || filename.isBlank()) {
+				filename = "upload.jpg";
+			}
+
+			String ext = filename.contains(".")
+				? filename.substring(filename.lastIndexOf('.')).toLowerCase()
+				: ".jpg";
+			MediaType fileMediaType = deriveMediaType(ext);
+
+			// ── multipart POST ──────────────────────────────────────────────────
+			// RestClient + LinkedMultiValueMap + HttpEntity 조합으로 multipart body를 구성한다.
+			// contentType(MULTIPART_FORM_DATA)를 request에 직접 명시하지 않아야
+			// FormHttpMessageConverter가 boundary를 포함한 최종 Content-Type을 자동 생성한다.
+			final String finalFilename = filename;
+			HttpHeaders partHeaders = new HttpHeaders();
+			partHeaders.setContentType(fileMediaType);
+			partHeaders.setContentDispositionFormData("file", finalFilename);
 
 			MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-			body.add("file", new NamedByteArrayResource(bytes, file.getOriginalFilename()));
+			body.add("file", new HttpEntity<>(new ByteArrayResource(bytes) {
+				@Override
+				public String getFilename() {
+					return finalFilename;
+				}
+			}, partHeaders));
+
+			if (log.isDebugEnabled()) {
+				log.debug("[OMR] multipart parts:");
+				body.forEach((partName, parts) -> parts.forEach(part -> {
+					if (part instanceof HttpEntity<?> entity) {
+						log.debug(
+							"[OMR]   part='{}' | filename={} | Content-Type={} | Content-Disposition={}",
+							partName,
+							entity.getHeaders().getContentDisposition().getFilename(),
+							entity.getHeaders().getContentType(),
+							entity.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)
+						);
+					} else {
+						log.debug("[OMR]   part='{}' | valueType={}", partName, part.getClass().getName());
+					}
+				}));
+				log.debug("[OMR] 파일 전송 → endpoint={}/omr/process | filename={} | mediaType={} | size={}B",
+					serverUrl, finalFilename, fileMediaType, bytes.length);
+			}
 
 			OmrProcessResponse processResponse = restClient
 				.post()
 				.uri("/omr/process")
-				.contentType(MediaType.MULTIPART_FORM_DATA)
+				// content-type 미명시 → FormHttpMessageConverter가 boundary 포함 헤더를 자동 설정
 				.body(body)
 				.retrieve()
 				.body(OmrProcessResponse.class);
+			// ───────────────────────────────────────────────────────────────────
 
 			String jobId = requireCompletedJobId(processResponse);
 			String musicXml = fetchMusicXml(restClient, jobId);
@@ -184,6 +244,15 @@ public class OmrClient {
 		return new MeasureChord(beat, chordText);
 	}
 
+	private static MediaType deriveMediaType(String ext) {
+		return switch (ext) {
+			case ".jpg", ".jpeg" -> MediaType.IMAGE_JPEG;
+			case ".png" -> MediaType.IMAGE_PNG;
+			case ".pdf" -> MediaType.APPLICATION_PDF;
+			default -> throw OmrErrorCode.OMR_INVALID_FILE_TYPE.toException("지원하지 않는 파일 확장자입니다: " + ext);
+		};
+	}
+
 	private static <T> List<T> nullSafeList(@Nullable List<T> values) {
 		return values != null ? values : List.of();
 	}
@@ -256,20 +325,4 @@ public class OmrClient {
 	private record MeasureChord(int beat, String text) {
 	}
 
-	/** multipart 요청 시 파일명을 함께 전송하기 위한 ByteArrayResource 확장. */
-	private static class NamedByteArrayResource extends ByteArrayResource {
-
-		private final @Nullable String filename;
-
-		NamedByteArrayResource(byte[] bytes, @Nullable String filename) {
-			super(bytes);
-			this.filename = filename;
-		}
-
-		@Override
-		public @Nullable String getFilename() {
-			return filename;
-		}
-	}
 }
-
