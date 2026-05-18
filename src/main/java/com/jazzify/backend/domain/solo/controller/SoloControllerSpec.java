@@ -1,16 +1,20 @@
 package com.jazzify.backend.domain.solo.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.solo.dto.request.SoloCreateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloOmrRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloUpdateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloVideoRequest;
+import com.jazzify.backend.domain.solo.dto.response.SoloMetadataValueCountResponse;
 import com.jazzify.backend.domain.solo.dto.response.SoloResponse;
 import com.jazzify.backend.shared.web.ApiResponse;
 
@@ -260,6 +264,8 @@ public interface SoloControllerSpec {
 			
 			| 파라미터 | 기본값 | 설명 |
 			|---------|-------|------|
+			| `composer` | - | 악보 메타데이터의 작곡자명(`sheetData.composer`)과 정확히 일치하는 솔로만 조회합니다. |
+			| `performer` | - | 연주자명과 정확히 일치하는 솔로만 조회합니다. |
 			| `page` | `0` | 페이지 번호 (0부터 시작) |
 			| `size` | `20` | 페이지당 항목 수 |
 			| `sort` | `createdAt,desc` | 정렬 기준. 정렬 가능한 필드: `createdAt`, `updatedAt`, `title` |
@@ -270,7 +276,37 @@ public interface SoloControllerSpec {
 				각 솔로는 5개 섹션(Identity, Performance, Harmonic, SheetData, Features) 정보를 모두 포함합니다.
 			"""
 	)
-	ApiResponse<Page<SoloResponse>> getAll(Pageable pageable);
+	ApiResponse<Page<SoloResponse>> getAll(@RequestParam(required = false) @Nullable String composer,
+		@RequestParam(required = false) @Nullable String performer,
+		Pageable pageable);
+
+	@Operation(
+		summary = "솔로 composer 목록 조회",
+		description = """
+			현재 저장된 솔로의 composer 목록과 각 composer에 해당하는 데이터 수를 반환합니다.
+			
+			### Query Parameters
+			| 파라미터 | 기본값 | 설명 |
+			|---------|-------|------|
+			| `performer` | - | 특정 연주자에 해당하는 솔로만 대상으로 composer 목록을 집계합니다. |
+			"""
+	)
+	ApiResponse<List<SoloMetadataValueCountResponse>> getComposerCounts(
+		@RequestParam(required = false) @Nullable String performer);
+
+	@Operation(
+		summary = "솔로 performer 목록 조회",
+		description = """
+			현재 저장된 솔로의 performer 목록과 각 performer에 해당하는 데이터 수를 반환합니다.
+			
+			### Query Parameters
+			| 파라미터 | 기본값 | 설명 |
+			|---------|-------|------|
+			| `composer` | - | 특정 composer에 해당하는 솔로만 대상으로 performer 목록을 집계합니다. |
+			"""
+	)
+	ApiResponse<List<SoloMetadataValueCountResponse>> getPerformerCounts(
+		@RequestParam(required = false) @Nullable String composer);
 
 	@Operation(
 		summary = "솔로 단건 조회",

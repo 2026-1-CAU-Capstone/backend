@@ -1,8 +1,10 @@
 package com.jazzify.backend.domain.solo.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,7 @@ import com.jazzify.backend.domain.solo.dto.request.SoloCreateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloOmrRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloUpdateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloVideoRequest;
+import com.jazzify.backend.domain.solo.dto.response.SoloMetadataValueCountResponse;
 import com.jazzify.backend.domain.solo.dto.response.SoloResponse;
 import com.jazzify.backend.domain.solo.service.SoloService;
 import com.jazzify.backend.shared.web.ApiResponse;
@@ -52,8 +56,24 @@ public class SoloController implements SoloControllerSpec {
 	@Override
 	@GetMapping
 	public ApiResponse<Page<SoloResponse>> getAll(
+		@RequestParam(required = false) @Nullable String composer,
+		@RequestParam(required = false) @Nullable String performer,
 		@PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return ApiResponse.ok(soloService.getAll(pageable));
+		return ApiResponse.ok(soloService.getAll(pageable, composer, performer));
+	}
+
+	@Override
+	@GetMapping("/composers")
+	public ApiResponse<List<SoloMetadataValueCountResponse>> getComposerCounts(
+		@RequestParam(required = false) @Nullable String performer) {
+		return ApiResponse.ok(soloService.getComposerCounts(performer));
+	}
+
+	@Override
+	@GetMapping("/performers")
+	public ApiResponse<List<SoloMetadataValueCountResponse>> getPerformerCounts(
+		@RequestParam(required = false) @Nullable String composer) {
+		return ApiResponse.ok(soloService.getPerformerCounts(composer));
 	}
 
 	@Override

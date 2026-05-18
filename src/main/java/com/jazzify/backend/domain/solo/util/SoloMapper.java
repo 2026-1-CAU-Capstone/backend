@@ -105,7 +105,7 @@ public final class SoloMapper {
 
 		return new SheetDataResponse(
 			solo.getTitle(),
-			solo.getPerformer(),
+			solo.getComposer(),
 			solo.getMusicalKey(),
 			solo.getTimeSignature(),
 			solo.getTempo(),

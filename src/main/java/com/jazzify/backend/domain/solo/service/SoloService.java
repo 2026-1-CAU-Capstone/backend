@@ -1,8 +1,10 @@
 package com.jazzify.backend.domain.solo.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -10,10 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;
+import com.jazzify.backend.domain.solo.dto.app.SoloMetadataValueCountResult;
 import com.jazzify.backend.domain.solo.dto.request.SoloCreateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloOmrRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloUpdateRequest;
 import com.jazzify.backend.domain.solo.dto.request.SoloVideoRequest;
+import com.jazzify.backend.domain.solo.dto.response.SoloMetadataValueCountResponse;
 import com.jazzify.backend.domain.solo.dto.response.SoloResponse;
 import com.jazzify.backend.domain.solo.entity.Solo;
 import com.jazzify.backend.domain.solo.entity.SoloSource;
@@ -59,8 +63,22 @@ public class SoloService {
 	}
 
 	@Transactional(readOnly = true)
-	public Page<SoloResponse> getAll(Pageable pageable) {
-		return soloReader.getAll(pageable).map(SoloMapper::toResponse);
+	public Page<SoloResponse> getAll(Pageable pageable, @Nullable String composer, @Nullable String performer) {
+		return soloReader.getAll(pageable, composer, performer).map(SoloMapper::toResponse);
+	}
+
+	@Transactional(readOnly = true)
+	public List<SoloMetadataValueCountResponse> getComposerCounts(@Nullable String performer) {
+		return soloReader.getComposerCounts(performer).stream()
+			.map(SoloService::toMetadataValueCountResponse)
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<SoloMetadataValueCountResponse> getPerformerCounts(@Nullable String composer) {
+		return soloReader.getPerformerCounts(composer).stream()
+			.map(SoloService::toMetadataValueCountResponse)
+			.toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -175,5 +193,9 @@ public class SoloService {
 		} catch (IllegalArgumentException e) {
 			return null;
 		}
+	}
+
+	private static SoloMetadataValueCountResponse toMetadataValueCountResponse(SoloMetadataValueCountResult result) {
+		return new SoloMetadataValueCountResponse(result.name(), result.count());
 	}
 }

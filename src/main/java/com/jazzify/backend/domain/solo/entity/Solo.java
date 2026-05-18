@@ -55,6 +55,9 @@ public class Solo extends BaseEntity {
 	@Column(length = 255)
 	private @Nullable String performer;
 
+	@Column(length = 255)
+	private @Nullable String composer;
+
 	@Column(nullable = false, length = 255)
 	private String title;
 
@@ -164,6 +167,7 @@ public class Solo extends BaseEntity {
 	public void update(
 		// 2. Performance
 		@Nullable String performer,
+		@Nullable String composer,
 		String title,
 		@Nullable String album,
 		Instrument instrument,
@@ -192,6 +196,7 @@ public class Solo extends BaseEntity {
 		@Nullable Integer endPitch
 	) {
 		this.performer = performer;
+		this.composer = composer;
 		this.title = title;
 		this.album = album;
 		this.instrument = instrument;

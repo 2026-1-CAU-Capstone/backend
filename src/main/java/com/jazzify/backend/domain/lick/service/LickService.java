@@ -1,8 +1,10 @@
 package com.jazzify.backend.domain.lick.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickOmrRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
+import com.jazzify.backend.domain.lick.dto.app.LickMetadataValueCountResult;
+import com.jazzify.backend.domain.lick.dto.response.LickMetadataValueCountResponse;
 import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.entity.Lick;
@@ -58,8 +62,22 @@ public class LickService {
 	}
 
 	@Transactional(readOnly = true)
-	public Page<LickResponse> getAll(Pageable pageable) {
-		return lickReader.getAll(pageable).map(LickMapper::toResponse);
+	public Page<LickResponse> getAll(Pageable pageable, @Nullable String composer, @Nullable String performer) {
+		return lickReader.getAll(pageable, composer, performer).map(LickMapper::toResponse);
+	}
+
+	@Transactional(readOnly = true)
+	public List<LickMetadataValueCountResponse> getComposerCounts(@Nullable String performer) {
+		return lickReader.getComposerCounts(performer).stream()
+			.map(LickService::toMetadataValueCountResponse)
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<LickMetadataValueCountResponse> getPerformerCounts(@Nullable String composer) {
+		return lickReader.getPerformerCounts(composer).stream()
+			.map(LickService::toMetadataValueCountResponse)
+			.toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -174,5 +192,9 @@ public class LickService {
 		} catch (IllegalArgumentException e) {
 			return null;
 		}
+	}
+
+	private static LickMetadataValueCountResponse toMetadataValueCountResponse(LickMetadataValueCountResult result) {
+		return new LickMetadataValueCountResponse(result.name(), result.count());
 	}
 }

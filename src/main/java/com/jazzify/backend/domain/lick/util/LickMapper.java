@@ -105,7 +105,7 @@ public final class LickMapper {
 
 		return new SheetDataResponse(
 			lick.getTitle(),
-			lick.getPerformer(),
+			lick.getComposer(),
 			lick.getMusicalKey(),
 			lick.getTimeSignature(),
 			lick.getTempo(),
