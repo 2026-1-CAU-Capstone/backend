@@ -29,11 +29,12 @@ public class LickWriter {
 
 	private final LickRepository lickRepository;
 
-	public Lick create(LickCreateRequest request, LickHarmonicData harmonic, LickFeatures features) {
+	public Lick create(LickCreateRequest request, LickHarmonicData harmonic, LickFeatures features, boolean isOMR) {
 		Lick lick = Lick.builder()
 			// 1. Identity
 			.source(request.source() != null ? request.source() : LickSource.UNKNOWN)
 			.userId(request.userId())
+			.isOMR(isOMR)
 			// 2. Performance
 			.performer(request.performer())
 			.composer(request.sheetData().composer())

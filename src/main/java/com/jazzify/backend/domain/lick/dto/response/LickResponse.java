@@ -19,6 +19,7 @@ public record LickResponse(
 	UUID publicId,
 	LickSource source,
 	@Nullable UUID userId,
+	boolean isOMR,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt,
 

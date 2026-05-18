@@ -29,11 +29,12 @@ public class SoloWriter {
 
 	private final SoloRepository soloRepository;
 
-	public Solo create(SoloCreateRequest request, SoloHarmonicData harmonic, SoloFeatures features) {
+	public Solo create(SoloCreateRequest request, SoloHarmonicData harmonic, SoloFeatures features, boolean isOMR) {
 		Solo solo = Solo.builder()
 			// 1. Identity
 			.source(request.source() != null ? request.source() : SoloSource.UNKNOWN)
 			.userId(request.userId())
+			.isOMR(isOMR)
 			// 2. Performance
 			.performer(request.performer())
 			.composer(request.sheetData().composer())

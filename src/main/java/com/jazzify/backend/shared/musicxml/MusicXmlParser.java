@@ -91,6 +91,19 @@ public final class MusicXmlParser {
 	 * @throws IllegalArgumentException XML 파싱 또는 구조 오류 시
 	 */
 	public static ParsedSheetData parse(String xml) {
+		return parse(xml, Map.of());
+	}
+
+	/**
+	 * MusicXML 문자열을 파싱하되, 외부 chord assignments 결과가 있으면
+	 * {@code musicxml_measure_number} 기준으로 마디 코드 심볼을 덮어쓴다.
+	 *
+	 * @param xml MusicXML 전체 문자열
+	 * @param chordsByMeasureNumber 마디 번호별 코드 심볼 매핑
+	 * @return 파싱 결과
+	 * @throws IllegalArgumentException XML 파싱 또는 구조 오류 시
+	 */
+	public static ParsedSheetData parse(String xml, Map<String, String> chordsByMeasureNumber) {
 		try {
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 			// XXE 방지
@@ -104,7 +117,7 @@ public final class MusicXmlParser {
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			Document doc = builder.parse(new InputSource(new StringReader(xml)));
 			doc.getDocumentElement().normalize();
-			return parseDocument(doc);
+			return parseDocument(doc, chordsByMeasureNumber);
 		} catch (IllegalArgumentException e) {
 			throw e;
 		} catch (Exception e) {
@@ -114,7 +127,7 @@ public final class MusicXmlParser {
 
 	// ─── Document ───────────────────────────────────────────────────────
 
-	private static ParsedSheetData parseDocument(Document doc) {
+	private static ParsedSheetData parseDocument(Document doc, Map<String, String> chordsByMeasureNumber) {
 		Element root = doc.getDocumentElement();
 
 		// ── Title ──
@@ -174,7 +187,7 @@ public final class MusicXmlParser {
 				Node child = children.item(i);
 				if (child.getNodeType() == Node.ELEMENT_NODE
 					&& "measure".equals(((Element) child).getTagName())) {
-					measures.add(parseMeasure((Element) child, keySigLetters));
+					measures.add(parseMeasure((Element) child, keySigLetters, chordsByMeasureNumber));
 				}
 			}
 		}
@@ -184,21 +197,27 @@ public final class MusicXmlParser {
 
 	// ─── Measure ────────────────────────────────────────────────────────
 
-	private static ParsedMeasure parseMeasure(Element mEl, Set<String> keySigLetters) {
+	private static ParsedMeasure parseMeasure(
+		Element mEl,
+		Set<String> keySigLetters,
+		Map<String, String> chordsByMeasureNumber
+	) {
 		List<ParsedNote> notes = new ArrayList<>();
 
 		// ── Chord Symbol from <harmony> ──
-		@Nullable String chord = null;
-		Element harmEl = firstDirectChildElement(mEl, "harmony");
-		if (harmEl != null) {
-			String rootStep = firstDescendantText(harmEl, "root-step");
-			if (rootStep == null) rootStep = "";
-			String rootAlter = firstDescendantText(harmEl, "root-alter");
-			String kind = firstDescendantText(harmEl, "kind");
-			if (kind == null) kind = "";
-			String acc = "1".equals(rootAlter != null ? rootAlter.trim() : "")
-				? "#" : "-1".equals(rootAlter != null ? rootAlter.trim() : "") ? "b" : "";
-			chord = rootStep.trim() + acc + kindToSymbol(kind.trim());
+		String chord = resolveChordFromAssignments(mEl, chordsByMeasureNumber);
+		if (chord == null) {
+			Element harmEl = firstDirectChildElement(mEl, "harmony");
+			if (harmEl != null) {
+				String rootStep = firstDescendantText(harmEl, "root-step");
+				if (rootStep == null) rootStep = "";
+				String rootAlter = firstDescendantText(harmEl, "root-alter");
+				String kind = firstDescendantText(harmEl, "kind");
+				if (kind == null) kind = "";
+				String acc = "1".equals(rootAlter != null ? rootAlter.trim() : "")
+					? "#" : "-1".equals(rootAlter != null ? rootAlter.trim() : "") ? "b" : "";
+				chord = rootStep.trim() + acc + kindToSymbol(kind.trim());
+			}
 		}
 
 		// ── Notes ──
@@ -274,6 +293,22 @@ public final class MusicXmlParser {
 		}
 
 		return new ParsedMeasure(chord, notes);
+	}
+
+	@Nullable
+	private static String resolveChordFromAssignments(Element measureEl, Map<String, String> chordsByMeasureNumber) {
+		String measureNumber = measureEl.getAttribute("number").trim();
+		if (measureNumber.isEmpty()) {
+			return null;
+		}
+
+		String chord = chordsByMeasureNumber.get(measureNumber);
+		if (chord == null) {
+			return null;
+		}
+
+		String trimmed = chord.trim();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 
 	// ─── Accidental Resolution ──────────────────────────────────────────

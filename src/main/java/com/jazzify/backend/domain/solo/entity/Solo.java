@@ -50,6 +50,9 @@ public class Solo extends BaseEntity {
 	@Column(columnDefinition = "BINARY(16)")
 	private @Nullable UUID userId;
 
+	@Column(name = "is_omr", nullable = false)
+	private boolean isOMR;
+
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Column(length = 255)

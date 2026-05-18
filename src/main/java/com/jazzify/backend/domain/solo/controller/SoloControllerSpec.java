@@ -316,7 +316,7 @@ public interface SoloControllerSpec {
 			### 응답 구조
 			
 			응답 바디는 생성 시 저장된 5개 섹션 데이터를 모두 포함합니다.
-			- **섹션 1 (identity)**: `publicId`, `source`, `userId`, `sourceUrl`, `createdAt`, `updatedAt`
+			- **섹션 1 (identity)**: `publicId`, `source`, `userId`, `isOMR`, `sourceUrl`, `createdAt`, `updatedAt`
 			- **섹션 2 (performance)**: `performer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
 			- **섹션 3 (harmonic)**: `chords`, `chordsPerNote`, `harmonicContext`, `targetChord`
 			- **섹션 4 (sheetData)**: VexFlow 렌더링용 중첩 객체 (`measures[].notes[]` 포함)
@@ -424,10 +424,10 @@ public interface SoloControllerSpec {
 	ApiResponse<Void> deleteVideo(UUID publicId);
 
 	@Operation(
-		summary = "OMR로 솔로 생성 (악보 이미지/PDF 업로드)",
+		summary = "OMR로 솔로 생성 (악보 이미지 업로드)",
 		description = """
-			악보 이미지(PNG/JPG) 또는 PDF 파일을 업로드하여 OMR 서버에서 인식한 뒤,
-			MusicXML로 변환된 데이터를 Solo로 저장합니다.
+			악보 이미지(PNG/JPG/JPEG)를 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
+			반환된 `job_id`로 MusicXML과 chord assignments를 조회·결합하여 Solo로 저장합니다.
 			
 			### 요청 형식
 			`multipart/form-data`로 전송해야 합니다.
@@ -435,7 +435,7 @@ public interface SoloControllerSpec {
 			### 필수 파트
 			| 파라미터 | 타입 | 설명 |
 			|---------|------|------|
-			| `file` | file | 악보 파일. **PDF · PNG · JPG** 만 허용. 최대 20MB. |
+			| `file` | file | 악보 파일. **PNG · JPG · JPEG** 만 허용. |
 			
 			### 선택 파라미터 (form field)
 			모든 필드가 선택(optional)이며, 미입력 시 MusicXML에서 추출된 값이 사용됩니다.
@@ -454,11 +454,14 @@ public interface SoloControllerSpec {
 			| `userId` | string (UUID) | 소유자 ID |
 			
 			### 처리 흐름
-			1. 파일 형식 / 크기 검증
-			2. OMR 서버(`${OMR_SERVER_URL}`)로 파일 전송
-			3. MusicXML 수신 및 파싱 (조성·박자표·마디·음표 추출)
-			4. 화성 맥락 및 유사도 피처 자동 계산
-			5. DB 저장 후 솔로 응답 반환
+			1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`)
+			2. MusicVision `POST /omr/process`로 파일 전송
+			3. 응답의 `job_id`로 `/omr/jobs/{job_id}/musicxml` 조회
+			4. `/omr/jobs/{job_id}/chord-assignments` 조회
+			5. `measure_alignment.status == aligned` 확인 후 `musicxml_measure_number` 기준으로 코드 결합
+			6. MusicXML 파싱 (조성·박자표·마디·음표 추출)
+			7. 화성 맥락 및 유사도 피처 자동 계산
+			8. DB 저장 후 솔로 응답 반환
 			
 			### 에러
 			- `400 OMR_004`: 지원하지 않는 파일 형식
@@ -466,6 +469,10 @@ public interface SoloControllerSpec {
 			- `503 OMR_001`: OMR 서버 미설정
 			- `502 OMR_002`: OMR 서버 인식 실패
 			- `422 OMR_003`: MusicXML 파싱 실패
+			- `422 OMR_006`: MusicXML과 chord assignments의 마디 정렬 불일치
+			
+			### 태깅
+			- OMR로 생성된 솔로는 응답/저장 데이터의 `isOMR = true`로 태깅됩니다.
 			"""
 	)
 	ApiResponse<SoloResponse> createFromOmr(MultipartFile file, SoloOmrRequest metadata);

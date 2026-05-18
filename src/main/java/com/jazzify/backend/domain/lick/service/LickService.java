@@ -57,7 +57,7 @@ public class LickService {
 			request.sheetData(),
 			request.features()
 		);
-		Lick lick = lickWriter.create(request, harmonic, features);
+		Lick lick = lickWriter.create(request, harmonic, features, false);
 		return LickMapper.toResponse(lick);
 	}
 
@@ -123,9 +123,10 @@ public class LickService {
 	}
 
 	/**
-	 * 악보 파일(PDF/PNG/JPG)을 OMR 서버로 처리한 뒤 릭으로 저장한다.
+	 * 악보 이미지(PNG/JPG/JPEG)를 OMR 서버로 처리한 뒤 릭으로 저장한다.
 	 * <p>
 	 * OMR 서버 호출은 트랜잭션 외부에서 수행되어 DB 커넥션을 장시간 점유하지 않는다.
+	 * MusicVision의 {@code /omr/process} → 결과 다운로드 → chord assignments 결합 흐름을 사용한다.
 	 * DB 쓰기는 {@link LickWriter}(별도 빈)의 {@code @Transactional} 메서드에서 처리된다.
 	 *
 	 * @param file     업로드된 악보 파일
@@ -153,7 +154,7 @@ public class LickService {
 		);
 
 		// 4. DB 저장 — lickWriter 는 별도 빈(@Component)이므로 @Transactional 정상 작동
-		Lick lick = lickWriter.create(request, harmonic, features);
+		Lick lick = lickWriter.create(request, harmonic, features, true);
 		return LickMapper.toResponse(lick);
 	}
 
