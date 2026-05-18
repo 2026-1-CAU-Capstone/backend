@@ -1,4 +1,4 @@
-package com.jazzify.backend.core.omr;
+package com.jazzify.backend.shared.omr;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

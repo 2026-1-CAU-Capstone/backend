@@ -19,6 +19,7 @@ public record SoloResponse(
 	UUID publicId,
 	SoloSource source,
 	@Nullable UUID userId,
+	boolean isOMR,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt,
 

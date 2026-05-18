@@ -48,6 +48,7 @@ public final class SoloMapper {
 			Objects.requireNonNull(solo.getPublicId()),
 			solo.getSource(),
 			solo.getUserId(),
+			solo.isOMR(),
 			Objects.requireNonNull(solo.getCreatedAt()),
 			Objects.requireNonNull(solo.getUpdatedAt()),
 			solo.getPerformer(),

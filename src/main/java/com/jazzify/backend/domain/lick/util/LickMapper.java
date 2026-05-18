@@ -1,7 +1,6 @@
 package com.jazzify.backend.domain.lick.util;
 
 import com.jazzify.backend.domain.lick.entity.LickVideo;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,9 +11,9 @@ import org.jspecify.annotations.Nullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.MeasureRequest;
-import com.jazzify.backend.domain.lick.dto.request.NoteInfoRequest;
-import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
+import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.dto.response.LickVideoResponse;
 import com.jazzify.backend.domain.lick.dto.response.MeasureResponse;
@@ -22,7 +21,6 @@ import com.jazzify.backend.domain.lick.dto.response.NoteInfoResponse;
 import com.jazzify.backend.domain.lick.dto.response.SheetDataResponse;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.entity.LickMeasure;
-import com.jazzify.backend.domain.lick.entity.LickNote;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -35,6 +33,7 @@ public final class LickMapper {
 	private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
 	private static final TypeReference<List<Integer>> INT_LIST = new TypeReference<>() {};
 	private static final TypeReference<Map<String, String>> STRING_MAP = new TypeReference<>() {};
+	private static final TypeReference<SheetDataResponse> SHEET_DATA_RESPONSE = new TypeReference<>() {};
 
 	// ─── Entity → Response ─────────────────────────────────────────────
 
@@ -48,6 +47,7 @@ public final class LickMapper {
 			Objects.requireNonNull(lick.getPublicId()),
 			lick.getSource(),
 			lick.getUserId(),
+			lick.isOMR(),
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt()),
 			lick.getPerformer(),
@@ -81,11 +81,60 @@ public final class LickMapper {
 	}
 
 	/**
-	 * Lick 엔티티의 measures/notes 컬렉션을 SheetDataResponse로 변환한다.
-	 * title, composer, key, timeSignature, tempo는 Lick 자신의 메타데이터 필드에서 채운다.
+	 * 반정규화된 sheetData JSON을 우선 사용하고,
+	 * 아직 마이그레이션되지 않은 레거시 데이터만 기존 measures/notes 컬렉션에서 fallback 변환한다.
 	 */
 	public static SheetDataResponse toSheetDataResponse(Lick lick) {
-		List<MeasureResponse> measures = lick.getMeasures().stream()
+		SheetDataResponse parsed = parseSheetData(lick.getSheetDataJson());
+		if (parsed != null) {
+			return parsed;
+		}
+		return toLegacySheetDataResponse(lick, lick.getMeasures());
+	}
+
+	public static SheetDataResponse toSheetDataResponse(LickCreateRequest request) {
+		return toSheetDataResponse(
+			request.title(),
+			request.sheetData().composer(),
+			request.key(),
+			request.timeSignature(),
+			request.tempo(),
+			request.sheetData().measures()
+		);
+	}
+
+	public static SheetDataResponse toSheetDataResponse(LickUpdateRequest request) {
+		return toSheetDataResponse(
+			request.title(),
+			request.sheetData().composer(),
+			request.key(),
+			request.timeSignature(),
+			request.tempo(),
+			request.sheetData().measures()
+		);
+	}
+
+	public static String serializeSheetData(SheetDataResponse sheetData) {
+		try {
+			return MAPPER.writeValueAsString(sheetData);
+		} catch (JsonProcessingException e) {
+			throw new IllegalArgumentException("sheetData 직렬화 실패", e);
+		}
+	}
+
+	public static @Nullable SheetDataResponse parseSheetData(@Nullable String json) {
+		if (json == null || json.isBlank()) {
+			return null;
+		}
+		try {
+			return MAPPER.readValue(json, SHEET_DATA_RESPONSE);
+		} catch (JsonProcessingException e) {
+			return null;
+		}
+	}
+
+	public static SheetDataResponse toLegacySheetDataResponse(Lick lick, List<LickMeasure> legacyMeasures) {
+		List<MeasureResponse> measures = legacyMeasures.stream()
 			.map(m -> new MeasureResponse(
 				m.getChord(),
 				m.getNotes().stream()
@@ -113,50 +162,33 @@ public final class LickMapper {
 		);
 	}
 
-	/**
-	 * SheetDataRequest의 마디/음표 목록을 JPA 엔티티 계층으로 변환한다.
-	 *
-	 * @param lick    부모 Lick (이미 persist된 managed 엔티티여야 함)
-	 * @param request 요청 sheetData
-	 * @return 저장 준비된 LickMeasure 목록 (각 마디에 LickNote가 연결됨)
-	 */
-	public static List<LickMeasure> toMeasureEntities(Lick lick, SheetDataRequest request) {
-		List<MeasureRequest> measureRequests = request.measures();
-		List<LickMeasure> result = new ArrayList<>(measureRequests.size());
+	private static SheetDataResponse toSheetDataResponse(
+		@Nullable String title,
+		@Nullable String composer,
+		@Nullable String key,
+		@Nullable String timeSignature,
+		@Nullable Integer tempo,
+		List<MeasureRequest> measureRequests
+	) {
+		List<MeasureResponse> measures = measureRequests.stream()
+			.map(m -> new MeasureResponse(
+				m.chord(),
+				m.notes().stream()
+					.map(n -> new NoteInfoResponse(
+						n.keys(),
+						n.duration(),
+						n.accidentals(),
+						n.tuplet(),
+						n.dotted(),
+						n.tie(),
+						n.gliss(),
+						n.beamBreak()
+					))
+					.toList()
+			))
+			.toList();
 
-		for (int mi = 0; mi < measureRequests.size(); mi++) {
-			MeasureRequest mr = measureRequests.get(mi);
-
-			LickMeasure measure = LickMeasure.builder()
-				.lick(lick)
-				.measureIndex(mi)
-				.chord(mr.chord())
-				.build();
-
-			List<NoteInfoRequest> noteRequests = mr.notes();
-			for (int ni = 0; ni < noteRequests.size(); ni++) {
-				NoteInfoRequest nr = noteRequests.get(ni);
-
-				LickNote note = LickNote.builder()
-					.measure(measure)
-					.noteIndex(ni)
-					.keys(Objects.requireNonNull(serializeList(nr.keys())))
-					.duration(nr.duration())
-					.dotted(Boolean.TRUE.equals(nr.dotted()))
-					.tuplet(nr.tuplet())
-					.tie(Boolean.TRUE.equals(nr.tie()))
-					.gliss(Boolean.TRUE.equals(nr.gliss()))
-					.beamBreak(Boolean.TRUE.equals(nr.beamBreak()))
-					.accidentals(serializeMap(nr.accidentals()))
-					.build();
-
-				measure.addNote(note);
-			}
-
-			result.add(measure);
-		}
-
-		return result;
+		return new SheetDataResponse(title, composer, key, timeSignature, tempo, measures);
 	}
 
 	// ─── Domain Model → JSON String ────────────────────────────────────
@@ -170,14 +202,6 @@ public final class LickMapper {
 		}
 	}
 
-	private static @Nullable String serializeMap(@Nullable Map<String, String> map) {
-		if (map == null) return null;
-		try {
-			return MAPPER.writeValueAsString(map);
-		} catch (JsonProcessingException e) {
-			throw new IllegalArgumentException("맵 직렬화 실패", e);
-		}
-	}
 
 	// ─── JSON → Java ────────────────────────────────────────────────────
 
