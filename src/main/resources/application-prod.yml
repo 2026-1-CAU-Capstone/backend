@@ -46,6 +46,11 @@ spring:
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
 
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
 #  # ── Mail ──────────────────────────────────
 #  mail:
 #    host: ${MAIL_HOST}
@@ -110,9 +115,3 @@ springdoc:
 omr:
   server-url: ${OMR_SERVER_URL:}   # OMR 서버 주소 미정 — 운영 환경변수로 주입
 
-# ── Multipart Upload ──────────────────────
-spring:
-  servlet:
-    multipart:
-      max-file-size: 20MB
-      max-request-size: 25MB
