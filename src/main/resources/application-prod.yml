@@ -45,8 +45,11 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
-      ssl:
-        enabled: true
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
 
 #  # ── Mail ──────────────────────────────────
 #  mail:
@@ -107,3 +110,8 @@ springdoc:
     enabled: true
     tags-sorter: alpha
     operations-sorter: method
+
+# ── OMR Server ────────────────────────────
+omr:
+  server-url: ${OMR_SERVER_URL:}   # OMR 서버 주소 미정 — 운영 환경변수로 주입
+

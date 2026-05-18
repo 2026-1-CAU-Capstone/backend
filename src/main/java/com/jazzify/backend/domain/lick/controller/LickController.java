@@ -8,17 +8,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
+import com.jazzify.backend.domain.lick.dto.request.LickOmrRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
@@ -90,6 +95,15 @@ public class LickController implements LickControllerSpec {
 		@PathVariable UUID publicId) {
 		lickService.deleteVideo(publicId);
 		return ApiResponse.ok();
+	}
+
+	@Override
+	@PostMapping(value = "/omr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	public ApiResponse<LickResponse> createFromOmr(
+		@RequestPart("file") MultipartFile file,
+		@Valid @ModelAttribute LickOmrRequest metadata) {
+		return ApiResponse.ok(lickService.createFromOmr(file, metadata));
 	}
 }
 
