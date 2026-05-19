@@ -1,5 +1,6 @@
 package com.jazzify.backend.domain.chordproject.service.implementation;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -26,6 +27,10 @@ public class ChordProjectReader {
 	public ChordProject getByPublicIdAndUser(UUID publicId, User user) {
 		return chordProjectRepository.findByPublicIdAndUser(publicId, user)
 			.orElseThrow(ChordProjectErrorCode.CHORD_PROJECT_NOT_FOUND::toException);
+	}
+
+	public Optional<ChordProject> findByPublicId(UUID publicId) {
+		return chordProjectRepository.findByPublicId(publicId);
 	}
 
 	public Page<ChordProject> getAllByUser(User user, Pageable pageable) {

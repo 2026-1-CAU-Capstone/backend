@@ -4,6 +4,7 @@ import java.util.Objects;
 
 import org.jspecify.annotations.NullMarked;
 
+import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrStatusResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectResponse;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
 
@@ -20,8 +21,20 @@ public final class ChordProjectMapper {
 			project.getTitle(),
 			project.getKeySignature(),
 			project.getTimeSignature(),
+			project.getOmrStatus(),
+			project.getOmrProgress(),
+			project.getOmrFailureReason(),
 			Objects.requireNonNull(project.getCreatedAt()),
 			Objects.requireNonNull(project.getUpdatedAt())
+		);
+	}
+
+	public static ChordProjectOmrStatusResponse toOmrStatusResponse(ChordProject project) {
+		return new ChordProjectOmrStatusResponse(
+			Objects.requireNonNull(project.getPublicId()),
+			project.getOmrStatus(),
+			project.getOmrProgress(),
+			project.getOmrFailureReason()
 		);
 	}
 }

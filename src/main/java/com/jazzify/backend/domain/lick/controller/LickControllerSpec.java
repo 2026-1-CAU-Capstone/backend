@@ -424,9 +424,9 @@ public interface LickControllerSpec {
 	ApiResponse<Void> deleteVideo(UUID publicId);
 
 	@Operation(
-		summary = "OMR로 릭 생성 (악보 이미지 업로드)",
+		summary = "OMR로 릭 생성 (악보 파일 업로드)",
 		description = """
-			악보 이미지(PNG/JPG/JPEG)를 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
+			악보 파일(PNG/JPG/JPEG/PDF)을 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
 			반환된 `job_id`로 MusicXML과 chord assignments를 조회·결합하여 Lick으로 저장합니다.
 			
 			### 요청 형식
@@ -454,7 +454,7 @@ public interface LickControllerSpec {
 			| `userId` | string (UUID) | 소유자 ID |
 			
 			### 처리 흐름
-			1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`)
+			1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`, `pdf`)
 			2. MusicVision `POST /omr/process`로 파일 전송
 			3. 응답의 `job_id`로 `/omr/jobs/{job_id}/musicxml` 조회
 			4. `/omr/jobs/{job_id}/chord-assignments` 조회

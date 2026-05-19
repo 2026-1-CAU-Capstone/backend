@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 import com.jazzify.backend.shared.exception.code.ChordProjectErrorCode;
 
 import lombok.AccessLevel;
@@ -41,6 +42,19 @@ public final class IRealProChordParser {
 	 * @return 병합된 ChordInfo 리스트
 	 */
 	public static List<ChordInfo> parse(String progression, String timeSignature, ChordProject project) {
+		return parseInternal(progression, timeSignature, project, null);
+	}
+
+	public static List<ChordInfo> parseForSheetProject(String progression, String timeSignature, SheetProject project) {
+		return parseInternal(progression, timeSignature, null, project);
+	}
+
+	private static List<ChordInfo> parseInternal(
+		String progression,
+		String timeSignature,
+		@Nullable ChordProject chordProject,
+		@Nullable SheetProject sheetProject
+	) {
 		int beatsPerBar = extractBeatsPerBar(timeSignature);
 		String[] bars = progression.split(BAR_DELIMITER);
 
@@ -69,7 +83,8 @@ public final class IRealProChordParser {
 					.bar(barNumber)
 					.beat(currentBeat)
 					.durationBeats(duration)
-					.chordProject(project)
+					.chordProject(chordProject)
+					.sheetProject(sheetProject)
 					.build());
 
 				currentBeat += duration;
@@ -103,6 +118,7 @@ public final class IRealProChordParser {
 					.beat(current.getBeat())
 					.durationBeats(current.getDurationBeats() + next.getDurationBeats())
 					.chordProject(current.getChordProject())
+					.sheetProject(current.getSheetProject())
 					.build();
 			} else {
 				merged.add(current);

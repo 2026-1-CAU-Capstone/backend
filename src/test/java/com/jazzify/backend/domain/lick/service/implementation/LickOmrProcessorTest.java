@@ -1,8 +1,6 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -14,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrProperties;
 import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
-import com.jazzify.backend.shared.exception.CustomException;
 
 @NullMarked
 class LickOmrProcessorTest {
@@ -53,11 +50,13 @@ class LickOmrProcessorTest {
 		""";
 
 	@Test
-	void process_rejectsPdfFile() {
+	void process_acceptsPdfFile() {
+		boolean[] called = {false};
 		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
 			@Override
 			public OmrRecognitionResult recognize(MultipartFile file) {
-				throw new AssertionError("PDF 파일은 OMR 서버 호출 전에 차단되어야 합니다.");
+				called[0] = true;
+				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Dm7  G7", "2", "Cmaj7"));
 			}
 		});
 		MockMultipartFile file = new MockMultipartFile(
@@ -67,8 +66,11 @@ class LickOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		CustomException exception = assertThrows(CustomException.class, () -> processor.process(file));
-		assertThat(exception.getCode()).isEqualTo("OMR_004");
+		SheetDataRequest result = processor.process(file);
+		assertThat(called[0]).isTrue();
+		assertThat(result.measures())
+			.extracting(it -> it.chord())
+			.containsExactly("Dm7  G7", "Cmaj7");
 	}
 
 	@Test

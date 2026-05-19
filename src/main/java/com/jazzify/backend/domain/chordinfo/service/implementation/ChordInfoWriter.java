@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordinfo.repository.ChordInfoRepository;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +27,10 @@ public class ChordInfoWriter {
 
 	public void deleteAllByChordProject(ChordProject chordProject) {
 		chordInfoRepository.deleteAllByChordProject(chordProject);
+	}
+
+	public void deleteAllBySheetProject(SheetProject sheetProject) {
+		chordInfoRepository.deleteAllBySheetProject(sheetProject);
 	}
 }
 

@@ -9,14 +9,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.core.security.CustomPrincipal;
 import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
+import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectOmrCreateRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectUpdateRequest;
 import com.jazzify.backend.domain.chordproject.dto.response.AnalysisResultResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordInfoResponse;
+import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrCreateResponse;
+import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrStatusResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectResponse;
 import com.jazzify.backend.shared.web.ApiResponse;
 
@@ -45,6 +49,36 @@ public interface ChordProjectControllerSpec {
 		@Valid @RequestBody ChordProjectCreateRequest request);
 
 	@Operation(
+		summary = "OMR로 코드 프로젝트 생성 요청",
+		description = """
+			악보 파일을 OMR로 해석하는 비동기 작업을 큐잉하고 코드 프로젝트를 생성합니다.
+			
+			### 요청 형식
+			- `file`: 악보 파일 (`png`, `jpg`, `jpeg`, `pdf`)
+			- `title`: 선택. 미입력 시 MusicXML 제목 사용
+			- `key`: 선택. 미입력 시 MusicXML key/mode 기반 자동 추론
+			- `timeSignature`: 선택. 미입력 시 MusicXML 박자표 사용
+			
+			### 처리 결과
+			- 프로젝트를 즉시 생성하고 `omrStatus=PENDING`, `omrProgress=0` 상태로 반환합니다.
+			- 실제 OMR 처리와 `ChordInfo` 저장은 트랜잭션 커밋 후 이벤트 리스너에서 비동기로 수행됩니다.
+			- 생성 직후 `chords[]`는 비어 있으며, 진행상황은 상태 조회 API로 확인합니다.
+			
+			### 에러
+			- `400 OMR_004`: 지원하지 않는 파일 형식
+			- `400 OMR_005`: 빈 파일
+			- `500 OMR_007`: 업로드 파일 읽기 실패
+			- `400 CHORD_PROJECT_006`: 비동기 처리 중 조성 자동 판별 실패 및 key 미입력 (`omrStatus=FAILED`로 반영)
+			- `503 OMR_001`: OMR 서버 미설정
+			- `502 OMR_002`, `422 OMR_003`, `422 OMR_006`: 비동기 작업 실패 시 프로젝트의 `omrStatus=FAILED`와 `omrFailureReason`에 반영
+			"""
+	)
+	ApiResponse<ChordProjectOmrCreateResponse> createFromOmr(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		MultipartFile file,
+		ChordProjectOmrCreateRequest request);
+
+	@Operation(
 		summary = "내 코드 프로젝트 목록 조회 (페이징)",
 		description = """
 			로그인한 사용자 본인의 코드 프로젝트 목록을 페이징하여 반환합니다.
@@ -67,6 +101,20 @@ public interface ChordProjectControllerSpec {
 			"""
 	)
 	ApiResponse<ChordProjectResponse> getByPublicId(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId);
+
+	@Operation(
+		summary = "코드 프로젝트 OMR 진행 상태 조회",
+		description = """
+			비동기 OMR 프로젝트 생성의 현재 진행 상태를 조회합니다.
+			
+			- `status`: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
+			- `progress`: 0~100 진행률
+			- `failureReason`: 실패 시 원인 메시지
+			"""
+	)
+	ApiResponse<ChordProjectOmrStatusResponse> getOmrStatus(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@PathVariable UUID publicId);
 

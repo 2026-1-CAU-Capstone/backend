@@ -1,5 +1,6 @@
 package com.jazzify.backend.domain.sheetproject.service.implementation;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -26,6 +27,10 @@ public class SheetProjectReader {
 	public SheetProject getByPublicIdAndUser(UUID publicId, User user) {
 		return sheetProjectRepository.findByPublicIdAndUser(publicId, user)
 			.orElseThrow(SheetProjectErrorCode.SHEET_PROJECT_NOT_FOUND::toException);
+	}
+
+	public Optional<SheetProject> findByPublicId(UUID publicId) {
+		return sheetProjectRepository.findByPublicId(publicId);
 	}
 
 	public Page<SheetProject> getAllByUser(User user, Pageable pageable) {

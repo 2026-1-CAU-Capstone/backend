@@ -42,7 +42,12 @@ public class StorageFileService {
 
 		String originalFileName = Objects.requireNonNullElse(file.getOriginalFilename(), "unknown");
 		String contentType = Objects.requireNonNullElse(file.getContentType(), "application/octet-stream");
-		long fileSize = file.getSize();
+		return upload(originalFileName, contentType, fileData);
+	}
+
+	@Transactional
+	public StorageFileResponse upload(String originalFileName, String contentType, byte[] fileData) {
+		long fileSize = fileData.length;
 
 		String extension = extractExtension(originalFileName);
 		String savedFileName = UUID.randomUUID() + extension;

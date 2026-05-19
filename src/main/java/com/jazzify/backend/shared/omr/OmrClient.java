@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono;
 /**
  * OMR(Optical Music Recognition) 서버와 통신하는 HTTP 클라이언트.
  * <p>
- * MusicVision 명세에 따라 악보 이미지를 업로드하고,
+ * MusicVision 명세에 따라 악보 파일을 업로드하고,
  * 생성된 {@code job_id}를 이용해 MusicXML과 chord assignments를 조회한다.
  */
 @Slf4j
@@ -46,7 +46,7 @@ public class OmrClient {
 	/**
 	 * 악보 파일을 OMR 서버에 전송하고 MusicXML과 마디별 코드 매핑 결과를 반환한다.
 	 *
-	 * @param file 악보 파일 (PNG · JPG · JPEG)
+	 * @param file 악보 파일 (PNG · JPG · JPEG · PDF)
 	 * @return MusicXML 문자열과 chord assignments 기반 마디 코드 매핑
 	 * @throws CustomException OMR 서버 미설정, 인식 실패 시
 	 */
@@ -72,7 +72,6 @@ public class OmrClient {
 			MediaType fileMediaType = deriveMediaType(ext);
 
 			// ── multipart POST ──────────────────────────────────────────────────
-			// 극약 처방으로 WebClient를 사용한다.
 			// MultipartBodyBuilder + BodyInserters.fromMultipartData(...) 조합은
 			// WebFlux의 MultipartHttpMessageWriter가 boundary와 part 헤더를 생성한다.
 			final String finalFilename = sanitizeFilename(filename);

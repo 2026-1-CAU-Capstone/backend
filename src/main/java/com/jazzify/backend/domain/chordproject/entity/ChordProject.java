@@ -11,6 +11,7 @@ import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.shared.domain.MusicKey;
+import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 
 import jakarta.persistence.CascadeType;
@@ -44,6 +45,16 @@ public class ChordProject extends BaseEntity {
 
 	@Column(nullable = false, length = 10)
 	private String timeSignature;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private OmrProcessingStatus omrStatus = OmrProcessingStatus.COMPLETED;
+
+	@Column(nullable = false)
+	private int omrProgress = 100;
+
+	@Column(length = 500)
+	private @Nullable String omrFailureReason;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
@@ -88,6 +99,36 @@ public class ChordProject extends BaseEntity {
 	public void update(String title, MusicKey key) {
 		this.title = title;
 		this.keySignature = key;
+	}
+
+	public void updateOmrResolvedFields(String title, MusicKey key, String timeSignature) {
+		this.title = title;
+		this.keySignature = key;
+		this.timeSignature = timeSignature;
+	}
+
+	public void markOmrQueued() {
+		this.omrStatus = OmrProcessingStatus.PENDING;
+		this.omrProgress = 0;
+		this.omrFailureReason = null;
+	}
+
+	public void markOmrProcessing(int progress) {
+		this.omrStatus = OmrProcessingStatus.PROCESSING;
+		this.omrProgress = progress;
+		this.omrFailureReason = null;
+	}
+
+	public void markOmrCompleted() {
+		this.omrStatus = OmrProcessingStatus.COMPLETED;
+		this.omrProgress = 100;
+		this.omrFailureReason = null;
+	}
+
+	public void markOmrFailed(String failureReason, int progress) {
+		this.omrStatus = OmrProcessingStatus.FAILED;
+		this.omrProgress = progress;
+		this.omrFailureReason = failureReason;
 	}
 
 	public void updateAnalysisStats(int totalChords, int highConfidenceCount,
