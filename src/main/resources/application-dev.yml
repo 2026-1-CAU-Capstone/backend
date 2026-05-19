@@ -86,6 +86,7 @@ logging:
     root: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE
+    com.jazzify.backend.shared.omr.OmrClient: DEBUG   # OMR 요청/응답 헤더 · body 크기 로그
 
 # ── Swagger / Springdoc ───────────────────
 springdoc:
