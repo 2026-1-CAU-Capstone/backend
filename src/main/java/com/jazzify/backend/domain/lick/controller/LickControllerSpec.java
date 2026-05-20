@@ -55,6 +55,7 @@ public interface LickControllerSpec {
 			| 필드 | 타입 | 필수 | 설명 |
 			|------|------|------|------|
 			| `performer` | string | - | 연주자 이름 (예: `"Cannonball Adderley"`) |
+			| `composer` | string | - | 작곡자 이름 (예: `"Joseph Kosma"`) |
 			| `title` | string | ✅ | 곡 제목 (최대 255자) |
 			| `album` | string | - | 앨범명 (예: `"Somethin' Else"`) |
 			| `instrument` | string | ✅ | 악기 코드: `as`(알토 색소폰) · `ts`(테너 색소폰) · `tp`(트럼펫) · `p`(피아노) · `g`(기타) · `b`(베이스) · `voc`(보컬) · `cl`(클라리넷) |
@@ -90,7 +91,6 @@ public interface LickControllerSpec {
 			| 필드 | 타입 | 설명 |
 			|------|------|------|
 			| `title` | string | 악보 제목 |
-			| `composer` | string | 작곡자 |
 			| `key` | string | 악보 조성 (예: `"Bb"`, `"F#"`) |
 			| `timeSignature` | string | 악보 박자표 (예: `"4/4"`) |
 			| `tempo` | integer | 악보 템포 BPM |
@@ -191,6 +191,7 @@ public interface LickControllerSpec {
 						  "userId": null,
 						  "sourceUrl": "https://www.youtube.com/watch?v=example",
 						  "performer": "Charlie Parker",
+									  "composer": "Charlie Parker",
 						  "title": "Ko-Ko — ii-V-I Bebop Lick",
 						  "album": null,
 						  "instrument": "as",
@@ -205,7 +206,6 @@ public interface LickControllerSpec {
 						  "targetChord": "CMaj7",
 						  "sheetData": {
 						    "title": "Ko-Ko — ii-V-I Bebop Lick",
-						    "composer": "Charlie Parker",
 						    "key": "C",
 						    "timeSignature": "4/4",
 						    "tempo": 200,
@@ -264,7 +264,7 @@ public interface LickControllerSpec {
 			
 			| 파라미터 | 기본값 | 설명 |
 			|---------|-------|------|
-			| `composer` | - | 악보 메타데이터의 작곡자명(`sheetData.composer`)과 정확히 일치하는 릭만 조회합니다. |
+			| `composer` | - | Performance Metadata의 작곡자명과 정확히 일치하는 릭만 조회합니다. |
 			| `performer` | - | 연주자명과 정확히 일치하는 릭만 조회합니다. |
 			| `page` | `0` | 페이지 번호 (0부터 시작) |
 			| `size` | `20` | 페이지당 항목 수 |
@@ -317,7 +317,7 @@ public interface LickControllerSpec {
 			
 			응답 바디는 생성 시 저장된 5개 섹션 데이터를 모두 포함합니다.
 			- **섹션 1 (identity)**: `publicId`, `source`, `userId`, `isOMR`, `sourceUrl`, `createdAt`, `updatedAt`
-			- **섹션 2 (performance)**: `performer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
+			- **섹션 2 (performance)**: `performer`, `composer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
 			- **섹션 3 (harmonic)**: `chords`, `chordsPerNote`, `harmonicContext`, `targetChord`
 			- **섹션 4 (sheetData)**: VexFlow 렌더링용 중첩 객체 (`measures[].notes[]` 포함)
 			- **섹션 5 (features)**: `nEvents`, `pitches`, `intervals`, `parsons`, `fuzzyIntervals`, `durationClasses`, `pitchMin`, `pitchMax`, `pitchRange`, `pitchMean`, `startPitch`, `endPitch`
@@ -339,7 +339,7 @@ public interface LickControllerSpec {
 			
 			### 수정 가능 필드
 			- **섹션 1 (identity partial)**: `sourceUrl` — 출처 영상·링크 URL
-			- **섹션 2 (performance)**: `performer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
+			- **섹션 2 (performance)**: `performer`, `composer`, `title`, `album`, `instrument`, `style`, `tempo`, `key`, `rhythmFeel`, `timeSignature`
 			- **섹션 3 (harmonic)**: `chords`, `chordsPerNote`, `harmonicContext`, `targetChord`
 			  — 생략 시 변경된 `sheetData` 기반으로 **자동 재계산**됩니다.
 			- **섹션 4 (sheetData)**: 악보 전체 교체 (measures 배열 필수)
@@ -424,9 +424,9 @@ public interface LickControllerSpec {
 	ApiResponse<Void> deleteVideo(UUID publicId);
 
 	@Operation(
-		summary = "OMR로 릭 생성 (악보 이미지 업로드)",
+		summary = "OMR로 릭 생성 (악보 파일 업로드)",
 		description = """
-			악보 이미지(PNG/JPG/JPEG)를 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
+			악보 파일(PNG/JPG/JPEG/PDF)을 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
 			반환된 `job_id`로 MusicXML과 chord assignments를 조회·결합하여 Lick으로 저장합니다.
 			
 			### 요청 형식
@@ -444,6 +444,7 @@ public interface LickControllerSpec {
 			|---------|------|------|
 			| `title` | string | 곡 제목 (미입력 시 MusicXML work-title 사용) |
 			| `performer` | string | 연주자 이름 |
+			| `composer` | string | 작곡자 이름 (미입력 시 MusicXML creator[type=composer] 사용) |
 			| `album` | string | 앨범명 |
 			| `source` | string | 출처: `user` · `weimar` · `curated` (기본: `user`) |
 			| `instrument` | string | 악기 코드: `as` · `ts` · `tp` · `p` · `g` 등 |
@@ -454,7 +455,7 @@ public interface LickControllerSpec {
 			| `userId` | string (UUID) | 소유자 ID |
 			
 			### 처리 흐름
-			1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`)
+			1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`, `pdf`)
 			2. MusicVision `POST /omr/process`로 파일 전송
 			3. 응답의 `job_id`로 `/omr/jobs/{job_id}/musicxml` 조회
 			4. `/omr/jobs/{job_id}/chord-assignments` 조회

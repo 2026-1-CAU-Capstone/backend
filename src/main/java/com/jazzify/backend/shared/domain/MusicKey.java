@@ -1,9 +1,15 @@
 package com.jazzify.backend.shared.domain;
 
+import java.util.Locale;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
+@NullMarked
 @RequiredArgsConstructor
 public enum MusicKey {
 	// C
@@ -29,5 +35,28 @@ public enum MusicKey {
 	B_MINOR("Bm"), B_SHARP_MINOR("B#m"), B_FLAT_MINOR("Bbm");
 
 	private final String analysisKey;
+
+	public static @Nullable MusicKey fromAnalysisKey(@Nullable String key) {
+		if (key == null || key.isBlank()) {
+			return null;
+		}
+
+		String normalized = key
+			.trim()
+			.replace("♭", "b")
+			.replace("♯", "#")
+			.replace("major", "")
+			.replace("minor", "m")
+			.replaceAll("\\s+", "")
+			.toUpperCase(Locale.ROOT);
+
+		for (MusicKey musicKey : values()) {
+			if (musicKey.analysisKey.toUpperCase(Locale.ROOT).equals(normalized)) {
+				return musicKey;
+			}
+		}
+
+		return null;
+	}
 }
 

@@ -1,7 +1,5 @@
 package com.jazzify.backend.domain.solo.service.implementation;
 
-import java.util.List;
-
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +10,6 @@ import com.jazzify.backend.domain.solo.dto.request.SoloVideoRequest;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.domain.solo.entity.SoloSource;
 import com.jazzify.backend.domain.solo.entity.Solo;
-import com.jazzify.backend.domain.solo.entity.SoloMeasure;
 import com.jazzify.backend.domain.solo.entity.SoloVideo;
 import com.jazzify.backend.domain.solo.model.SoloFeatures;
 import com.jazzify.backend.domain.solo.model.SoloHarmonicData;
@@ -37,7 +34,7 @@ public class SoloWriter {
 			.isOMR(isOMR)
 			// 2. Performance
 			.performer(request.performer())
-			.composer(request.sheetData().composer())
+			.composer(request.composer())
 			.title(request.title())
 			.album(request.album())
 			.instrument(request.instrument() != null ? request.instrument() : Instrument.UNKNOWN)
@@ -51,6 +48,8 @@ public class SoloWriter {
 			.chordsPerNote(SoloMapper.serializeList(harmonic.chordsPerNote()))
 			.harmonicContext(harmonic.harmonicContext())
 			.targetChord(harmonic.targetChord())
+			// 4. Sheet Data
+			.sheetDataJson(SoloMapper.serializeSheetData(SoloMapper.toSheetDataResponse(request.sheetData())))
 			// 5. Similarity Features
 			.nEvents(features.nEvents())
 			.pitches(SoloMapper.serializeList(features.pitches()))
@@ -66,20 +65,14 @@ public class SoloWriter {
 			.endPitch(features.endPitch())
 			.build();
 
-		Solo saved = soloRepository.save(solo);
-
-		// 4. Sheet Data — 마디/음표를 개별 엔티티로 저장
-		List<SoloMeasure> measures = SoloMapper.toMeasureEntities(saved, request.sheetData());
-		saved.replaceMeasures(measures);
-
-		return saved;
+		return soloRepository.save(solo);
 	}
 
 	public void update(Solo solo, SoloUpdateRequest request, SoloHarmonicData harmonic, SoloFeatures features) {
 		solo.update(
 			// 2. Performance
 			request.performer(),
-			request.sheetData().composer(),
+			request.composer(),
 			request.title(),
 			request.album(),
 			request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,
@@ -107,10 +100,7 @@ public class SoloWriter {
 			features.startPitch(),
 			features.endPitch()
 		);
-
-		// 4. Sheet Data — 기존 마디/음표를 새 내용으로 교체 (orphanRemoval로 자동 삭제)
-		List<SoloMeasure> measures = SoloMapper.toMeasureEntities(solo, request.sheetData());
-		solo.replaceMeasures(measures);
+		solo.replaceSheetDataJson(SoloMapper.serializeSheetData(SoloMapper.toSheetDataResponse(request.sheetData())));
 	}
 
 	public void delete(Solo solo) {

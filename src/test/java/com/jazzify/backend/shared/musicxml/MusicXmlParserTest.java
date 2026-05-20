@@ -52,6 +52,29 @@ class MusicXmlParserTest {
 		</score-partwise>
 		""";
 
+	private static final String MINOR_MODE_MUSIC_XML = """
+		<?xml version="1.0" encoding="UTF-8"?>
+		<score-partwise version="3.1">
+		  <part-list>
+		    <score-part id="P1"><part-name>Music</part-name></score-part>
+		  </part-list>
+		  <part id="P1">
+		    <measure number="1">
+		      <attributes>
+		        <divisions>1</divisions>
+		        <key><fifths>-3</fifths><mode>minor</mode></key>
+		        <time><beats>3</beats><beat-type>4</beat-type></time>
+		      </attributes>
+		      <note>
+		        <pitch><step>C</step><octave>4</octave></pitch>
+		        <duration>1</duration>
+		        <type>quarter</type>
+		      </note>
+		    </measure>
+		  </part>
+		</score-partwise>
+		""";
+
 	@Test
 	void parse_usesChordAssignmentsByMusicXmlMeasureNumber_andFallsBackToHarmonyWhenMissing() {
 		ParsedSheetData parsed = MusicXmlParser.parse(
@@ -62,6 +85,14 @@ class MusicXmlParserTest {
 		assertThat(parsed.measures())
 			.extracting(ParsedMeasure::chord)
 			.containsExactly("CΔ7", "Dm7  G7");
+	}
+
+	@Test
+	void parse_includesMinorModeInKey() {
+		ParsedSheetData parsed = MusicXmlParser.parse(MINOR_MODE_MUSIC_XML, Map.of());
+
+		assertThat(parsed.key()).isEqualTo("Cm");
+		assertThat(parsed.timeSignature()).isEqualTo("3/4");
 	}
 }
 

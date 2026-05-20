@@ -22,6 +22,7 @@ public record SoloUpdateRequest(
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable @Size(max = 255) String performer,
+	@Nullable @Size(max = 255) String composer,
 	@NotBlank @Size(max = 255) String title,
 	@Nullable @Size(max = 255) String album,
 	@Nullable Instrument instrument,

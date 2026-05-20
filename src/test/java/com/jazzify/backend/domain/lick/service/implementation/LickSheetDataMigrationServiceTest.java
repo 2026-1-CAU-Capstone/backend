@@ -81,8 +81,8 @@ class LickSheetDataMigrationServiceTest {
 		Lick migrated = lickRepository.findById(Objects.requireNonNull(lick.getId())).orElseThrow();
 		SheetDataResponse sheetData = Objects.requireNonNull(LickMapper.parseSheetData(migrated.getSheetDataJson()));
 		assertThat(migrated.getSheetDataJson()).isNotBlank();
+		assertThat(migrated.getComposer()).isEqualTo("Charlie Parker");
 		assertThat(sheetData.title()).isEqualTo("Anthropology Fragment");
-		assertThat(sheetData.composer()).isEqualTo("Charlie Parker");
 		assertThat(sheetData.key()).isEqualTo("Bb-maj");
 		assertThat(sheetData.timeSignature()).isEqualTo("4/4");
 		assertThat(sheetData.tempo()).isEqualTo(220);

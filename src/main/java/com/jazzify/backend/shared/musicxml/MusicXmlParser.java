@@ -39,6 +39,11 @@ public final class MusicXmlParser {
 		"C", "G", "D", "A", "E", "B", "F#", "C#"
 	};
 
+	private static final String[] MINOR_KEY_NAMES = {
+		"Abm", "Ebm", "Bbm", "Fm", "Cm", "Gm", "Dm",
+		"Am", "Em", "Bm", "F#m", "C#m", "G#m", "D#m", "A#m"
+	};
+
 	private static final Map<String, String> TYPE_TO_VF;
 	private static final Map<String, String> ACC_MAP;
 	private static final Map<String, Double> DUR_DIVS;
@@ -151,6 +156,7 @@ public final class MusicXmlParser {
 		int fifths = 0;
 		String beats = "4";
 		String beatType = "4";
+		String mode = "major";
 		if (firstAttr != null) {
 			String fifthsStr = firstDescendantText(firstAttr, "fifths");
 			if (fifthsStr != null) fifths = Integer.parseInt(fifthsStr.trim());
@@ -158,9 +164,11 @@ public final class MusicXmlParser {
 			if (beatsStr != null) beats = beatsStr.trim();
 			String beatTypeStr = firstDescendantText(firstAttr, "beat-type");
 			if (beatTypeStr != null) beatType = beatTypeStr.trim();
+			String modeStr = firstDescendantText(firstAttr, "mode");
+			if (modeStr != null && !modeStr.isBlank()) mode = modeStr.trim();
 		}
 		String timeSig = beats + "/" + beatType;
-		String key = KEY_NAMES[Math.min(Math.max(fifths + 7, 0), 14)];
+		String key = toAnalysisKey(fifths, mode);
 
 		// ── Key Signature Letters ──
 		Set<String> keySigLetters = buildKeySigLetters(fifths);
@@ -193,6 +201,11 @@ public final class MusicXmlParser {
 		}
 
 		return new ParsedSheetData(title, composer, key, timeSig, tempo, measures);
+	}
+
+	private static String toAnalysisKey(int fifths, String mode) {
+		int index = Math.min(Math.max(fifths + 7, 0), 14);
+		return "minor".equalsIgnoreCase(mode) ? MINOR_KEY_NAMES[index] : KEY_NAMES[index];
 	}
 
 	// ─── Measure ────────────────────────────────────────────────────────

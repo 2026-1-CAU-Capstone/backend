@@ -1,17 +1,22 @@
 package com.jazzify.backend.domain.chordproject.service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.analysis.service.HarmonicAnalysisService;
@@ -23,20 +28,28 @@ import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysis
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
 import com.jazzify.backend.domain.chordinfo.util.ChordInfoMapper;
+import com.jazzify.backend.domain.chordproject.event.ChordProjectOmrRequestedEvent;
 import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
+import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectOmrCreateRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectUpdateRequest;
 import com.jazzify.backend.domain.chordproject.dto.response.AnalysisResultResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordInfoResponse;
+import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrCreateResponse;
+import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrStatusResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectResponse;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectOmrWriter;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectReader;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectWriter;
 import com.jazzify.backend.domain.chordproject.util.ChordProjectMapper;
 import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.domain.user.service.implementation.UserReader;
+import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.exception.code.ChordProjectErrorCode;
+import com.jazzify.backend.shared.exception.code.OmrErrorCode;
+import com.jazzify.backend.shared.omr.OmrFileValidator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -45,8 +58,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChordProjectService {
 
+	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String DEFAULT_PENDING_TIME_SIGNATURE = "4/4";
+	private static final MusicKey DEFAULT_PENDING_KEY = MusicKey.C_MAJOR;
+
 	private final ChordProjectReader chordProjectReader;
 	private final ChordProjectWriter chordProjectWriter;
+	private final ChordProjectOmrWriter chordProjectOmrWriter;
+	private final ApplicationEventPublisher eventPublisher;
 	private final UserReader userReader;
 	private final ChordInfoReader chordInfoReader;
 	private final ChordInfoWriter chordInfoWriter;
@@ -61,6 +80,42 @@ public class ChordProjectService {
 		return ChordProjectMapper.toResponse(project);
 	}
 
+	@Transactional
+	public ChordProjectOmrCreateResponse createFromOmr(
+		UUID userPublicId,
+		MultipartFile file,
+		ChordProjectOmrCreateRequest request
+	) {
+		OmrFileValidator.validate(file);
+		byte[] fileData = readFileBytes(file);
+		User user = userReader.getByPublicId(userPublicId);
+
+		String originalFilename = defaultFileName(file.getOriginalFilename());
+		String contentType = defaultContentType(file.getContentType());
+		String pendingTitle = hasText(request.title())
+			? request.title().trim()
+			: extractBaseName(originalFilename);
+		MusicKey pendingKey = request.key() != null ? request.key() : DEFAULT_PENDING_KEY;
+		String pendingTimeSignature = hasText(request.timeSignature())
+			? request.timeSignature().trim()
+			: DEFAULT_PENDING_TIME_SIGNATURE;
+
+		ChordProject project = chordProjectOmrWriter.createPending(user, pendingTitle, pendingKey, pendingTimeSignature);
+		UUID projectPublicId = Objects.requireNonNull(project.getPublicId());
+
+		eventPublisher.publishEvent(new ChordProjectOmrRequestedEvent(
+			projectPublicId,
+			originalFilename,
+			contentType,
+			fileData,
+			request.title(),
+			request.key(),
+			request.timeSignature()
+		));
+
+		return new ChordProjectOmrCreateResponse(ChordProjectMapper.toResponse(project), List.of());
+	}
+
 	@Transactional(readOnly = true)
 	public Page<ChordProjectResponse> getAll(UUID userPublicId, Pageable pageable) {
 		User user = userReader.getByPublicId(userPublicId);
@@ -73,6 +128,13 @@ public class ChordProjectService {
 		User user = userReader.getByPublicId(userPublicId);
 		ChordProject project = chordProjectReader.getByPublicIdAndUser(projectPublicId, user);
 		return ChordProjectMapper.toResponse(project);
+	}
+
+	@Transactional(readOnly = true)
+	public ChordProjectOmrStatusResponse getOmrStatus(UUID userPublicId, UUID projectPublicId) {
+		User user = userReader.getByPublicId(userPublicId);
+		ChordProject project = chordProjectReader.getByPublicIdAndUser(projectPublicId, user);
+		return ChordProjectMapper.toOmrStatusResponse(project);
 	}
 
 	@Transactional
@@ -213,5 +275,34 @@ public class ChordProjectService {
 			bars.add(String.join(" ", chords));
 		}
 		return String.join(" | ", bars);
+	}
+
+	private static boolean hasText(@Nullable String value) {
+		return value != null && !value.isBlank();
+	}
+
+	private static String defaultFileName(@Nullable String originalFilename) {
+		return hasText(originalFilename) ? Objects.requireNonNull(originalFilename).trim() : "upload.pdf";
+	}
+
+	private static String defaultContentType(@Nullable String contentType) {
+		return hasText(contentType) ? Objects.requireNonNull(contentType).trim() : "application/octet-stream";
+	}
+
+	private static String extractBaseName(String originalFilename) {
+		int lastDotIndex = originalFilename.lastIndexOf('.');
+		if (lastDotIndex <= 0) {
+			return hasText(originalFilename) ? originalFilename : DEFAULT_PENDING_TITLE;
+		}
+		String baseName = originalFilename.substring(0, lastDotIndex).trim();
+		return hasText(baseName) ? baseName : DEFAULT_PENDING_TITLE;
+	}
+
+	private static byte[] readFileBytes(MultipartFile file) {
+		try {
+			return file.getBytes();
+		} catch (IOException e) {
+			throw OmrErrorCode.OMR_FILE_READ_FAILED.toException(e.getMessage());
+		}
 	}
 }

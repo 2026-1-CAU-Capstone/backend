@@ -25,6 +25,7 @@ public record LickResponse(
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable String performer,
+	@Nullable String composer,
 	String title,
 	@Nullable String album,
 	Instrument instrument,

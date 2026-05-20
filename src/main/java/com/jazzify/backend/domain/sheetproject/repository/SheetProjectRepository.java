@@ -16,5 +16,7 @@ public interface SheetProjectRepository extends JpaRepository<SheetProject, Long
 
 	Optional<SheetProject> findByPublicIdAndUser(UUID publicId, User user);
 
+	Optional<SheetProject> findByPublicId(UUID publicId);
+
 	Page<SheetProject> findAllByUser(User user, Pageable pageable);
 }

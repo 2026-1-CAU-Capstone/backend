@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordinfo.repository.ChordInfoRepository;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +23,10 @@ public class ChordInfoReader {
 
 	public List<ChordInfo> getAllByChordProject(ChordProject chordProject) {
 		return chordInfoRepository.findAllByChordProjectOrderByBarAscBeatAsc(chordProject);
+	}
+
+	public List<ChordInfo> getAllBySheetProject(SheetProject sheetProject) {
+		return chordInfoRepository.findAllBySheetProjectOrderByBarAscBeatAsc(sheetProject);
 	}
 }
 

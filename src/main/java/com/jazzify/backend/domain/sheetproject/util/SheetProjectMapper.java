@@ -4,6 +4,7 @@ import java.util.Objects;
 
 import org.jspecify.annotations.NullMarked;
 
+import com.jazzify.backend.domain.sheetproject.dto.response.SheetProjectOmrStatusResponse;
 import com.jazzify.backend.domain.sheetproject.dto.response.SheetProjectResponse;
 import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 
@@ -20,8 +21,20 @@ public final class SheetProjectMapper {
 			project.getTitle(),
 			project.getKeySignature(),
 			Objects.requireNonNull(project.getSheetFile().getPublicId()),
+			project.getOmrStatus(),
+			project.getOmrProgress(),
+			project.getOmrFailureReason(),
 			Objects.requireNonNull(project.getCreatedAt()),
 			Objects.requireNonNull(project.getUpdatedAt())
+		);
+	}
+
+	public static SheetProjectOmrStatusResponse toOmrStatusResponse(SheetProject project) {
+		return new SheetProjectOmrStatusResponse(
+			Objects.requireNonNull(project.getPublicId()),
+			project.getOmrStatus(),
+			project.getOmrProgress(),
+			project.getOmrFailureReason()
 		);
 	}
 }

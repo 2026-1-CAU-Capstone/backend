@@ -16,5 +16,7 @@ public interface ChordProjectRepository extends JpaRepository<ChordProject, Long
 
 	Optional<ChordProject> findByPublicIdAndUser(UUID publicId, User user);
 
+	Optional<ChordProject> findByPublicId(UUID publicId);
+
 	Page<ChordProject> findAllByUser(User user, Pageable pageable);
 }

@@ -5,10 +5,12 @@ import java.util.List;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @NullMarked
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SheetDataResponse(
 	@Nullable String title,
-	@Nullable String composer,
 	@Nullable String key,
 	@Nullable String timeSignature,
 	@Nullable Integer tempo,

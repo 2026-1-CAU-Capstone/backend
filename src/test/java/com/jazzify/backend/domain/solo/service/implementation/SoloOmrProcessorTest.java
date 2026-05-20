@@ -1,8 +1,6 @@
 package com.jazzify.backend.domain.solo.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -13,9 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrProperties;
-import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;
-import com.jazzify.backend.shared.exception.CustomException;
-
 @NullMarked
 class SoloOmrProcessorTest {
 
@@ -53,11 +48,13 @@ class SoloOmrProcessorTest {
 		""";
 
 	@Test
-	void process_rejectsPdfFile() {
+	void process_acceptsPdfFile() {
+		boolean[] called = {false};
 		SoloOmrProcessor processor = new SoloOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
 			@Override
 			public OmrRecognitionResult recognize(MultipartFile file) {
-				throw new AssertionError("PDF 파일은 OMR 서버 호출 전에 차단되어야 합니다.");
+				called[0] = true;
+				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Gm7  C7", "2", "Fmaj7"));
 			}
 		});
 		MockMultipartFile file = new MockMultipartFile(
@@ -67,9 +64,12 @@ class SoloOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		CustomException exception = assertThrows(CustomException.class, () -> processor.process(file));
+		SoloOmrProcessor.ProcessedSheetData result = processor.process(file);
 
-		assertThat(exception.getCode()).isEqualTo("OMR_004");
+		assertThat(called[0]).isTrue();
+		assertThat(result.sheetData().measures())
+			.extracting(it -> it.chord())
+			.containsExactly("Gm7  C7", "Fmaj7");
 	}
 
 	@Test
@@ -90,9 +90,9 @@ class SoloOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		SheetDataRequest result = processor.process(file);
+		SoloOmrProcessor.ProcessedSheetData result = processor.process(file);
 
-		assertThat(result.measures())
+		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Gm7  C7", "Fmaj7");
 	}

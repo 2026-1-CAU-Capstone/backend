@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.MeasureRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
+import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.dto.response.LickVideoResponse;
 import com.jazzify.backend.domain.lick.dto.response.MeasureResponse;
@@ -51,6 +52,7 @@ public final class LickMapper {
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt()),
 			lick.getPerformer(),
+			lick.getComposer(),
 			lick.getTitle(),
 			lick.getAlbum(),
 			lick.getInstrument(),
@@ -93,24 +95,20 @@ public final class LickMapper {
 	}
 
 	public static SheetDataResponse toSheetDataResponse(LickCreateRequest request) {
-		return toSheetDataResponse(
-			request.title(),
-			request.sheetData().composer(),
-			request.key(),
-			request.timeSignature(),
-			request.tempo(),
-			request.sheetData().measures()
-		);
+		return toSheetDataResponse(request.sheetData());
 	}
 
 	public static SheetDataResponse toSheetDataResponse(LickUpdateRequest request) {
+		return toSheetDataResponse(request.sheetData());
+	}
+
+	public static SheetDataResponse toSheetDataResponse(SheetDataRequest request) {
 		return toSheetDataResponse(
 			request.title(),
-			request.sheetData().composer(),
 			request.key(),
 			request.timeSignature(),
 			request.tempo(),
-			request.sheetData().measures()
+			request.measures()
 		);
 	}
 
@@ -154,7 +152,6 @@ public final class LickMapper {
 
 		return new SheetDataResponse(
 			lick.getTitle(),
-			lick.getComposer(),
 			lick.getMusicalKey(),
 			lick.getTimeSignature(),
 			lick.getTempo(),
@@ -164,7 +161,6 @@ public final class LickMapper {
 
 	private static SheetDataResponse toSheetDataResponse(
 		@Nullable String title,
-		@Nullable String composer,
 		@Nullable String key,
 		@Nullable String timeSignature,
 		@Nullable Integer tempo,
@@ -188,7 +184,7 @@ public final class LickMapper {
 			))
 			.toList();
 
-		return new SheetDataResponse(title, composer, key, timeSignature, tempo, measures);
+		return new SheetDataResponse(title, key, timeSignature, tempo, measures);
 	}
 
 	// ─── Domain Model → JSON String ────────────────────────────────────

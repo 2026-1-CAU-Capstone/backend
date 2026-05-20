@@ -29,6 +29,9 @@ public record SoloOmrRequest(
 	/** 연주자 이름. */
 	@Nullable @Size(max = 255) String performer,
 
+	/** 작곡자 이름. 미입력 시 MusicXML에서 추출. */
+	@Nullable @Size(max = 255) String composer,
+
 	/** 앨범명. */
 	@Nullable @Size(max = 255) String album,
 
