@@ -41,10 +41,11 @@ class LickWriterTest {
 
 		assertThat(lick.isOMR()).isFalse();
 		assertThat(lickRepository.findById(Objects.requireNonNull(lick.getId())).orElseThrow().isOMR()).isFalse();
+		assertThat(lick.getComposer()).isEqualTo("Miles Davis");
 		assertThat(LickMapper.parseSheetData(lick.getSheetDataJson()))
 			.isNotNull()
-			.extracting(it -> it.title(), it -> it.composer(), it -> it.key())
-			.containsExactly("So What Fragment", "Miles Davis", "C-maj");
+			.extracting(it -> it.title(), it -> it.key())
+			.containsExactly("So What Fragment", "C");
 	}
 
 	@Test
@@ -60,6 +61,7 @@ class LickWriterTest {
 			LickSource.USER,
 			null,
 			"Miles Davis",
+			"Miles Davis",
 			"So What Fragment",
 			null,
 			Instrument.TP,
@@ -74,7 +76,6 @@ class LickWriterTest {
 			null,
 			new SheetDataRequest(
 				"So What Fragment",
-				"Miles Davis",
 				"C",
 				"4/4",
 				160,

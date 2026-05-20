@@ -34,7 +34,7 @@ public class LickWriter {
 			.isOMR(isOMR)
 			// 2. Performance
 			.performer(request.performer())
-			.composer(request.sheetData().composer())
+			.composer(request.composer())
 			.title(request.title())
 			.album(request.album())
 			.instrument(request.instrument() != null ? request.instrument() : Instrument.UNKNOWN)
@@ -49,7 +49,7 @@ public class LickWriter {
 			.harmonicContext(harmonic.harmonicContext())
 			.targetChord(harmonic.targetChord())
 			// 4. Sheet Data
-			.sheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request)))
+			.sheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request.sheetData())))
 			// 5. Similarity Features
 			.nEvents(features.nEvents())
 			.pitches(LickMapper.serializeList(features.pitches()))
@@ -72,7 +72,7 @@ public class LickWriter {
 		lick.update(
 			// 2. Performance
 			request.performer(),
-			request.sheetData().composer(),
+			request.composer(),
 			request.title(),
 			request.album(),
 			request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,
@@ -100,7 +100,7 @@ public class LickWriter {
 			features.startPitch(),
 			features.endPitch()
 		);
-		lick.replaceSheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request)));
+		lick.replaceSheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request.sheetData())));
 	}
 
 	public void delete(Lick lick) {

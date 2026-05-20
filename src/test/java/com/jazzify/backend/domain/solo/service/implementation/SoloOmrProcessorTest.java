@@ -11,8 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrProperties;
-import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;
-
 @NullMarked
 class SoloOmrProcessorTest {
 
@@ -66,10 +64,10 @@ class SoloOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		SheetDataRequest result = processor.process(file);
+		SoloOmrProcessor.ProcessedSheetData result = processor.process(file);
 
 		assertThat(called[0]).isTrue();
-		assertThat(result.measures())
+		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Gm7  C7", "Fmaj7");
 	}
@@ -92,9 +90,9 @@ class SoloOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		SheetDataRequest result = processor.process(file);
+		SoloOmrProcessor.ProcessedSheetData result = processor.process(file);
 
-		assertThat(result.measures())
+		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Gm7  C7", "Fmaj7");
 	}

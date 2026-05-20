@@ -39,6 +39,9 @@ class SoloWriterTest {
 		Solo solo = soloWriter.create(sampleRequest(), sampleHarmonicData(), sampleFeatures(), false);
 
 		assertThat(solo.isOMR()).isFalse();
+		assertThat(solo.getComposer()).isEqualTo("Charlie Parker");
+		assertThat(solo.getSheetDataJson()).isNotBlank();
+		assertThat(solo.getMeasures()).isEmpty();
 		assertThat(soloRepository.findById(Objects.requireNonNull(solo.getId())).orElseThrow().isOMR()).isFalse();
 	}
 
@@ -55,6 +58,7 @@ class SoloWriterTest {
 			SoloSource.USER,
 			null,
 			"Charlie Parker",
+			"Charlie Parker",
 			"Confirmation Solo",
 			null,
 			Instrument.AS,
@@ -69,7 +73,6 @@ class SoloWriterTest {
 			null,
 			new SheetDataRequest(
 				"Confirmation Solo",
-				"Charlie Parker",
 				"F",
 				"4/4",
 				220,

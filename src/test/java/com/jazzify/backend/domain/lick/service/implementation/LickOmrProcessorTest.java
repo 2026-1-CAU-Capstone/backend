@@ -11,8 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrProperties;
-import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
-
 @NullMarked
 class LickOmrProcessorTest {
 
@@ -66,9 +64,9 @@ class LickOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		SheetDataRequest result = processor.process(file);
+		LickOmrProcessor.ProcessedSheetData result = processor.process(file);
 		assertThat(called[0]).isTrue();
-		assertThat(result.measures())
+		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Dm7  G7", "Cmaj7");
 	}
@@ -91,9 +89,9 @@ class LickOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		SheetDataRequest result = processor.process(file);
+		LickOmrProcessor.ProcessedSheetData result = processor.process(file);
 
-		assertThat(result.measures())
+		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Dm7  G7", "Cmaj7");
 	}

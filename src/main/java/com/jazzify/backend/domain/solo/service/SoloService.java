@@ -136,8 +136,8 @@ public class SoloService {
 	 */
 	public SoloResponse createFromOmr(MultipartFile file, SoloOmrRequest metadata) {
 		// 1. OMR 처리 (트랜잭션 외부 — HTTP 통신 + XML 파싱)
-		SheetDataRequest sheetData = soloOmrProcessor.process(file);
-		SoloCreateRequest request = buildOmrCreateRequest(metadata, sheetData);
+		SoloOmrProcessor.ProcessedSheetData processedSheetData = soloOmrProcessor.process(file);
+		SoloCreateRequest request = buildOmrCreateRequest(metadata, processedSheetData);
 
 		// 2. 화성 데이터 계산 (트랜잭션 불필요)
 		SoloHarmonicData harmonic = soloFeatureCalculator.computeHarmonicData(
@@ -161,14 +161,20 @@ public class SoloService {
 
 	// ─── Private ────────────────────────────────────────────────────────
 
-	private SoloCreateRequest buildOmrCreateRequest(SoloOmrRequest metadata, SheetDataRequest sheetData) {
+	private SoloCreateRequest buildOmrCreateRequest(
+		SoloOmrRequest metadata,
+		SoloOmrProcessor.ProcessedSheetData processedSheetData
+	) {
+		SheetDataRequest sheetData = processedSheetData.sheetData();
 		String title = metadata.title() != null ? metadata.title()
 			: (sheetData.title() != null ? sheetData.title() : "Untitled");
+		String composer = metadata.composer() != null ? metadata.composer() : processedSheetData.composer();
 
 		return new SoloCreateRequest(
 			SoloSource.from(metadata.source()),
 			parseUuid(metadata.userId()),
 			metadata.performer(),
+			composer,
 			title,
 			metadata.album(),
 			Instrument.from(metadata.instrument()),

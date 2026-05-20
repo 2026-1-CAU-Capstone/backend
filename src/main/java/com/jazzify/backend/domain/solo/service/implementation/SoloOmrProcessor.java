@@ -3,6 +3,7 @@ package com.jazzify.backend.domain.solo.service.implementation;
 import java.util.List;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,6 +30,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SoloOmrProcessor {
 
+	@NullMarked
+	public record ProcessedSheetData(
+		@Nullable String composer,
+		SheetDataRequest sheetData
+	) {
+	}
+
 	private final OmrClient omrClient;
 
 	/**
@@ -38,7 +46,7 @@ public class SoloOmrProcessor {
 	 * @return 파싱된 악보 데이터 (Solo 도메인 SheetDataRequest)
 	 * @throws CustomException 파일 검증 실패, OMR 호출 실패, 파싱 실패 시
 	 */
-	public SheetDataRequest process(MultipartFile file) {
+	public ProcessedSheetData process(MultipartFile file) {
 		validateFile(file);
 
 		OmrClient.OmrRecognitionResult omrResult = omrClient.recognize(file);
@@ -59,7 +67,7 @@ public class SoloOmrProcessor {
 		OmrFileValidator.validate(file);
 	}
 
-	private SheetDataRequest toSheetDataRequest(ParsedSheetData parsed) {
+	private ProcessedSheetData toSheetDataRequest(ParsedSheetData parsed) {
 		List<MeasureRequest> measures = parsed.measures().stream()
 			.map(m -> new MeasureRequest(
 				m.chord(),
@@ -78,13 +86,15 @@ public class SoloOmrProcessor {
 			))
 			.toList();
 
-		return new SheetDataRequest(
-			parsed.title(),
+		return new ProcessedSheetData(
 			parsed.composer(),
-			parsed.key(),
-			parsed.timeSignature(),
-			parsed.tempo(),
-			measures
+			new SheetDataRequest(
+				parsed.title(),
+				parsed.key(),
+				parsed.timeSignature(),
+				parsed.tempo(),
+				measures
+			)
 		);
 	}
 }
