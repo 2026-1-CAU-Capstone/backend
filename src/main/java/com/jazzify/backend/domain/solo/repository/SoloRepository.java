@@ -31,13 +31,6 @@ public interface SoloRepository extends JpaRepository<Solo, Long> {
 		@Param("performer") @Nullable String performer,
 		Pageable pageable);
 
-	@Query("""
-		select s.id
-		from Solo s
-		where s.sheetDataJson is null
-		order by s.id asc
-		""")
-	Page<Long> findIdsWithMissingSheetDataJson(Pageable pageable);
 
 	@Query("""
 		select new com.jazzify.backend.domain.solo.dto.app.SoloMetadataValueCountResult(s.composer, count(s))

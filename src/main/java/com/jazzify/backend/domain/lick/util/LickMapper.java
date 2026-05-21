@@ -2,7 +2,6 @@ package com.jazzify.backend.domain.lick.util;
 
 import com.jazzify.backend.domain.lick.entity.LickVideo;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import org.jspecify.annotations.NullMarked;
@@ -11,9 +10,7 @@ import org.jspecify.annotations.Nullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.MeasureRequest;
-import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
 import com.jazzify.backend.domain.lick.dto.response.LickResponse;
 import com.jazzify.backend.domain.lick.dto.response.LickVideoResponse;
@@ -21,7 +18,6 @@ import com.jazzify.backend.domain.lick.dto.response.MeasureResponse;
 import com.jazzify.backend.domain.lick.dto.response.NoteInfoResponse;
 import com.jazzify.backend.domain.lick.dto.response.SheetDataResponse;
 import com.jazzify.backend.domain.lick.entity.Lick;
-import com.jazzify.backend.domain.lick.entity.LickMeasure;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -33,7 +29,6 @@ public final class LickMapper {
 	private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
 	private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
 	private static final TypeReference<List<Integer>> INT_LIST = new TypeReference<>() {};
-	private static final TypeReference<Map<String, String>> STRING_MAP = new TypeReference<>() {};
 	private static final TypeReference<SheetDataResponse> SHEET_DATA_RESPONSE = new TypeReference<>() {};
 
 	// ─── Entity → Response ─────────────────────────────────────────────
@@ -82,24 +77,11 @@ public final class LickMapper {
 		);
 	}
 
-	/**
-	 * 반정규화된 sheetData JSON을 우선 사용하고,
-	 * 아직 마이그레이션되지 않은 레거시 데이터만 기존 measures/notes 컬렉션에서 fallback 변환한다.
-	 */
 	public static SheetDataResponse toSheetDataResponse(Lick lick) {
-		SheetDataResponse parsed = parseSheetData(lick.getSheetDataJson());
-		if (parsed != null) {
-			return parsed;
-		}
-		return toLegacySheetDataResponse(lick, lick.getMeasures());
-	}
-
-	public static SheetDataResponse toSheetDataResponse(LickCreateRequest request) {
-		return toSheetDataResponse(request.sheetData());
-	}
-
-	public static SheetDataResponse toSheetDataResponse(LickUpdateRequest request) {
-		return toSheetDataResponse(request.sheetData());
+		return Objects.requireNonNull(
+			parseSheetData(lick.getSheetDataJson()),
+			"Lick.sheetDataJson must contain serialized sheetData"
+		);
 	}
 
 	public static SheetDataResponse toSheetDataResponse(SheetDataRequest request) {
@@ -131,33 +113,6 @@ public final class LickMapper {
 		}
 	}
 
-	public static SheetDataResponse toLegacySheetDataResponse(Lick lick, List<LickMeasure> legacyMeasures) {
-		List<MeasureResponse> measures = legacyMeasures.stream()
-			.map(m -> new MeasureResponse(
-				m.getChord(),
-				m.getNotes().stream()
-					.map(n -> new NoteInfoResponse(
-						Objects.requireNonNull(parseStringList(n.getKeys())),
-						n.getDuration(),
-						parseStringMap(n.getAccidentals()),
-						n.getTuplet(),
-						n.isDotted() ? Boolean.TRUE : null,
-						n.isTie() ? Boolean.TRUE : null,
-						n.isGliss() ? Boolean.TRUE : null,
-						n.isBeamBreak() ? Boolean.TRUE : null
-					))
-					.toList()
-			))
-			.toList();
-
-		return new SheetDataResponse(
-			lick.getTitle(),
-			lick.getMusicalKey(),
-			lick.getTimeSignature(),
-			lick.getTempo(),
-			measures
-		);
-	}
 
 	private static SheetDataResponse toSheetDataResponse(
 		@Nullable String title,
@@ -219,12 +174,4 @@ public final class LickMapper {
 		}
 	}
 
-	private static @Nullable Map<String, String> parseStringMap(@Nullable String json) {
-		if (json == null) return null;
-		try {
-			return MAPPER.readValue(json, STRING_MAP);
-		} catch (JsonProcessingException e) {
-			return null;
-		}
-	}
 }
