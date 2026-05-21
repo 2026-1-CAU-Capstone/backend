@@ -22,6 +22,7 @@ import org.springframework.stereotype.Repository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jazzify.backend.domain.rag.config.RagProperties;
 import com.jazzify.backend.domain.rag.model.RagDocument;
 import com.jazzify.backend.domain.rag.model.RagSourceType;
 import com.jazzify.backend.shared.exception.code.RagErrorCode;
@@ -36,22 +37,25 @@ public class RagDocumentRepository {
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private final JdbcTemplate jdbcTemplate;
+	private final RagProperties ragProperties;
 
 	public RagDocumentRepository(
-		@Qualifier("ragJdbcTemplate") JdbcTemplate jdbcTemplate
+		@Qualifier("ragJdbcTemplate") JdbcTemplate jdbcTemplate,
+		RagProperties ragProperties
 	) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.ragProperties = ragProperties;
 	}
 
 	public Optional<RagDocument> findBySlug(String slug) {
 		List<RagDocument> documents = jdbcTemplate.query(
 			"""
 				SELECT public_id, slug, source_type, title, content, metadata, topic_tags, embedding_version,
-					(SELECT COUNT(*) FROM rag_chunk rc WHERE rc.document_public_id = rd.public_id) AS chunk_count
+					%s AS chunk_count
 				FROM rag_document
 				AS rd
 				WHERE slug = ?
-				""",
+				""".formatted(chunkCountSql()),
 			(rs, rowNum) -> mapDocument(rs),
 			slug
 		);
@@ -62,10 +66,10 @@ public class RagDocumentRepository {
 		List<RagDocument> documents = jdbcTemplate.query(
 			"""
 				SELECT public_id, slug, source_type, title, content, metadata, topic_tags, embedding_version,
-					(SELECT COUNT(*) FROM rag_chunk rc WHERE rc.document_public_id = rd.public_id) AS chunk_count
+					%s AS chunk_count
 				FROM rag_document AS rd
 				WHERE public_id = ?
-				""",
+				""".formatted(chunkCountSql()),
 			(rs, rowNum) -> mapDocument(rs),
 			publicId
 		);
@@ -95,9 +99,9 @@ public class RagDocumentRepository {
 
 		String sql = """
 			SELECT public_id, slug, source_type, title, content, metadata, topic_tags, embedding_version,
-				(SELECT COUNT(*) FROM rag_chunk rc WHERE rc.document_public_id = rd.public_id) AS chunk_count
+				%s AS chunk_count
 			FROM rag_document AS rd
-			""" + whereClause + " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
+			""".formatted(chunkCountSql()) + whereClause + " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
 		List<Object> pageParams = new java.util.ArrayList<>(params);
 		pageParams.add(pageable.getPageSize());
 		pageParams.add(pageable.getOffset());
@@ -201,6 +205,13 @@ public class RagDocumentRepository {
 
 	private Array createTextArray(java.sql.Connection connection, List<String> values) throws java.sql.SQLException {
 		return connection.createArrayOf("text", values.toArray(String[]::new));
+	}
+
+	private String chunkCountSql() {
+		RagProperties.VectorStore vectorStore = ragProperties.vectorStore();
+		String tableName = vectorStore.schemaName() + "." + vectorStore.tableName();
+		return "(SELECT COUNT(*) FROM " + tableName
+			+ " rc WHERE CAST(rc.metadata AS jsonb) ->> 'documentPublicId' = rd.public_id::text)";
 	}
 }
 

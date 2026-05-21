@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 public class RagAgent {
 
 	private final RagReader ragReader;
-	private final RagEmbeddingClient ragEmbeddingClient;
 	private final RagProperties ragProperties;
 
 	public ContextBuildResult buildContext(@Nullable Map<String, Object> chordContext, String userQuestion, @Nullable String songTitle) {
@@ -112,12 +111,11 @@ public class RagAgent {
 		Map<String, Double> rrfScores = new LinkedHashMap<>();
 		Map<String, RagChunkSearchResult> chunkData = new LinkedHashMap<>();
 		Map<String, List<String>> matchedQueries = new LinkedHashMap<>();
-		List<List<Double>> embeddings = ragEmbeddingClient.embed(queries.stream().map(RagDecomposedQuery::query).toList());
 
 		for (int i = 0; i < queries.size(); i++) {
 			RagDecomposedQuery query = queries.get(i);
-			List<RagChunkSearchResult> results = ragReader.searchByEmbedding(
-				embeddings.get(i),
+			List<RagChunkSearchResult> results = ragReader.search(
+				query.query(),
 				nPerQuery,
 				query.level(),
 				null,

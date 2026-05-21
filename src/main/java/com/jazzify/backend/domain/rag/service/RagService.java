@@ -25,7 +25,7 @@ import com.jazzify.backend.domain.rag.model.RagDocument;
 import com.jazzify.backend.domain.rag.model.RagDocumentDraft;
 import com.jazzify.backend.domain.rag.model.RagSourceType;
 import com.jazzify.backend.domain.rag.service.implementation.RagChatStreamer;
-import com.jazzify.backend.domain.rag.service.implementation.RagEmbeddingClient;
+import com.jazzify.backend.domain.rag.service.implementation.RagEmbeddingModel;
 import com.jazzify.backend.domain.rag.service.implementation.RagReader;
 import com.jazzify.backend.domain.rag.service.implementation.RagWriter;
 import com.jazzify.backend.domain.rag.util.RagMapper;
@@ -43,7 +43,7 @@ public class RagService {
 	private final RagReader ragReader;
 	private final RagWriter ragWriter;
 	private final RagChatStreamer ragChatStreamer;
-	private final RagEmbeddingClient ragEmbeddingClient;
+	private final RagEmbeddingModel ragEmbeddingModel;
 	private final AnthropicStreamingClient anthropicStreamingClient;
 	private final RagProperties ragProperties;
 	private final ChatService chatService;
@@ -119,7 +119,7 @@ public class RagService {
 		return new RagHealthResponse(
 			"ok",
 			ragProperties.enabled(),
-			ragEmbeddingClient.isConfigured(),
+			ragEmbeddingModel.isConfigured(),
 			anthropicStreamingClient.isConfigured(),
 			ragReader.countDocuments(),
 			ragReader.countChunks()

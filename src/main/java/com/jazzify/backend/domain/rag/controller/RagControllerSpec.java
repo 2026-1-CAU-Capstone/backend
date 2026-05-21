@@ -77,7 +77,7 @@ public interface RagControllerSpec {
 
 	@Operation(
 		summary = "RAG 검색",
-		description = "pgvector 기반 임베딩 검색으로 관련 청크를 조회합니다."
+		description = "Spring AI VectorStore(pgvector) 기반 임베딩 검색으로 관련 청크를 조회합니다."
 	)
 	com.jazzify.backend.shared.web.ApiResponse<RagSearchResponse> search(
 		@RequestParam("q") String query,

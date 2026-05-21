@@ -15,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.rag.model.RagChunkSearchResult;
 import com.jazzify.backend.domain.rag.model.RagDocument;
 import com.jazzify.backend.domain.rag.model.RagSourceType;
-import com.jazzify.backend.domain.rag.repository.RagChunkRepository;
 import com.jazzify.backend.domain.rag.repository.RagDocumentRepository;
+import com.jazzify.backend.domain.rag.repository.RagVectorStoreRepository;
 import com.jazzify.backend.shared.exception.code.RagErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -28,9 +28,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional(transactionManager = "ragTransactionManager", readOnly = true)
 public class RagReader {
 
-	private final RagChunkRepository ragChunkRepository;
 	private final RagDocumentRepository ragDocumentRepository;
-	private final RagEmbeddingClient ragEmbeddingClient;
+	private final RagVectorStoreRepository ragVectorStoreRepository;
 
 	public RagDocument getDocumentByPublicId(UUID publicId) {
 		return ragDocumentRepository.findByPublicId(publicId)
@@ -53,23 +52,11 @@ public class RagReader {
 		@Nullable String tagFilter,
 		@Nullable RagSourceType sourceType
 	) {
-		List<Double> embedding = ragEmbeddingClient.embed(query);
-		return ragChunkRepository.searchByEmbedding(embedding, limit, levelFilter, songFilter, tagFilter, sourceType);
-	}
-
-	public List<RagChunkSearchResult> searchByEmbedding(
-		List<Double> embedding,
-		int limit,
-		@Nullable Integer levelFilter,
-		@Nullable String songFilter,
-		@Nullable String tagFilter,
-		@Nullable RagSourceType sourceType
-	) {
-		return ragChunkRepository.searchByEmbedding(embedding, limit, levelFilter, songFilter, tagFilter, sourceType);
+		return ragVectorStoreRepository.search(query, limit, levelFilter, songFilter, tagFilter, sourceType);
 	}
 
 	public long countChunks() {
-		return ragChunkRepository.count();
+		return ragVectorStoreRepository.count();
 	}
 
 	public long countDocuments() {

@@ -26,7 +26,7 @@ import com.jazzify.backend.domain.rag.model.RagDocument;
 import com.jazzify.backend.domain.rag.model.RagDocumentDraft;
 import com.jazzify.backend.domain.rag.model.RagSourceType;
 import com.jazzify.backend.domain.rag.service.implementation.RagChatStreamer;
-import com.jazzify.backend.domain.rag.service.implementation.RagEmbeddingClient;
+import com.jazzify.backend.domain.rag.service.implementation.RagEmbeddingModel;
 import com.jazzify.backend.domain.rag.service.implementation.RagReader;
 import com.jazzify.backend.domain.rag.service.implementation.RagWriter;
 import com.jazzify.backend.shared.exception.CustomException;
@@ -43,7 +43,7 @@ class RagServiceTest {
 	private RagWriter ragWriter;
 
 	@Mock
-	private RagEmbeddingClient ragEmbeddingClient;
+	private RagEmbeddingModel ragEmbeddingModel;
 
 	@Mock
 	private RagChatStreamer ragChatStreamer;
@@ -62,14 +62,15 @@ class RagServiceTest {
 			ragReader,
 			ragWriter,
 			ragChatStreamer,
-			ragEmbeddingClient,
+			ragEmbeddingModel,
 			anthropicStreamingClient,
 			new RagProperties(
 				true,
 				new RagProperties.Datasource("jdbc:postgresql://localhost:5432/rag", "user", "pw", "org.postgresql.Driver", 4),
 				new RagProperties.Bootstrap(false, false, null),
 				new RagProperties.Embedding("http://localhost:8000", "/api/v1/embeddings", null),
-				new RagProperties.Retrieval(5, 3, 60)
+				new RagProperties.Retrieval(5, 3, 60),
+				new RagProperties.VectorStore("public", "rag_chunk_store", false, false, 768)
 			),
 			chatService
 		);
@@ -136,7 +137,7 @@ class RagServiceTest {
 	void health_returnsDocumentAndChunkCounts() {
 		when(ragReader.countDocuments()).thenReturn(3L);
 		when(ragReader.countChunks()).thenReturn(14L);
-		when(ragEmbeddingClient.isConfigured()).thenReturn(true);
+		when(ragEmbeddingModel.isConfigured()).thenReturn(true);
 		when(anthropicStreamingClient.isConfigured()).thenReturn(true);
 
 		var response = ragService.health();

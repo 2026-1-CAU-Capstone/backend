@@ -11,13 +11,15 @@ public record RagProperties(
 	@Nullable Datasource datasource,
 	@Nullable Bootstrap bootstrap,
 	@Nullable Embedding embedding,
-	@Nullable Retrieval retrieval
+	@Nullable Retrieval retrieval,
+	@Nullable VectorStore vectorStore
 ) {
 
 	private static final Datasource DEFAULT_DATASOURCE = new Datasource(null, null, null, "org.postgresql.Driver", 4);
 	private static final Bootstrap DEFAULT_BOOTSTRAP = new Bootstrap(false, false, null);
 	private static final Embedding DEFAULT_EMBEDDING = new Embedding(null, "/api/v1/embeddings", null);
 	private static final Retrieval DEFAULT_RETRIEVAL = new Retrieval(5, 3, 60);
+	private static final VectorStore DEFAULT_VECTOR_STORE = new VectorStore("public", "rag_chunk_store", false, false, 768);
 
 	@Override
 	public Datasource datasource() {
@@ -37,6 +39,11 @@ public record RagProperties(
 	@Override
 	public Retrieval retrieval() {
 		return retrieval != null ? retrieval : DEFAULT_RETRIEVAL;
+	}
+
+	@Override
+	public VectorStore vectorStore() {
+		return vectorStore != null ? vectorStore : DEFAULT_VECTOR_STORE;
 	}
 
 	@NullMarked
@@ -70,6 +77,16 @@ public record RagProperties(
 		int topK,
 		int nPerQuery,
 		int rrfK
+	) {
+	}
+
+	@NullMarked
+	public record VectorStore(
+		String schemaName,
+		String tableName,
+		boolean initializeSchema,
+		boolean schemaValidation,
+		int dimensions
 	) {
 	}
 }
