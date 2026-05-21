@@ -39,6 +39,14 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      base-url: https://api.anthropic.com
+      chat:
+        model: claude-sonnet-4-6
+        max-tokens: 16384
+
   # ── Redis ─────────────────────────────────
   data:
     redis:
@@ -113,5 +121,28 @@ springdoc:
 
 # ── OMR Server ────────────────────────────
 omr:
-  server-url: ${OMR_SERVER_URL:}   # OMR 서버 주소 미정 — 운영 환경변수로 주입
+  server-url: ${OMR_SERVER_URL:}
+
+
+# ── RAG Server (PostgreSQL + pgvector) ─────────────
+rag:
+  enabled: false
+  datasource:
+    url: ${RAG_DB_URL:}
+    username: ${RAG_DB_USERNAME:}
+    password: ${RAG_DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    maximum-pool-size: 8
+  bootstrap:
+    enabled: false
+    create-schema: false
+    data-root: ./data/explanation
+  embedding:
+    server-url: ${RAG_EMBEDDING_SERVER_URL:} # 임베딩 전용 서버 주소
+    endpoint: /api/v1/embeddings # TODO: 임베딩 서버에 실제 엔드포인트가 확정되면 교체
+    api-key: ${RAG_EMBEDDING_API_KEY:} # 내부망 호출이면 비워도 됨
+  retrieval:
+    top-k: 5
+    n-per-query: 3
+    rrf-k: 60
 

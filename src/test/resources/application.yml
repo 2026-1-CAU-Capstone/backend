@@ -7,6 +7,14 @@ spring:
   profiles:
     active: test   # dev 프로파일 비활성화 → application-dev.yml 로드 안 함
 
+  ai:
+    anthropic:
+      api-key: ""
+      chat:
+        options:
+          model: claude-sonnet-4-6
+          max-tokens: 16384
+
   # ── Database (H2 인메모리 - Spring Boot 자동 설정) ─
   # H2가 클래스패스에 있으면 datasource URL/driver 없이도 자동 구성됨
 
