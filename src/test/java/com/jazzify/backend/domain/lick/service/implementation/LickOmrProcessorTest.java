@@ -11,6 +11,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrProperties;
+	import com.jazzify.backend.shared.exception.CustomException;
+
+	import static org.junit.jupiter.api.Assertions.assertThrows;
 @NullMarked
 class LickOmrProcessorTest {
 
@@ -48,7 +51,7 @@ class LickOmrProcessorTest {
 		""";
 
 	@Test
-	void process_acceptsPdfFile() {
+	void process_acceptsPngFile() {
 		boolean[] called = {false};
 		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
 			@Override
@@ -59,8 +62,8 @@ class LickOmrProcessorTest {
 		});
 		MockMultipartFile file = new MockMultipartFile(
 			"file",
-			"score.pdf",
-			"application/pdf",
+			"score.png",
+			"image/png",
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
@@ -69,6 +72,29 @@ class LickOmrProcessorTest {
 		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Dm7  G7", "Cmaj7");
+	}
+
+	@Test
+	void process_rejectsPdfFile() {
+		boolean[] called = {false};
+		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+			@Override
+			public OmrRecognitionResult recognize(MultipartFile file) {
+				called[0] = true;
+				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of());
+			}
+		});
+		MockMultipartFile file = new MockMultipartFile(
+			"file",
+			"score.pdf",
+			"application/pdf",
+			"dummy".getBytes(StandardCharsets.UTF_8)
+		);
+
+		CustomException exception = assertThrows(CustomException.class, () -> processor.process(file));
+
+		assertThat(called[0]).isFalse();
+		assertThat(exception.getCode()).isEqualTo("OMR_004");
 	}
 
 	@Test
@@ -94,6 +120,28 @@ class LickOmrProcessorTest {
 		assertThat(result.sheetData().measures())
 			.extracting(it -> it.chord())
 			.containsExactly("Dm7  G7", "Cmaj7");
+	}
+
+	@Test
+	void process_keepsOnlySafelyMappedMeasuresWhenAssignmentsArePartial() {
+		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+			@Override
+			public OmrRecognitionResult recognize(MultipartFile file) {
+				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Dm7  G7"));
+			}
+		});
+		MockMultipartFile file = new MockMultipartFile(
+			"file",
+			"score.PNG",
+			"image/png",
+			"dummy".getBytes(StandardCharsets.UTF_8)
+		);
+
+		LickOmrProcessor.ProcessedSheetData result = processor.process(file);
+
+		assertThat(result.sheetData().measures())
+			.extracting(it -> it.chord())
+			.containsExactly("Dm7  G7", null);
 	}
 }
 

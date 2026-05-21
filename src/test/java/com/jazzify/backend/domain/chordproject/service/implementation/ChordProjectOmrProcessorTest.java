@@ -50,7 +50,7 @@ class ChordProjectOmrProcessorTest {
 		""";
 
 	@Test
-	void process_acceptsPdfFile() {
+	void process_acceptsPngFile() {
 		boolean[] called = {false};
 		ChordProjectOmrProcessor processor = new ChordProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
 			@Override
@@ -61,8 +61,8 @@ class ChordProjectOmrProcessorTest {
 		});
 		MockMultipartFile file = new MockMultipartFile(
 			"file",
-			"score.pdf",
-			"application/pdf",
+			"score.png",
+			"image/png",
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 

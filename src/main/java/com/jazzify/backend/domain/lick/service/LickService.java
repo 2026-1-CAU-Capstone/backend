@@ -123,10 +123,10 @@ public class LickService {
 	}
 
 	/**
-	 * 악보 파일(PNG/JPG/JPEG/PDF)을 OMR 서버로 처리한 뒤 릭으로 저장한다.
+	 * 악보 파일(PNG/JPG/JPEG)을 OMR 서버로 처리한 뒤 릭으로 저장한다.
 	 * <p>
 	 * OMR 서버 호출은 트랜잭션 외부에서 수행되어 DB 커넥션을 장시간 점유하지 않는다.
-	 * MusicVision의 {@code /omr/process} → 결과 다운로드 → chord assignments 결합 흐름을 사용한다.
+	 * MusicVision의 {@code /omr/process} → 결과 다운로드 → 안전하게 매핑 가능한 chord assignments 결합 흐름을 사용한다.
 	 * DB 쓰기는 {@link LickWriter}(별도 빈)의 {@code @Transactional} 메서드에서 처리된다.
 	 *
 	 * @param file     업로드된 악보 파일

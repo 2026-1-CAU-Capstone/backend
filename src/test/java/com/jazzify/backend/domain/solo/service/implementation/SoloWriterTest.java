@@ -20,6 +20,7 @@ import com.jazzify.backend.domain.solo.entity.SoloSource;
 import com.jazzify.backend.domain.solo.model.SoloFeatures;
 import com.jazzify.backend.domain.solo.model.SoloHarmonicData;
 import com.jazzify.backend.domain.solo.repository.SoloRepository;
+import com.jazzify.backend.domain.solo.util.SoloMapper;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
 
@@ -37,11 +38,13 @@ class SoloWriterTest {
 	@Test
 	void create_setsIsOMRFalse_forRegularCreate() {
 		Solo solo = soloWriter.create(sampleRequest(), sampleHarmonicData(), sampleFeatures(), false);
+		var sheetData = SoloMapper.parseSheetData(solo.getSheetDataJson());
 
 		assertThat(solo.isOMR()).isFalse();
 		assertThat(solo.getComposer()).isEqualTo("Charlie Parker");
-		assertThat(solo.getSheetDataJson()).isNotBlank();
-		assertThat(solo.getMeasures()).isEmpty();
+		assertThat(sheetData).isNotNull();
+		assertThat(Objects.requireNonNull(sheetData).title()).isEqualTo("Confirmation Solo");
+		assertThat(sheetData.key()).isEqualTo("F");
 		assertThat(soloRepository.findById(Objects.requireNonNull(solo.getId())).orElseThrow().isOMR()).isFalse();
 	}
 

@@ -31,13 +31,6 @@ public interface LickRepository extends JpaRepository<Lick, Long> {
 		@Param("performer") @Nullable String performer,
 		Pageable pageable);
 
-	@Query("""
-		select l.id
-		from Lick l
-		where l.sheetDataJson is null
-		order by l.id asc
-		""")
-	Page<Long> findIdsWithMissingSheetDataJson(Pageable pageable);
 
 	@Query("""
 		select new com.jazzify.backend.domain.lick.dto.app.LickMetadataValueCountResult(l.composer, count(l))

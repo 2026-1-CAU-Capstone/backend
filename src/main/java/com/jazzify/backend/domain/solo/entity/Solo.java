@@ -1,7 +1,5 @@
 package com.jazzify.backend.domain.solo.entity;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -22,9 +20,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Lob;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -111,13 +107,6 @@ public class Solo extends BaseEntity {
 	@Column(name = "sheet_data_json", columnDefinition = "LONGTEXT")
 	private @Nullable String sheetDataJson;
 
-	// ─── Legacy Sheet Data (Migration Only) ────────────────────────────
-	// 기존 정규화 테이블 데이터 마이그레이션을 위해 일시적으로 유지한다.
-	@Builder.Default
-	@OneToMany(mappedBy = "solo", cascade = CascadeType.ALL, orphanRemoval = true)
-	@OrderBy("measureIndex ASC")
-	private List<SoloMeasure> measures = new ArrayList<>();
-
 	// ─── 6. VIDEO ──────────────────────────────────────────────────────
 	/** 이 솔로에 연결된 영상 정보 (없을 수 있음). */
 	@OneToOne(mappedBy = "solo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
@@ -169,9 +158,6 @@ public class Solo extends BaseEntity {
 
 	/**
 	 * 메타데이터 및 유사도 특징값을 일괄 갱신한다.
-	 * <p>
-	 * 악보 데이터(마디/음표)는 {@code measures} 컬렉션을 통해
-	 * 서비스 레이어에서 orphanRemoval + cascade로 교체한다.
 	 */
 	public void update(
 		// 2. Performance
@@ -232,17 +218,6 @@ public class Solo extends BaseEntity {
 		this.endPitch = endPitch;
 	}
 
-	/**
-	 * 악보 마디 전체를 교체한다.
-	 * <p>
-	 * 기존 마디를 모두 제거(orphanRemoval)한 뒤 새 마디 목록을 추가한다.
-	 *
-	 * @param newMeasures 새로 저장할 마디 목록 (measureIndex가 0부터 순서대로 채워져 있어야 함)
-	 */
-	public void replaceMeasures(List<SoloMeasure> newMeasures) {
-		this.measures.clear();
-		this.measures.addAll(newMeasures);
-	}
 
 	/** 반정규화된 sheetData JSON을 교체한다. */
 	public void replaceSheetDataJson(String newSheetDataJson) {

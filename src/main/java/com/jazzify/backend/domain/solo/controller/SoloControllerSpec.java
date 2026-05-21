@@ -425,9 +425,10 @@ public interface SoloControllerSpec {
 
 	@Operation(
 		summary = "OMR로 솔로 생성 (악보 파일 업로드)",
-		description = """
-			악보 파일(PNG/JPG/JPEG/PDF)을 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
-			반환된 `job_id`로 MusicXML과 chord assignments를 조회·결합하여 Solo로 저장합니다.
+			description = """
+				악보 파일(PNG/JPG/JPEG)을 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
+				반환된 `job_id`로 MusicXML과 chord assignments를 조회하고,
+				안전하게 매핑 가능한 마디만 결합하여 Solo로 저장합니다.
 			
 			### 요청 형식
 			`multipart/form-data`로 전송해야 합니다.
@@ -455,11 +456,11 @@ public interface SoloControllerSpec {
 			| `userId` | string (UUID) | 소유자 ID |
 			
 			### 처리 흐름
-			1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`, `pdf`)
+				1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`)
 			2. MusicVision `POST /omr/process`로 파일 전송
 			3. 응답의 `job_id`로 `/omr/jobs/{job_id}/musicxml` 조회
 			4. `/omr/jobs/{job_id}/chord-assignments` 조회
-			5. `measure_alignment.status == aligned` 확인 후 `musicxml_measure_number` 기준으로 코드 결합
+				5. `measure_alignment.status`가 `aligned`면 전체 결합, `partial`이면 `musicxml_measure_number`가 있는 마디만 결합, `mismatch`면 자동 결합 생략
 			6. MusicXML 파싱 (조성·박자표·마디·음표 추출)
 			7. 화성 맥락 및 유사도 피처 자동 계산
 			8. DB 저장 후 솔로 응답 반환

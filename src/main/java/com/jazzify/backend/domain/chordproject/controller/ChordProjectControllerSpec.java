@@ -54,7 +54,7 @@ public interface ChordProjectControllerSpec {
 			악보 파일을 OMR로 해석하는 비동기 작업을 큐잉하고 코드 프로젝트를 생성합니다.
 			
 			### 요청 형식
-			- `file`: 악보 파일 (`png`, `jpg`, `jpeg`, `pdf`)
+			- `file`: 악보 파일 (`png`, `jpg`, `jpeg`)
 			- `title`: 선택. 미입력 시 MusicXML 제목 사용
 			- `key`: 선택. 미입력 시 MusicXML key/mode 기반 자동 추론
 			- `timeSignature`: 선택. 미입력 시 MusicXML 박자표 사용
