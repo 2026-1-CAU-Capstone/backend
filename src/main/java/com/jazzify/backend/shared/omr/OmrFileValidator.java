@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class OmrFileValidator {
 
-	private static final Set<String> ALLOWED_EXTENSIONS = Set.of("png", "jpg", "jpeg", "pdf");
+	private static final Set<String> ALLOWED_EXTENSIONS = Set.of("png", "jpg", "jpeg");
 
 	public static void validate(MultipartFile file) {
 		if (file.isEmpty()) {

@@ -15,7 +15,19 @@ import com.jazzify.backend.shared.exception.CustomException;
 class OmrFileValidatorTest {
 
 	@Test
-	void validate_acceptsPdfFile() {
+	void validate_acceptsPngFile() {
+		MockMultipartFile file = new MockMultipartFile(
+			"file",
+			"score.png",
+			"image/png",
+			"dummy".getBytes(StandardCharsets.UTF_8)
+		);
+
+		assertThatCode(() -> OmrFileValidator.validate(file)).doesNotThrowAnyException();
+	}
+
+	@Test
+	void validate_rejectsPdfFile() {
 		MockMultipartFile file = new MockMultipartFile(
 			"file",
 			"score.pdf",
@@ -23,7 +35,12 @@ class OmrFileValidatorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		assertThatCode(() -> OmrFileValidator.validate(file)).doesNotThrowAnyException();
+		CustomException exception = assertThrows(CustomException.class, () -> OmrFileValidator.validate(file));
+		assertThatCode(() -> {
+			if (!"OMR_004".equals(exception.getCode())) {
+				throw new AssertionError("unexpected code: " + exception.getCode());
+			}
+		}).doesNotThrowAnyException();
 	}
 
 	@Test

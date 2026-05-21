@@ -22,8 +22,9 @@ import lombok.RequiredArgsConstructor;
 /**
  * Lick 도메인 OMR 처리기.
  * <p>
-	 * 업로드된 악보 파일(PNG/JPG/JPEG/PDF)을 검증하고 OMR 서버에 전송한 후,
- * 반환된 MusicXML과 chord assignments를 결합하여 {@link SheetDataRequest}(Lick 도메인 전용)로 변환한다.
+	 * 업로드된 악보 파일(PNG/JPG/JPEG)을 검증하고 OMR 서버에 전송한 후,
+	 * 반환된 MusicXML과 안전하게 결합 가능한 chord assignments만 반영하여
+	 * {@link SheetDataRequest}(Lick 도메인 전용)로 변환한다.
  */
 @NullMarked
 @Component

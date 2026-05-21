@@ -50,7 +50,7 @@ class SheetProjectOmrProcessorTest {
 		""";
 
 	@Test
-	void process_acceptsPdfFile() {
+	void process_acceptsPngFile() {
 		boolean[] called = {false};
 		SheetProjectOmrProcessor processor = new SheetProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
 			@Override
@@ -61,8 +61,8 @@ class SheetProjectOmrProcessorTest {
 		});
 		MockMultipartFile file = new MockMultipartFile(
 			"file",
-			"score.pdf",
-			"application/pdf",
+			"score.png",
+			"image/png",
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 

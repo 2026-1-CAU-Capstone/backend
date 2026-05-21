@@ -40,13 +40,15 @@ public class OmrClient {
 
 	private static final String PROCESS_STATUS_COMPLETED = "completed";
 	private static final String MEASURE_ALIGNMENT_STATUS_ALIGNED = "aligned";
+	private static final String MEASURE_ALIGNMENT_STATUS_PARTIAL = "partial";
+	private static final String MEASURE_ALIGNMENT_STATUS_MISMATCH = "mismatch";
 
 	private final OmrProperties omrProperties;
 
 	/**
 	 * 악보 파일을 OMR 서버에 전송하고 MusicXML과 마디별 코드 매핑 결과를 반환한다.
 	 *
-	 * @param file 악보 파일 (PNG · JPG · JPEG · PDF)
+	 * @param file 악보 파일 (PNG · JPG · JPEG)
 	 * @return MusicXML 문자열과 chord assignments 기반 마디 코드 매핑
 	 * @throws CustomException OMR 서버 미설정, 인식 실패 시
 	 */
@@ -200,10 +202,21 @@ public class OmrClient {
 		String alignmentStatus = trimToNull(
 			response.measureAlignment() != null ? response.measureAlignment().status() : null
 		);
-		if (!MEASURE_ALIGNMENT_STATUS_ALIGNED.equalsIgnoreCase(alignmentStatus != null ? alignmentStatus : "")) {
-			throw OmrErrorCode.OMR_MEASURE_ALIGNMENT_MISMATCH.toException(
-				"job_id=" + jobId + ", status=" + (alignmentStatus != null ? alignmentStatus : "unknown")
-			);
+		if (alignmentStatus == null) {
+			log.warn("[OMR] measure_alignment.status 가 없어 코드 결합을 건너뜁니다. job_id={}", jobId);
+			return Map.of();
+		}
+
+		if (MEASURE_ALIGNMENT_STATUS_MISMATCH.equalsIgnoreCase(alignmentStatus)) {
+			log.warn("[OMR] 마디 정렬 mismatch 로 자동 코드 결합을 건너뜁니다. job_id={}", jobId);
+			return Map.of();
+		}
+
+		if (MEASURE_ALIGNMENT_STATUS_PARTIAL.equalsIgnoreCase(alignmentStatus)) {
+			log.warn("[OMR] 마디 정렬 partial 상태입니다. musicxml_measure_number 가 있는 마디만 결합합니다. job_id={}", jobId);
+		} else if (!MEASURE_ALIGNMENT_STATUS_ALIGNED.equalsIgnoreCase(alignmentStatus)) {
+			log.warn("[OMR] 알 수 없는 마디 정렬 상태({})로 자동 코드 결합을 건너뜁니다. job_id={}", alignmentStatus, jobId);
+			return Map.of();
 		}
 
 		Map<String, List<MeasureChord>> grouped = new LinkedHashMap<>();
@@ -260,7 +273,6 @@ public class OmrClient {
 		return switch (ext) {
 			case ".jpg", ".jpeg" -> MediaType.IMAGE_JPEG;
 			case ".png" -> MediaType.IMAGE_PNG;
-			case ".pdf" -> MediaType.APPLICATION_PDF;
 			default -> throw OmrErrorCode.OMR_INVALID_FILE_TYPE.toException("지원하지 않는 파일 확장자입니다: " + ext);
 		};
 	}
