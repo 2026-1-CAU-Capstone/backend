@@ -120,8 +120,8 @@ rag:
     driver-class-name: org.postgresql.Driver
     maximum-pool-size: 4
   bootstrap:
-    enabled: false
-    create-schema: false
+    enabled: true
+    create-schema: true
     data-root: ./data/explanation
   embedding:
     server-url: ${RAG_EMBEDDING_SERVER_URL:} # 임베딩 전용 서버 주소

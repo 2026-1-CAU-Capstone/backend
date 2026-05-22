@@ -110,14 +110,14 @@
 
 | 파일 | 역할 | 런타임에 필요? |
 |---|---|---|
-| [rag/server.py](../rag/server.py) | FastAPI 진입점. `/chat`, `/search`, `/health` 엔드포인트 제공. Anthropic Claude 호출 + RAG 컨텍스트 주입 | ✅ |
-| [rag/agent.py](../rag/agent.py) | 에이전트 레이어. user 질문 + chord_context 를 쿼리 3~4개로 분해 → 멀티 쿼리 검색 → Reciprocal Rank Fusion으로 융합 | ✅ |
-| [rag/retrieve.py](../rag/retrieve.py) | ChromaDB 검색 함수 (`search`, `format_for_llm`). 임베딩 모델은 모듈 로딩 시 1회 초기화 | ✅ |
-| [rag/1_chunk.py](../rag/1_chunk.py) | 파이프라인 1단계: `data/explanation/*.txt` 를 파싱 → `rag/chunks/chunks.json` 생성 | 빌드용 |
-| [rag/2_embed.py](../rag/2_embed.py) | 파이프라인 2단계: `chunks.json` → 임베딩 → ChromaDB(`rag/db/`) 저장 | 빌드용 |
-| [rag/match_sjs_ireal.py](../rag/match_sjs_ireal.py) | 별도 도구 (SJS-iRealPro 곡 매칭). RAG 와 무관 | ❌ |
-| [rag/sjs_to_json.py](../rag/sjs_to_json.py) | 별도 도구. RAG 와 무관 | ❌ |
-| [rag/requirements.txt](../rag/requirements.txt) | Python 의존성 목록 | ✅ |
+| [rag/server.py](../python/rag/server.py) | FastAPI 진입점. `/chat`, `/search`, `/health` 엔드포인트 제공. Anthropic Claude 호출 + RAG 컨텍스트 주입 | ✅ |
+| [rag/agent.py](../python/rag/agent.py) | 에이전트 레이어. user 질문 + chord_context 를 쿼리 3~4개로 분해 → 멀티 쿼리 검색 → Reciprocal Rank Fusion으로 융합 | ✅ |
+| [rag/retrieve.py](../python/rag/retrieve.py) | ChromaDB 검색 함수 (`search`, `format_for_llm`). 임베딩 모델은 모듈 로딩 시 1회 초기화 | ✅ |
+| [rag/1_chunk.py](../python/rag/1_chunk.py) | 파이프라인 1단계: `data/explanation/*.txt` 를 파싱 → `rag/chunks/chunks.json` 생성 | 빌드용 |
+| [rag/2_embed.py](../python/rag/2_embed.py) | 파이프라인 2단계: `chunks.json` → 임베딩 → ChromaDB(`rag/db/`) 저장 | 빌드용 |
+| [rag/match_sjs_ireal.py](../python/rag/match_sjs_ireal.py) | 별도 도구 (SJS-iRealPro 곡 매칭). RAG 와 무관 | ❌ |
+| [rag/sjs_to_json.py](../python/rag/sjs_to_json.py) | 별도 도구. RAG 와 무관 | ❌ |
+| [rag/requirements.txt](../python/rag/requirements.txt) | Python 의존성 목록 | ✅ |
 | `rag/chunks/chunks.json` | 1_chunk.py 산출물. Git 에 포함되어 있을 수도/없을 수도 — 없으면 1_chunk.py 다시 실행 | 산출물 |
 | `rag/db/` | ChromaDB 영구 저장소. `chroma.sqlite3` + `<uuid>/` 폴더 (~4.1MB) | ✅ |
 | `rag/venv/` | 로컬 Python venv (1.4GB) — **절대 서버로 옮기지 말 것**. 서버에서 자체 venv 생성 | ❌ |
@@ -195,7 +195,7 @@ data/explanation/{standards,lessons}/*.txt
 
 ## 3. 외부 의존성 / 환경 변수
 
-### 3.1 Python 의존성 ([requirements.txt](../rag/requirements.txt))
+### 3.1 Python 의존성 ([requirements.txt](../python/rag/requirements.txt))
 
 ```
 chromadb>=1.5.0
@@ -227,7 +227,7 @@ pip install -r requirements.txt
 |---|---|---|
 | `VITE_ANTHROPIC_API_KEY` | Anthropic Claude API 키. `/chat` 엔드포인트에서 사용 | `sk-ant-...` (필수) |
 
-> 이름이 `VITE_*`라 어색하지만, 원래 프론트 .env 를 공유하던 흔적. 백엔드 호스팅 시에는 `ANTHROPIC_API_KEY` 같은 이름으로 바꾸고 `server.py`도 같이 수정하는 게 깔끔하다. (변경 시 [rag/server.py:35](../rag/server.py#L35) 한 줄 수정)
+> 이름이 `VITE_*`라 어색하지만, 원래 프론트 .env 를 공유하던 흔적. 백엔드 호스팅 시에는 `ANTHROPIC_API_KEY` 같은 이름으로 바꾸고 `server.py`도 같이 수정하는 게 깔끔하다. (변경 시 [rag/server.py:35](../python/rag/server.py#L35) 한 줄 수정)
 
 ### 3.3 외부 API 호출
 
@@ -454,7 +454,7 @@ VITE_RAG_SERVER=https://jazzify.p-e.kr/v1/rag    # Spring Boot 프록시 옵션
 현재 `rag/server.py` 의 CORS 는 localhost + Tailnet(100.x.x.x) + *.ts.net 만 허용.
 **배포 시에는** 프론트 origin (`https://jazzify.p-e.kr` 등)을 `allow_origins` 에 추가하거나, nginx/Spring Boot 가 같은 도메인에서 프록시하므로 CORS 자체가 불필요해진다 (same-origin).
 
-[rag/server.py:27-33](../rag/server.py#L27-L33) 수정 예시:
+[rag/server.py:27-33](../python/rag/server.py#L27-L33) 수정 예시:
 ```python
 app.add_middleware(
     CORSMiddleware,
@@ -806,26 +806,26 @@ DATABASE_URL=postgresql://... python rag/seed_explanations.py
 
 | 위치 | 코드 |
 |---|---|
-| [rag/server.py:19](../rag/server.py#L19) | `.env` 경로 (`load_dotenv("../.env")`) |
-| [rag/server.py:35](../rag/server.py#L35) | Anthropic 클라이언트 초기화 (`VITE_ANTHROPIC_API_KEY`) |
-| [rag/server.py:108](../rag/server.py#L108) | `POST /chat` 핸들러 |
-| [rag/server.py:147](../rag/server.py#L147) | Claude 모델명: `claude-sonnet-4-6` |
-| [rag/server.py:158](../rag/server.py#L158) | `GET /search` 핸들러 |
-| [rag/server.py:169](../rag/server.py#L169) | `GET /health` 핸들러 |
-| [rag/server.py:176](../rag/server.py#L176) | uvicorn 포트: `8001` |
-| [rag/retrieve.py:15-17](../rag/retrieve.py#L15) | ChromaDB 경로 / 컬렉션 / 모델명 |
-| [rag/retrieve.py:32](../rag/retrieve.py#L32) | `search(query, n_results, level_filter, song_filter, tag_filter, source_type)` |
-| [rag/agent.py:19](../rag/agent.py#L19) | `decompose_query` — chord_context → 멀티 쿼리 분해 |
-| [rag/agent.py:147](../rag/agent.py#L147) | `route_and_retrieve` — RRF 융합 |
-| [rag/agent.py:196](../rag/agent.py#L196) | `build_context` — 진입점 |
-| [rag/1_chunk.py:23](../rag/1_chunk.py#L23) | `DATA_ROOT = "../data/explanation"` |
-| [rag/1_chunk.py:29](../rag/1_chunk.py#L29) | `TOPIC_TAGS` dict (곡 → 태그) |
-| [rag/2_embed.py:20](../rag/2_embed.py#L20) | 임베딩 모델명 |
+| [rag/server.py:19](../python/rag/server.py#L19) | `.env` 경로 (`load_dotenv("../.env")`) |
+| [rag/server.py:35](../python/rag/server.py#L35) | Anthropic 클라이언트 초기화 (`VITE_ANTHROPIC_API_KEY`) |
+| [rag/server.py:108](../python/rag/server.py#L108) | `POST /chat` 핸들러 |
+| [rag/server.py:147](../python/rag/server.py#L147) | Claude 모델명: `claude-sonnet-4-6` |
+| [rag/server.py:158](../python/rag/server.py#L158) | `GET /search` 핸들러 |
+| [rag/server.py:169](../python/rag/server.py#L169) | `GET /health` 핸들러 |
+| [rag/server.py:176](../python/rag/server.py#L176) | uvicorn 포트: `8001` |
+| [rag/retrieve.py:15-17](../python/rag/retrieve.py#L15) | ChromaDB 경로 / 컬렉션 / 모델명 |
+| [rag/retrieve.py:32](../python/rag/retrieve.py#L32) | `search(query, n_results, level_filter, song_filter, tag_filter, source_type)` |
+| [rag/agent.py:19](../python/rag/agent.py#L19) | `decompose_query` — chord_context → 멀티 쿼리 분해 |
+| [rag/agent.py:147](../python/rag/agent.py#L147) | `route_and_retrieve` — RRF 융합 |
+| [rag/agent.py:196](../python/rag/agent.py#L196) | `build_context` — 진입점 |
+| [rag/1_chunk.py:23](../python/rag/1_chunk.py#L23) | `DATA_ROOT = "../data/explanation"` |
+| [rag/1_chunk.py:29](../python/rag/1_chunk.py#L29) | `TOPIC_TAGS` dict (곡 → 태그) |
+| [rag/2_embed.py:20](../python/rag/2_embed.py#L20) | 임베딩 모델명 |
 | [src/api/harmorag.ts:19](../src/api/harmorag.ts#L19) | 프론트 RAG endpoint URL |
 
 ## 9. 부록 B — chord_context 형식 (프론트 → RAG)
 
-[rag/agent.py:19-39](../rag/agent.py#L19) 의 docstring 에 정의된 형식:
+[rag/agent.py:19-39](../python/rag/agent.py#L19) 의 docstring 에 정의된 형식:
 
 ```jsonc
 {

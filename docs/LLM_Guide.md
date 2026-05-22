@@ -74,7 +74,7 @@
 
 [claude.ts:10-54](../src/api/claude.ts#L10) 의 `BASE_SYSTEM` — 약 50줄짜리 system 프롬프트. **chord chart JSON 펜스 블록(```chart) 출력 규칙**과 **섹션 라벨 `[SEC:X]` 트랜스폼** 포함. 이걸 백엔드에서도 그대로 사용해야 프론트 렌더링이 깨지지 않는다.
 
-`rag/server.py` 의 `BASE_SYSTEM` ([rag/server.py:50-103](../rag/server.py#L50)) 과 거의 동일한 내용 — **백엔드로 옮길 때 두 곳 중 한 곳으로 single source of truth 화 권장**.
+`rag/server.py` 의 `BASE_SYSTEM` ([rag/server.py:50-103](../python/rag/server.py#L50)) 과 거의 동일한 내용 — **백엔드로 옮길 때 두 곳 중 한 곳으로 single source of truth 화 권장**.
 
 ### 1.4 카테고리별 system 프롬프트
 
@@ -506,7 +506,7 @@ export async function streamClaudeMessage(
 |---|---|---|
 | `ANTHROPIC_API_KEY` | `sk-ant-...` | Spring Boot + RAG 서버 공유 가능 |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | (옵션) 모델 변경 시 |
-| RAG 서비스의 기존 `VITE_ANTHROPIC_API_KEY` | → `ANTHROPIC_API_KEY` 로 이름 변경 권장 ([rag/server.py:35](../rag/server.py#L35) 수정) | 동일 키 |
+| RAG 서비스의 기존 `VITE_ANTHROPIC_API_KEY` | → `ANTHROPIC_API_KEY` 로 이름 변경 권장 ([rag/server.py:35](../python/rag/server.py#L35) 수정) | 동일 키 |
 
 ### 7.2 프론트
 
@@ -561,7 +561,7 @@ grep -rn "streamGemini\|from.*api/gemini" src/
 
 ### 10.1 Option B: RAG 서버에 `/chat-direct` 추가
 
-가장 작은 변경. [rag/server.py](../rag/server.py) 에 엔드포인트 한 개 추가:
+가장 작은 변경. [rag/server.py](../python/rag/server.py) 에 엔드포인트 한 개 추가:
 
 ```python
 @app.post("/chat-direct")
@@ -750,9 +750,9 @@ Vite build:
 | [src/api/claude.ts:145-240](../src/api/claude.ts#L145) | `streamClaudeMessage` 본체 (SSE 파싱 포함) |
 | [src/api/harmorag.ts:107](../src/api/harmorag.ts#L107) | fallback 호출 (서버 죽음) |
 | [src/api/harmorag.ts:189](../src/api/harmorag.ts#L189) | fallback 호출 (서버 에러) |
-| [rag/server.py:35](../rag/server.py#L35) | RAG 서버의 API 키 (이름 통일 필요) |
-| [rag/server.py:50-103](../rag/server.py#L50) | RAG 서버의 BASE_SYSTEM (claude.ts 와 거의 동일) |
-| [rag/server.py:147](../rag/server.py#L147) | RAG 서버의 모델명 |
+| [rag/server.py:35](../python/rag/server.py#L35) | RAG 서버의 API 키 (이름 통일 필요) |
+| [rag/server.py:50-103](../python/rag/server.py#L50) | RAG 서버의 BASE_SYSTEM (claude.ts 와 거의 동일) |
+| [rag/server.py:147](../python/rag/server.py#L147) | RAG 서버의 모델명 |
 | [src/api/gemini.ts](../src/api/gemini.ts) | Gemini 도 동일 패턴 (필요 시 같이 마이그레이션) |
 
 ---
