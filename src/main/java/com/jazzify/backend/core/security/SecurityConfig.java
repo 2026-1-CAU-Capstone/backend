@@ -40,6 +40,8 @@ public class SecurityConfig {
 				.requestMatchers("/v1/auth/**").permitAll()
 				.requestMatchers("/v1/licks/**", "/v1/solos/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/v1/rag/health").permitAll()
+				.requestMatchers(HttpMethod.POST, "/v1/sheet-projects/omr/callback").permitAll()
+				.requestMatchers(HttpMethod.POST, "/v1/chord-projects/omr/callback").permitAll()
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 				.anyRequest().authenticated()

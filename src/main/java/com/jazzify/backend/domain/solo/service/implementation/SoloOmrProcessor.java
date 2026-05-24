@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.omr.OmrClient;
-import com.jazzify.backend.shared.omr.OmrFileValidator;
 import com.jazzify.backend.domain.solo.dto.request.MeasureRequest;
 import com.jazzify.backend.domain.solo.dto.request.NoteInfoRequest;
 import com.jazzify.backend.domain.solo.dto.request.SheetDataRequest;
@@ -22,9 +21,9 @@ import lombok.RequiredArgsConstructor;
 /**
  * Solo 도메인 OMR 처리기.
  * <p>
-	 * 업로드된 악보 파일(PNG/JPG/JPEG)을 검증하고 OMR 서버에 전송한 후,
-	 * 반환된 MusicXML과 안전하게 결합 가능한 chord assignments만 반영하여
-	 * {@link SheetDataRequest}(Solo 도메인 전용)로 변환한다.
+ * TODO: SheetProject 도메인처럼 콜백 기반 비동기 흐름으로 전환 필요.
+ *       현재 OMR API는 동기 처리를 지원하지 않으므로 {@link #process(MultipartFile)}는 사용 불가 상태다.
+ *       콜백 전환 시 {@link #processJobResult(String)}를 사용할 것.
  */
 @NullMarked
 @Component
@@ -41,20 +40,31 @@ public class SoloOmrProcessor {
 	private final OmrClient omrClient;
 
 	/**
-	 * 파일을 검증 · OMR 인식 · MusicXML 파싱하여 {@link SheetDataRequest}를 반환한다.
-	 *
-	 * @param file 업로드된 악보 파일
-	 * @return 파싱된 악보 데이터 (Solo 도메인 SheetDataRequest)
-	 * @throws CustomException 파일 검증 실패, OMR 호출 실패, 파싱 실패 시
+	 * @deprecated OMR API가 비동기로 전환되어 동기 호출이 불가능합니다.
+	 *             콜백 기반 비동기 흐름으로 전환 후 {@link #processJobResult(String)}을 사용하세요.
 	 */
+	@Deprecated
 	public ProcessedSheetData process(MultipartFile file) {
-		validateFile(file);
+		throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException(
+			"Solo 도메인은 아직 비동기 OMR 콜백 방식으로 전환되지 않았습니다."
+		);
+	}
 
-		OmrClient.OmrRecognitionResult omrResult = omrClient.recognize(file);
+	/**
+	 * OMR job_id로 결과를 조회하여 {@link SheetDataRequest}를 반환한다.
+	 * 콜백 기반 비동기 흐름 전환 시 이 메서드를 사용할 것.
+	 *
+	 * @param jobId OMR 서버 job ID
+	 * @return 파싱된 악보 데이터
+	 * @throws CustomException OMR 결과 조회 실패, 파싱 실패 시
+	 */
+	public ProcessedSheetData processJobResult(String jobId) {
+		String musicXml = omrClient.fetchMusicXml(jobId);
+		java.util.Map<String, String> chordsByMeasureNumber = omrClient.fetchChordAssignments(jobId);
 
 		ParsedSheetData parsed;
 		try {
-			parsed = MusicXmlParser.parse(omrResult.musicXml(), omrResult.chordsByMeasureNumber());
+			parsed = MusicXmlParser.parse(musicXml, chordsByMeasureNumber);
 		} catch (Exception e) {
 			throw OmrErrorCode.OMR_PARSE_FAILED.toException(e.getMessage());
 		}
@@ -63,10 +73,6 @@ public class SoloOmrProcessor {
 	}
 
 	// ─── Private ────────────────────────────────────────────────────────
-
-	private void validateFile(MultipartFile file) {
-		OmrFileValidator.validate(file);
-	}
 
 	private ProcessedSheetData toSheetDataRequest(ParsedSheetData parsed) {
 		List<MeasureRequest> measures = parsed.measures().stream()
@@ -77,11 +83,11 @@ public class SoloOmrProcessor {
 						n.keys(),
 						n.duration(),
 						n.accidentals(),
-						null,  // tuplet — OMR 파싱에서 셋잇단 정보 미제공
+						null,
 						n.dotted() ? Boolean.TRUE : null,
-						null,  // tie — OMR 파싱에서 타이 연결 정보 미제공
-						null,  // gliss
-						null   // beamBreak
+						null,
+						null,
+						null
 					))
 					.toList()
 			))
@@ -99,4 +105,3 @@ public class SoloOmrProcessor {
 		);
 	}
 }
-

@@ -12,6 +12,7 @@ import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
 import com.jazzify.backend.domain.solo.entity.SoloSource;
 import com.jazzify.backend.shared.domain.RhythmFeel;
+import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 
 @NullMarked
 public record SoloResponse(
@@ -22,6 +23,10 @@ public record SoloResponse(
 	boolean isOMR,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt,
+
+	OmrProcessingStatus omrStatus,
+	int omrProgress,
+	@Nullable String omrFailureReason,
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable String performer,
@@ -42,7 +47,7 @@ public record SoloResponse(
 	@Nullable String targetChord,
 
 	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
-	SheetDataResponse sheetData,
+	@Nullable SheetDataResponse sheetData,
 
 	// ─── 5. SIMILARITY FEATURES ──────────────────────────────────────── ────────────────────────────────────────
 	@Nullable Integer nEvents,

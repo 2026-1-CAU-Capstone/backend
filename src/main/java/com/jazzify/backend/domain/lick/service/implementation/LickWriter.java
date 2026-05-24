@@ -1,6 +1,9 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
+import java.util.UUID;
+
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,6 +11,8 @@ import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
 import com.jazzify.backend.shared.domain.Instrument;
+import com.jazzify.backend.shared.domain.JazzStyle;
+import com.jazzify.backend.shared.domain.RhythmFeel;
 import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.entity.Lick;
 import com.jazzify.backend.domain.lick.entity.LickVideo;
@@ -24,7 +29,40 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class LickWriter {
 
+	private static final int FAILED_MESSAGE_MAX_LENGTH = 500;
+
 	private final LickRepository lickRepository;
+
+	public Lick createPending(
+		LickSource source,
+		@Nullable UUID userId,
+		@Nullable String performer,
+		@Nullable String composer,
+		String title,
+		@Nullable String album,
+		Instrument instrument,
+		@Nullable JazzStyle style,
+		@Nullable Integer tempo,
+		@Nullable String musicalKey,
+		@Nullable RhythmFeel rhythmFeel
+	) {
+		Lick lick = Lick.builder()
+			.source(source)
+			.userId(userId)
+			.isOMR(true)
+			.performer(performer)
+			.composer(composer)
+			.title(title)
+			.album(album)
+			.instrument(instrument)
+			.style(style)
+			.tempo(tempo)
+			.musicalKey(musicalKey)
+			.rhythmFeel(rhythmFeel)
+			.build();
+		lick.markOmrQueued();
+		return lickRepository.save(lick);
+	}
 
 	public Lick create(LickCreateRequest request, LickHarmonicData harmonic, LickFeatures features, boolean isOMR) {
 		Lick lick = Lick.builder()
@@ -103,6 +141,60 @@ public class LickWriter {
 		lick.replaceSheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request.sheetData())));
 	}
 
+	public void completePending(UUID publicId, LickCreateRequest request, LickHarmonicData harmonic, LickFeatures features) {
+		lickRepository.findByPublicId(publicId)
+			.ifPresent(lick -> {
+				lick.update(
+					request.performer(),
+					request.composer(),
+					request.title(),
+					request.album(),
+					request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,
+					request.style(),
+					request.tempo(),
+					request.key(),
+					request.rhythmFeel(),
+					request.timeSignature(),
+					LickMapper.serializeList(harmonic.chords()),
+					LickMapper.serializeList(harmonic.chordsPerNote()),
+					harmonic.harmonicContext(),
+					harmonic.targetChord(),
+					features.nEvents(),
+					LickMapper.serializeList(features.pitches()),
+					LickMapper.serializeList(features.intervals()),
+					LickMapper.serializeList(features.parsons()),
+					LickMapper.serializeList(features.fuzzyIntervals()),
+					LickMapper.serializeList(features.durationClasses()),
+					features.pitchMin(),
+					features.pitchMax(),
+					features.pitchRange(),
+					features.pitchMean(),
+					features.startPitch(),
+					features.endPitch()
+				);
+				lick.replaceSheetDataJson(LickMapper.serializeSheetData(LickMapper.toSheetDataResponse(request.sheetData())));
+				lick.markOmrCompleted();
+			});
+	}
+
+	public void storeJobIdAndMarkProcessing(UUID publicId, String omrJobId, int progress) {
+		lickRepository.findByPublicId(publicId)
+			.ifPresent(lick -> {
+				lick.storeOmrJobId(omrJobId);
+				lick.markOmrProcessing(normalizeProgress(progress));
+			});
+	}
+
+	public void markProcessing(UUID publicId, int progress) {
+		lickRepository.findByPublicId(publicId)
+			.ifPresent(lick -> lick.markOmrProcessing(normalizeProgress(progress)));
+	}
+
+	public void fail(UUID publicId, @Nullable String failureReason, int progress) {
+		lickRepository.findByPublicId(publicId)
+			.ifPresent(lick -> lick.markOmrFailed(truncate(failureReason), normalizeProgress(progress)));
+	}
+
 	public void delete(Lick lick) {
 		lickRepository.delete(lick);
 	}
@@ -126,5 +218,18 @@ public class LickWriter {
 	 */
 	public void deleteVideo(Lick lick) {
 		lick.replaceVideo(null);
+	}
+
+	private static int normalizeProgress(int progress) {
+		return Math.max(0, Math.min(progress, 100));
+	}
+
+	private static String truncate(@Nullable String failureReason) {
+		if (failureReason == null || failureReason.isBlank()) {
+			return "OMR 처리 중 알 수 없는 오류가 발생했습니다.";
+		}
+		return failureReason.length() <= FAILED_MESSAGE_MAX_LENGTH
+			? failureReason
+			: failureReason.substring(0, FAILED_MESSAGE_MAX_LENGTH);
 	}
 }

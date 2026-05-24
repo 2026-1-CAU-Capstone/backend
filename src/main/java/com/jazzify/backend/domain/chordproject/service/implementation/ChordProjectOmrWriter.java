@@ -31,7 +31,10 @@ public class ChordProjectOmrWriter {
 		User user,
 		String title,
 		MusicKey key,
-		String timeSignature
+		String timeSignature,
+		@Nullable String requestedTitle,
+		@Nullable MusicKey requestedKey,
+		@Nullable String requestedTimeSignature
 	) {
 		ChordProject project = ChordProject.builder()
 			.title(title)
@@ -39,13 +42,21 @@ public class ChordProjectOmrWriter {
 			.timeSignature(timeSignature)
 			.user(user)
 			.build();
-		project.markOmrQueued();
+		project.markOmrQueued(requestedTitle, requestedKey, requestedTimeSignature);
 		return chordProjectRepository.save(project);
 	}
 
 	public void markProcessing(UUID projectPublicId, int progress) {
 		chordProjectRepository.findByPublicId(projectPublicId)
 			.ifPresent(project -> project.markOmrProcessing(normalizeProgress(progress)));
+	}
+
+	public void storeJobIdAndMarkProcessing(UUID projectPublicId, String omrJobId, int progress) {
+		chordProjectRepository.findByPublicId(projectPublicId)
+			.ifPresent(project -> {
+				project.storeOmrJobId(omrJobId);
+				project.markOmrProcessing(normalizeProgress(progress));
+			});
 	}
 
 	public void complete(UUID projectPublicId, String title, MusicKey key, String timeSignature, String progression) {

@@ -46,6 +46,11 @@ public final class LickMapper {
 			lick.isOMR(),
 			Objects.requireNonNull(lick.getCreatedAt()),
 			Objects.requireNonNull(lick.getUpdatedAt()),
+			// OMR 상태
+			lick.getOmrStatus(),
+			lick.getOmrProgress(),
+			lick.getOmrFailureReason(),
+			// 일반 메타데이터
 			lick.getPerformer(),
 			lick.getComposer(),
 			lick.getTitle(),
@@ -60,7 +65,7 @@ public final class LickMapper {
 			parseStringList(lick.getChordsPerNote()),
 			lick.getHarmonicContext(),
 			lick.getTargetChord(),
-			toSheetDataResponse(lick),
+			parseSheetData(lick.getSheetDataJson()),   // PENDING이면 null
 			lick.getNEvents(),
 			parseIntList(lick.getPitches()),
 			parseIntList(lick.getIntervals()),
@@ -77,11 +82,8 @@ public final class LickMapper {
 		);
 	}
 
-	public static SheetDataResponse toSheetDataResponse(Lick lick) {
-		return Objects.requireNonNull(
-			parseSheetData(lick.getSheetDataJson()),
-			"Lick.sheetDataJson must contain serialized sheetData"
-		);
+	public static @Nullable SheetDataResponse toSheetDataResponse(Lick lick) {
+		return parseSheetData(lick.getSheetDataJson());
 	}
 
 	public static SheetDataResponse toSheetDataResponse(SheetDataRequest request) {

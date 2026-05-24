@@ -1,13 +1,11 @@
 package com.jazzify.backend.domain.chordproject.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import java.nio.charset.StandardCharsets;
+
 import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.omr.OmrClient;
@@ -50,24 +48,23 @@ class ChordProjectOmrProcessorTest {
 		""";
 
 	@Test
-	void process_acceptsPngFile() {
-		boolean[] called = {false};
-		ChordProjectOmrProcessor processor = new ChordProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+	void processJobResult_fetchesMusicXmlAndAssignments() {
+		String[] capturedJobId = {null};
+		ChordProjectOmrProcessor processor = new ChordProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)) {
 			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				called[0] = true;
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Cm7  F7", "2", "Bbmaj7"));
+			public String fetchMusicXml(String jobId) {
+				capturedJobId[0] = jobId;
+				return SIMPLE_MUSIC_XML;
+			}
+
+			@Override
+			public Map<String, String> fetchChordAssignments(String jobId) {
+				return Map.of("1", "Cm7  F7", "2", "Bbmaj7");
 			}
 		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.png",
-			"image/png",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
 
-		ChordProjectOmrProcessor.ChordProjectOmrData result = processor.process(file);
-		assertThat(called[0]).isTrue();
+		ChordProjectOmrProcessor.ChordProjectOmrData result = processor.processJobResult("job-123");
+		assertThat(capturedJobId[0]).isEqualTo("job-123");
 		assertThat(result.title()).isEqualTo("Blue Bossa");
 		assertThat(result.key()).isEqualTo(MusicKey.C_MINOR);
 		assertThat(result.timeSignature()).isEqualTo("4/4");
@@ -75,24 +72,20 @@ class ChordProjectOmrProcessorTest {
 	}
 
 	@Test
-	void process_buildsChordProjectDataFromMusicXmlAndAssignments() {
-		ChordProjectOmrProcessor processor = new ChordProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+	void processJobResult_buildsChordProjectDataFromMusicXmlAndAssignments() {
+		ChordProjectOmrProcessor processor = new ChordProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)) {
 			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of(
-					"1", "Cm7  F7",
-					"2", "Bbmaj7"
-				));
+			public String fetchMusicXml(String jobId) {
+				return SIMPLE_MUSIC_XML;
+			}
+
+			@Override
+			public Map<String, String> fetchChordAssignments(String jobId) {
+				return Map.of("1", "Cm7  F7", "2", "Bbmaj7");
 			}
 		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.jpeg",
-			"image/jpeg",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
 
-		ChordProjectOmrProcessor.ChordProjectOmrData result = processor.process(file);
+		ChordProjectOmrProcessor.ChordProjectOmrData result = processor.processJobResult("job-456");
 
 		assertThat(result.title()).isEqualTo("Blue Bossa");
 		assertThat(result.key()).isEqualTo(MusicKey.C_MINOR);
@@ -100,5 +93,3 @@ class ChordProjectOmrProcessorTest {
 		assertThat(result.progression()).isEqualTo("Cm7 F7 | Bbmaj7");
 	}
 }
-
-

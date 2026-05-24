@@ -52,6 +52,10 @@ public class SheetProject extends BaseEntity {
 	@Column(length = 500)
 	private @Nullable String omrFailureReason;
 
+	/** OMR 서버에서 발급된 job ID. 비동기 콜백 수신 시 역조회에 사용된다. */
+	@Column(length = 128)
+	private @Nullable String omrJobId;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
@@ -91,6 +95,11 @@ public class SheetProject extends BaseEntity {
 		this.omrStatus = OmrProcessingStatus.PENDING;
 		this.omrProgress = 0;
 		this.omrFailureReason = null;
+		this.omrJobId = null;
+	}
+
+	public void storeOmrJobId(String jobId) {
+		this.omrJobId = jobId;
 	}
 
 	public void markOmrProcessing(int progress) {

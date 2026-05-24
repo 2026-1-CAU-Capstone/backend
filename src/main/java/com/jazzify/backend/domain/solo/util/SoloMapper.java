@@ -46,6 +46,9 @@ public final class SoloMapper {
 			solo.isOMR(),
 			Objects.requireNonNull(solo.getCreatedAt()),
 			Objects.requireNonNull(solo.getUpdatedAt()),
+			solo.getOmrStatus(),
+			solo.getOmrProgress(),
+			solo.getOmrFailureReason(),
 			solo.getPerformer(),
 			solo.getComposer(),
 			solo.getTitle(),
@@ -60,7 +63,7 @@ public final class SoloMapper {
 			parseStringList(solo.getChordsPerNote()),
 			solo.getHarmonicContext(),
 			solo.getTargetChord(),
-			toSheetDataResponse(solo),
+			parseSheetData(solo.getSheetDataJson()),
 			solo.getNEvents(),
 			parseIntList(solo.getPitches()),
 			parseIntList(solo.getIntervals()),
@@ -77,11 +80,8 @@ public final class SoloMapper {
 		);
 	}
 
-	public static SheetDataResponse toSheetDataResponse(Solo solo) {
-		return Objects.requireNonNull(
-			parseSheetData(solo.getSheetDataJson()),
-			"Solo.sheetDataJson must contain serialized sheetData"
-		);
+	public static @Nullable SheetDataResponse toSheetDataResponse(Solo solo) {
+		return parseSheetData(solo.getSheetDataJson());
 	}
 
 	public static SheetDataResponse toSheetDataResponse(SheetDataRequest request) {

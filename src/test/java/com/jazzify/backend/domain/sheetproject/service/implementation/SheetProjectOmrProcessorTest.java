@@ -1,13 +1,11 @@
 package com.jazzify.backend.domain.sheetproject.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import java.nio.charset.StandardCharsets;
+
 import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.omr.OmrClient;
@@ -50,24 +48,23 @@ class SheetProjectOmrProcessorTest {
 		""";
 
 	@Test
-	void process_acceptsPngFile() {
-		boolean[] called = {false};
-		SheetProjectOmrProcessor processor = new SheetProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+	void processJobResult_fetchesMusicXmlAndAssignments() {
+		String[] capturedJobId = {null};
+		SheetProjectOmrProcessor processor = new SheetProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)) {
 			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				called[0] = true;
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Am7  D7", "2", "Gmaj7"));
+			public String fetchMusicXml(String jobId) {
+				capturedJobId[0] = jobId;
+				return SIMPLE_MUSIC_XML;
+			}
+
+			@Override
+			public Map<String, String> fetchChordAssignments(String jobId) {
+				return Map.of("1", "Am7  D7", "2", "Gmaj7");
 			}
 		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.png",
-			"image/png",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
 
-		SheetProjectOmrProcessor.SheetProjectOmrData result = processor.process(file);
-		assertThat(called[0]).isTrue();
+		SheetProjectOmrProcessor.SheetProjectOmrData result = processor.processJobResult("job-123");
+		assertThat(capturedJobId[0]).isEqualTo("job-123");
 		assertThat(result.title()).isEqualTo("Autumn Leaves");
 		assertThat(result.key()).isEqualTo(MusicKey.C_MAJOR);
 		assertThat(result.timeSignature()).isEqualTo("3/4");
@@ -75,24 +72,20 @@ class SheetProjectOmrProcessorTest {
 	}
 
 	@Test
-	void process_buildsSheetProjectDataFromMusicXmlAndAssignments() {
-		SheetProjectOmrProcessor processor = new SheetProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+	void processJobResult_buildsSheetProjectDataFromMusicXmlAndAssignments() {
+		SheetProjectOmrProcessor processor = new SheetProjectOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)) {
 			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of(
-					"1", "Am7  D7",
-					"2", "Gmaj7"
-				));
+			public String fetchMusicXml(String jobId) {
+				return SIMPLE_MUSIC_XML;
+			}
+
+			@Override
+			public Map<String, String> fetchChordAssignments(String jobId) {
+				return Map.of("1", "Am7  D7", "2", "Gmaj7");
 			}
 		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.PNG",
-			"image/png",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
 
-		SheetProjectOmrProcessor.SheetProjectOmrData result = processor.process(file);
+		SheetProjectOmrProcessor.SheetProjectOmrData result = processor.processJobResult("job-456");
 
 		assertThat(result.title()).isEqualTo("Autumn Leaves");
 		assertThat(result.key()).isEqualTo(MusicKey.C_MAJOR);
@@ -100,5 +93,3 @@ class SheetProjectOmrProcessorTest {
 		assertThat(result.progression()).isEqualTo("Am7 D7 | Gmaj7");
 	}
 }
-
-

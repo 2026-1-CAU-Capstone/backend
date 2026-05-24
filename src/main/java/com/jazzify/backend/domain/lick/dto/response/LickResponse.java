@@ -12,6 +12,7 @@ import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
 import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.shared.domain.RhythmFeel;
+import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 
 @NullMarked
 public record LickResponse(
@@ -22,6 +23,11 @@ public record LickResponse(
 	boolean isOMR,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt,
+
+	// ─── OMR 처리 상태 ─────────────────────────────────────────────────
+	OmrProcessingStatus omrStatus,
+	int omrProgress,
+	@Nullable String omrFailureReason,
 
 	// ─── 2. PERFORMANCE METADATA ───────────────────────────────────────
 	@Nullable String performer,
@@ -41,10 +47,10 @@ public record LickResponse(
 	@Nullable HarmonicContext harmonicContext,
 	@Nullable String targetChord,
 
-	// ─── 4. SHEET DATA ─────────────────────────────────────────────────
-	SheetDataResponse sheetData,
+	// ─── 4. SHEET DATA (PENDING 상태에서는 null) ─────────────────────────
+	@Nullable SheetDataResponse sheetData,
 
-	// ─── 5. SIMILARITY FEATURES ──────────────────────────────────────── ────────────────────────────────────────
+	// ─── 5. SIMILARITY FEATURES ────────────────────────────────────────
 	@Nullable Integer nEvents,
 	@Nullable List<Integer> pitches,
 	@Nullable List<Integer> intervals,

@@ -11,24 +11,24 @@ import java.util.stream.Collectors;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.analysis.service.HarmonicAnalysisService;
-import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;
-import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
+import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordinfo.entity.ChordSection;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysisReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysisWriter;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
 import com.jazzify.backend.domain.chordinfo.util.ChordInfoMapper;
-import com.jazzify.backend.domain.chordproject.event.ChordProjectOmrRequestedEvent;
+import com.jazzify.backend.domain.sheetproject.dto.request.OmrCallbackRequest;
+import com.jazzify.backend.domain.sheetproject.dto.request.OmrCallbackRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectOmrCreateRequest;
@@ -39,6 +39,7 @@ import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrCreat
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrStatusResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectResponse;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectOmrProcessor;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectOmrWriter;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectReader;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectWriter;
@@ -47,9 +48,13 @@ import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.domain.user.service.implementation.UserReader;
 import com.jazzify.backend.shared.domain.MusicKey;
+import com.jazzify.backend.shared.exception.CustomException;
 import com.jazzify.backend.shared.exception.code.ChordProjectErrorCode;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
+import com.jazzify.backend.shared.omr.OmrCallbackDomain;
+import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrFileValidator;
+import com.jazzify.backend.shared.omr.OmrProperties;
 
 import lombok.RequiredArgsConstructor;
 
@@ -65,13 +70,16 @@ public class ChordProjectService {
 	private final ChordProjectReader chordProjectReader;
 	private final ChordProjectWriter chordProjectWriter;
 	private final ChordProjectOmrWriter chordProjectOmrWriter;
-	private final ApplicationEventPublisher eventPublisher;
+	private final ChordProjectOmrProcessor chordProjectOmrProcessor;
+	private final TransactionTemplate transactionTemplate;
 	private final UserReader userReader;
 	private final ChordInfoReader chordInfoReader;
 	private final ChordInfoWriter chordInfoWriter;
 	private final ChordAnalysisReader chordAnalysisReader;
 	private final ChordAnalysisWriter chordAnalysisWriter;
 	private final HarmonicAnalysisService harmonicAnalysisService;
+	private final OmrClient omrClient;
+	private final OmrProperties omrProperties;
 
 	@Transactional
 	public ChordProjectResponse create(UUID userPublicId, ChordProjectCreateRequest request) {
@@ -80,7 +88,6 @@ public class ChordProjectService {
 		return ChordProjectMapper.toResponse(project);
 	}
 
-	@Transactional
 	public ChordProjectOmrCreateResponse createFromOmr(
 		UUID userPublicId,
 		MultipartFile file,
@@ -88,7 +95,6 @@ public class ChordProjectService {
 	) {
 		OmrFileValidator.validate(file);
 		byte[] fileData = readFileBytes(file);
-		User user = userReader.getByPublicId(userPublicId);
 
 		String originalFilename = defaultFileName(file.getOriginalFilename());
 		String contentType = defaultContentType(file.getContentType());
@@ -100,20 +106,37 @@ public class ChordProjectService {
 			? request.timeSignature().trim()
 			: DEFAULT_PENDING_TIME_SIGNATURE;
 
-		ChordProject project = chordProjectOmrWriter.createPending(user, pendingTitle, pendingKey, pendingTimeSignature);
+		// 1단계: User 조회와 PENDING 엔티티 생성을 같은 트랜잭션 안에서 실행하고 커밋한다.
+		ChordProject project = Objects.requireNonNull(
+			transactionTemplate.execute(status -> {
+				User user = userReader.getByPublicId(userPublicId);
+				return chordProjectOmrWriter.createPending(
+					user, pendingTitle, pendingKey, pendingTimeSignature,
+					hasText(request.title()) ? request.title().trim() : null,
+					request.key(),
+					hasText(request.timeSignature()) ? request.timeSignature().trim() : null
+				);
+			})
+		);
+
 		UUID projectPublicId = Objects.requireNonNull(project.getPublicId());
 
-		eventPublisher.publishEvent(new ChordProjectOmrRequestedEvent(
-			projectPublicId,
-			originalFilename,
-			contentType,
-			fileData,
-			request.title(),
-			request.key(),
-			request.timeSignature()
-		));
+		// 2단계: 커밋 후 OMR 서버에 파일을 제출하고 job_id 응답을 확인한다.
+		try {
+			OmrClient.OmrSubmitResult result = omrClient.submitJob(fileData, originalFilename, projectPublicId.toString(), OmrCallbackDomain.CHORD_PROJECT);
+			chordProjectOmrWriter.storeJobIdAndMarkProcessing(projectPublicId, Objects.requireNonNull(result.jobId()), 10);
+		} catch (CustomException e) {
+			chordProjectOmrWriter.fail(projectPublicId, e.getMessage(), 0);
+			throw e;
+		} catch (Exception e) {
+			chordProjectOmrWriter.fail(projectPublicId, e.getMessage(), 0);
+			throw OmrErrorCode.OMR_SUBMIT_FAILED.toException(e.getMessage());
+		}
 
-		return new ChordProjectOmrCreateResponse(ChordProjectMapper.toResponse(project), List.of());
+		// 3단계: 최신 상태(PROCESSING)를 DB에서 다시 읽어 반환한다.
+		ChordProject fresh = chordProjectReader.findByPublicId(projectPublicId)
+			.orElseThrow(() -> OmrErrorCode.OMR_JOB_NOT_FOUND.toException("projectPublicId=" + projectPublicId));
+		return new ChordProjectOmrCreateResponse(ChordProjectMapper.toResponse(fresh), List.of());
 	}
 
 	@Transactional(readOnly = true)
@@ -303,6 +326,61 @@ public class ChordProjectService {
 			return file.getBytes();
 		} catch (IOException e) {
 			throw OmrErrorCode.OMR_FILE_READ_FAILED.toException(e.getMessage());
+		}
+	}
+
+	// ── OMR 콜백 처리 ──
+
+	/**
+	 * OMR 서버가 처리 완료 후 보내는 콜백을 처리한다.
+	 */
+	@Transactional
+	public void handleOmrCallback(String callbackApiKey, OmrCallbackRequest callbackRequest) {
+		validateCallbackApiKey(callbackApiKey);
+
+		String jobId = callbackRequest.jobId();
+		UUID projectPublicId;
+		try {
+			projectPublicId = UUID.fromString(jobId);
+		} catch (IllegalArgumentException e) {
+			throw OmrErrorCode.OMR_JOB_NOT_FOUND.toException("유효하지 않은 job_id 형식입니다: " + jobId);
+		}
+
+		ChordProject project = chordProjectReader.findByPublicId(projectPublicId)
+			.orElseThrow(() -> OmrErrorCode.OMR_JOB_NOT_FOUND.toException("job_id=" + jobId));
+
+		if (callbackRequest.isCompleted()) {
+			UUID publicId = Objects.requireNonNull(project.getPublicId());
+			chordProjectOmrWriter.markProcessing(publicId, 80);
+
+			ChordProjectOmrProcessor.ChordProjectOmrData omrData = chordProjectOmrProcessor.processJobResult(jobId);
+
+			String title = project.getOmrRequestedTitle() != null ? project.getOmrRequestedTitle() : omrData.title();
+			MusicKey key = project.getOmrRequestedKey() != null ? project.getOmrRequestedKey() : omrData.key();
+			if (key == null) {
+				chordProjectOmrWriter.fail(publicId, ChordProjectErrorCode.CHORD_PROJECT_KEY_REQUIRED.getMessage(), 80);
+				return;
+			}
+			String timeSignature = project.getOmrRequestedTimeSignature() != null
+				? project.getOmrRequestedTimeSignature()
+				: omrData.timeSignature();
+
+			chordProjectOmrWriter.complete(publicId, title, key, timeSignature, omrData.progression());
+
+		} else if (callbackRequest.isFailed()) {
+			String errorMsg = hasText(callbackRequest.error()) ? callbackRequest.error()
+				: (hasText(callbackRequest.message()) ? callbackRequest.message() : "OMR 처리 실패");
+			chordProjectOmrWriter.fail(Objects.requireNonNull(project.getPublicId()), errorMsg, 0);
+		}
+	}
+
+	private void validateCallbackApiKey(String providedKey) {
+		String expectedKey = omrProperties.callbackApiKey();
+		if (expectedKey == null || expectedKey.isBlank()) {
+			return;
+		}
+		if (!expectedKey.equals(providedKey)) {
+			throw OmrErrorCode.OMR_CALLBACK_KEY_INVALID.toException();
 		}
 	}
 }

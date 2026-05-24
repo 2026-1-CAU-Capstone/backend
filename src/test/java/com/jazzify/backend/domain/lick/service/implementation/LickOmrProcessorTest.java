@@ -1,19 +1,19 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.multipart.MultipartFile;
 
+import com.jazzify.backend.shared.exception.CustomException;
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrProperties;
-	import com.jazzify.backend.shared.exception.CustomException;
 
-	import static org.junit.jupiter.api.Assertions.assertThrows;
 @NullMarked
 class LickOmrProcessorTest {
 
@@ -51,15 +51,53 @@ class LickOmrProcessorTest {
 		""";
 
 	@Test
-	void process_acceptsPngFile() {
-		boolean[] called = {false};
-		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
+	void processJobResult_buildsSheetDataUsingChordAssignments() {
+		String[] capturedJobId = {null};
+		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)) {
 			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				called[0] = true;
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Dm7  G7", "2", "Cmaj7"));
+			public String fetchMusicXml(String jobId) {
+				capturedJobId[0] = jobId;
+				return SIMPLE_MUSIC_XML;
+			}
+
+			@Override
+			public Map<String, String> fetchChordAssignments(String jobId) {
+				return Map.of("1", "Dm7  G7", "2", "Cmaj7");
 			}
 		});
+
+		LickOmrProcessor.ProcessedSheetData result = processor.processJobResult("job-123");
+
+		assertThat(capturedJobId[0]).isEqualTo("job-123");
+		assertThat(result.sheetData().measures())
+			.extracting(it -> it.chord())
+			.containsExactly("Dm7  G7", "Cmaj7");
+	}
+
+	@Test
+	void processJobResult_keepsOnlySafelyMappedMeasuresWhenAssignmentsArePartial() {
+		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)) {
+			@Override
+			public String fetchMusicXml(String jobId) {
+				return SIMPLE_MUSIC_XML;
+			}
+
+			@Override
+			public Map<String, String> fetchChordAssignments(String jobId) {
+				return Map.of("1", "Dm7  G7");
+			}
+		});
+
+		LickOmrProcessor.ProcessedSheetData result = processor.processJobResult("job-456");
+
+		assertThat(result.sheetData().measures())
+			.extracting(it -> it.chord())
+			.containsExactly("Dm7  G7", null);
+	}
+
+	@Test
+	void process_throwsBecauseSyncOmarPathIsNoLongerSupported() {
+		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused", null, null, null)));
 		MockMultipartFile file = new MockMultipartFile(
 			"file",
 			"score.png",
@@ -67,82 +105,7 @@ class LickOmrProcessorTest {
 			"dummy".getBytes(StandardCharsets.UTF_8)
 		);
 
-		LickOmrProcessor.ProcessedSheetData result = processor.process(file);
-		assertThat(called[0]).isTrue();
-		assertThat(result.sheetData().measures())
-			.extracting(it -> it.chord())
-			.containsExactly("Dm7  G7", "Cmaj7");
-	}
-
-	@Test
-	void process_rejectsPdfFile() {
-		boolean[] called = {false};
-		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
-			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				called[0] = true;
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of());
-			}
-		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.pdf",
-			"application/pdf",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
-
 		CustomException exception = assertThrows(CustomException.class, () -> processor.process(file));
-
-		assertThat(called[0]).isFalse();
-		assertThat(exception.getCode()).isEqualTo("OMR_004");
-	}
-
-	@Test
-	void process_buildsSheetDataUsingChordAssignments() {
-		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
-			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of(
-					"1", "Dm7  G7",
-					"2", "Cmaj7"
-				));
-			}
-		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.PNG",
-			"image/png",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
-
-		LickOmrProcessor.ProcessedSheetData result = processor.process(file);
-
-		assertThat(result.sheetData().measures())
-			.extracting(it -> it.chord())
-			.containsExactly("Dm7  G7", "Cmaj7");
-	}
-
-	@Test
-	void process_keepsOnlySafelyMappedMeasuresWhenAssignmentsArePartial() {
-		LickOmrProcessor processor = new LickOmrProcessor(new OmrClient(new OmrProperties("http://unused")) {
-			@Override
-			public OmrRecognitionResult recognize(MultipartFile file) {
-				return new OmrRecognitionResult(SIMPLE_MUSIC_XML, Map.of("1", "Dm7  G7"));
-			}
-		});
-		MockMultipartFile file = new MockMultipartFile(
-			"file",
-			"score.PNG",
-			"image/png",
-			"dummy".getBytes(StandardCharsets.UTF_8)
-		);
-
-		LickOmrProcessor.ProcessedSheetData result = processor.process(file);
-
-		assertThat(result.sheetData().measures())
-			.extracting(it -> it.chord())
-			.containsExactly("Dm7  G7", null);
+		assertThat(exception.getCode()).isEqualTo("OMR_002");
 	}
 }
-
-

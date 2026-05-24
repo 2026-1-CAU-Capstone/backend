@@ -56,6 +56,23 @@ public class ChordProject extends BaseEntity {
 	@Column(length = 500)
 	private @Nullable String omrFailureReason;
 
+	/** OMR 서버에서 발급된 job ID. */
+	@Column(length = 128)
+	private @Nullable String omrJobId;
+
+	/** 사용자가 직접 입력한 제목 (null이면 OMR 파싱값 사용). */
+	@Column(length = 255)
+	private @Nullable String omrRequestedTitle;
+
+	/** 사용자가 직접 입력한 조성 (null이면 OMR 파싱값 사용). */
+	@Enumerated(EnumType.STRING)
+	@Column(length = 30)
+	private @Nullable MusicKey omrRequestedKey;
+
+	/** 사용자가 직접 입력한 박자 (null이면 OMR 파싱값 사용). */
+	@Column(length = 10)
+	private @Nullable String omrRequestedTimeSignature;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
@@ -107,10 +124,18 @@ public class ChordProject extends BaseEntity {
 		this.timeSignature = timeSignature;
 	}
 
-	public void markOmrQueued() {
+	public void markOmrQueued(@Nullable String requestedTitle, @Nullable MusicKey requestedKey, @Nullable String requestedTimeSignature) {
 		this.omrStatus = OmrProcessingStatus.PENDING;
 		this.omrProgress = 0;
 		this.omrFailureReason = null;
+		this.omrJobId = null;
+		this.omrRequestedTitle = requestedTitle;
+		this.omrRequestedKey = requestedKey;
+		this.omrRequestedTimeSignature = requestedTimeSignature;
+	}
+
+	public void storeOmrJobId(String jobId) {
+		this.omrJobId = jobId;
 	}
 
 	public void markOmrProcessing(int progress) {

@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.lick.service.implementation;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -29,6 +30,10 @@ public class LickReader {
 	public Lick getByPublicId(UUID publicId) {
 		return lickRepository.findByPublicId(publicId)
 			.orElseThrow(LickErrorCode.LICK_NOT_FOUND::toException);
+	}
+
+	public Optional<Lick> findByPublicId(UUID publicId) {
+		return lickRepository.findByPublicId(publicId);
 	}
 
 	public Page<Lick> getAll(Pageable pageable, @Nullable String composer, @Nullable String performer) {

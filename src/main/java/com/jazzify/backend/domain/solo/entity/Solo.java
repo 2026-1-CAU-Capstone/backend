@@ -9,6 +9,7 @@ import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
 import com.jazzify.backend.shared.domain.RhythmFeel;
+import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 import com.jazzify.backend.shared.persistence.converter.UuidBinaryConverter;
 
@@ -154,6 +155,22 @@ public class Solo extends BaseEntity {
 	@Column
 	private @Nullable Integer endPitch;
 
+	// ─── 7. OMR 처리 상태 ────────────────────────────────────────────────
+	@Builder.Default
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private OmrProcessingStatus omrStatus = OmrProcessingStatus.COMPLETED;
+
+	@Builder.Default
+	@Column(nullable = false)
+	private int omrProgress = 100;
+
+	@Column(length = 500)
+	private @Nullable String omrFailureReason;
+
+	@Column(length = 128)
+	private @Nullable String omrJobId;
+
 	// ─── Update ────────────────────────────────────────────────────────
 
 	/**
@@ -222,6 +239,35 @@ public class Solo extends BaseEntity {
 	/** 반정규화된 sheetData JSON을 교체한다. */
 	public void replaceSheetDataJson(String newSheetDataJson) {
 		this.sheetDataJson = newSheetDataJson;
+	}
+
+	public void markOmrQueued() {
+		this.omrStatus = OmrProcessingStatus.PENDING;
+		this.omrProgress = 0;
+		this.omrFailureReason = null;
+		this.omrJobId = null;
+	}
+
+	public void storeOmrJobId(String jobId) {
+		this.omrJobId = jobId;
+	}
+
+	public void markOmrProcessing(int progress) {
+		this.omrStatus = OmrProcessingStatus.PROCESSING;
+		this.omrProgress = progress;
+		this.omrFailureReason = null;
+	}
+
+	public void markOmrCompleted() {
+		this.omrStatus = OmrProcessingStatus.COMPLETED;
+		this.omrProgress = 100;
+		this.omrFailureReason = null;
+	}
+
+	public void markOmrFailed(String failureReason, int progress) {
+		this.omrStatus = OmrProcessingStatus.FAILED;
+		this.omrProgress = progress;
+		this.omrFailureReason = failureReason;
 	}
 
 	/**

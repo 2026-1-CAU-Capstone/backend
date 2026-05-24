@@ -122,6 +122,12 @@ springdoc:
 # ── OMR Server ────────────────────────────
 omr:
   server-url: ${OMR_SERVER_URL:}
+  # OMR 서버 요청 시 X-OMR-API-Key 헤더 값
+  api-key: ${OMR_API_KEY:}
+  # OMR 서버가 콜백 시 보내는 X-OMR-Callback-API-Key 검증용
+  callback-api-key: ${OMR_CALLBACK_API_KEY:}
+  # prod 환경: callbackUrl 미설정 → /omr/prod/process 사용 (OMR 서버 측에 정적 URL 등록)
+  callback-url:
 
 
 # ── RAG Server (PostgreSQL + pgvector) ─────────────

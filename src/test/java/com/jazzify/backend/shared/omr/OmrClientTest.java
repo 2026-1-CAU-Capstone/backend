@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,7 @@ class OmrClientTest {
 		""";
 
 	@Test
-	void recognize_joinsOnlyMeasuresWithMusicXmlMeasureNumberWhenAlignmentIsPartial() throws Exception {
+	void fetchChordAssignments_joinsOnlyMeasuresWithMusicXmlMeasureNumberWhenAlignmentIsPartial() throws Exception {
 		String chordAssignmentsJson = """
 			{
 			  "measure_alignment": {
@@ -75,23 +76,15 @@ class OmrClientTest {
 			""";
 
 		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, chordAssignmentsJson)) {
-			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl()));
-			MockMultipartFile file = new MockMultipartFile(
-				"file",
-				"score.png",
-				"image/png",
-				"dummy".getBytes(StandardCharsets.UTF_8)
-			);
-
-			OmrClient.OmrRecognitionResult result = client.recognize(file);
-
-			assertThat(result.musicXml()).isEqualTo(MUSIC_XML);
-			assertThat(result.chordsByMeasureNumber()).containsExactly(Map.entry("1", "Dm7  G7"));
+			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl(), null, null, null));
+			assertThat(client.fetchMusicXml(TestOmrServer.JOB_ID)).isEqualTo(MUSIC_XML);
+			assertThat(client.fetchChordAssignments(TestOmrServer.JOB_ID))
+				.containsExactly(Map.entry("1", "Dm7  G7"));
 		}
 	}
 
 	@Test
-	void recognize_skipsAutomaticChordJoinWhenAlignmentIsMismatch() throws Exception {
+	void fetchChordAssignments_skipsAutomaticChordJoinWhenAlignmentIsMismatch() throws Exception {
 		String chordAssignmentsJson = """
 			{
 			  "measure_alignment": {
@@ -117,18 +110,48 @@ class OmrClientTest {
 			""";
 
 		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, chordAssignmentsJson)) {
-			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl()));
-			MockMultipartFile file = new MockMultipartFile(
-				"file",
-				"score.png",
-				"image/png",
-				"dummy".getBytes(StandardCharsets.UTF_8)
-			);
+			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl(), null, null, null));
+			assertThat(client.fetchChordAssignments(TestOmrServer.JOB_ID)).isEmpty();
+		}
+	}
 
-			OmrClient.OmrRecognitionResult result = client.recognize(file);
+	@Test
+	void submitJob_usesDevEndpointAndAppendsDomainPathToCallbackUrlWhenConfigured() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				"request-key",
+				null,
+				"http://localhost:8080/api"
+			));
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
 
-			assertThat(result.musicXml()).isEqualTo(MUSIC_XML);
-			assertThat(result.chordsByMeasureNumber()).isEmpty();
+			OmrClient.OmrSubmitResult result = client.submitJob(
+				file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.LICK);
+
+			assertThat(result.jobId()).isEqualTo(TestOmrServer.JOB_ID);
+			assertThat(server.lastProcessPath()).isEqualTo("/omr/dev/process");
+			assertThat(server.lastOmrApiKey()).isEqualTo("request-key");
+			assertThat(server.lastRequestBody()).contains("name=\"callback_url\"");
+			assertThat(server.lastRequestBody()).contains("http://localhost:8080/api/v1/licks/omr/callback");
+		}
+	}
+
+	@Test
+	void submitJob_stripsTrailingSlashFromCallbackBaseUrlBeforeAppendingDomainPath() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				null,
+				null,
+				"http://localhost:8080/api/"
+			));
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			client.submitJob(file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.SOLO);
+
+			assertThat(server.lastRequestBody()).contains("http://localhost:8080/api/v1/solos/omr/callback");
+			assertThat(server.lastRequestBody()).doesNotContain("http://localhost:8080/api//v1/solos");
 		}
 	}
 
@@ -137,14 +160,22 @@ class OmrClientTest {
 		private static final String JOB_ID = "job-123";
 
 		private final HttpServer server;
+		private final String musicXml;
+		private final String chordAssignmentsJson;
+		private final AtomicReference<String> lastProcessPath = new AtomicReference<>("");
+		private final AtomicReference<String> lastOmrApiKey = new AtomicReference<>("");
+		private final AtomicReference<String> lastRequestBody = new AtomicReference<>("");
 
 		private TestOmrServer(String musicXml, String chordAssignmentsJson) throws IOException {
+			this.musicXml = musicXml;
+			this.chordAssignmentsJson = chordAssignmentsJson;
 			server = HttpServer.create(new InetSocketAddress(0), 0);
-			server.createContext("/omr/process", this::respondToProcess);
+			server.createContext("/omr/dev/process", this::respondToProcess);
+			server.createContext("/omr/prod/process", this::respondToProcess);
 			server.createContext("/omr/jobs/" + JOB_ID + "/musicxml", exchange ->
-				respond(exchange, "application/vnd.recordare.musicxml+xml", musicXml));
+				respond(exchange, 200, "application/vnd.recordare.musicxml+xml", this.musicXml));
 			server.createContext("/omr/jobs/" + JOB_ID + "/chord-assignments", exchange ->
-				respond(exchange, "application/json", chordAssignmentsJson));
+				respond(exchange, 200, "application/json", this.chordAssignmentsJson));
 			server.start();
 		}
 
@@ -152,30 +183,44 @@ class OmrClientTest {
 			return "http://localhost:" + server.getAddress().getPort();
 		}
 
+		private String lastProcessPath() {
+			return lastProcessPath.get();
+		}
+
+		private String lastOmrApiKey() {
+			return lastOmrApiKey.get();
+		}
+
+		private String lastRequestBody() {
+			return lastRequestBody.get();
+		}
+
 		private void respondToProcess(HttpExchange exchange) throws IOException {
-			consume(exchange.getRequestBody());
-			respond(exchange, "application/json", """
+			lastProcessPath.set(exchange.getRequestURI().getPath());
+			lastOmrApiKey.set(exchange.getRequestHeaders().getFirst("X-OMR-API-Key"));
+			lastRequestBody.set(readBody(exchange.getRequestBody()));
+			respond(exchange, 202, "application/json", """
 				{
 				  "job_id": "job-123",
-				  "status": "completed"
+				  "status": "queued"
 				}
 				""");
 		}
 
-		private static void respond(HttpExchange exchange, String contentType, String body) throws IOException {
+		private static String readBody(InputStream inputStream) throws IOException {
+			try (InputStream in = inputStream) {
+				return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+			}
+		}
+
+		private static void respond(HttpExchange exchange, int status, String contentType, String body) throws IOException {
 			exchange.getResponseHeaders().add("Content-Type", contentType + "; charset=UTF-8");
 			byte[] payload = body.getBytes(StandardCharsets.UTF_8);
-			exchange.sendResponseHeaders(200, payload.length);
+			exchange.sendResponseHeaders(status, payload.length);
 			try (OutputStream outputStream = exchange.getResponseBody()) {
 				outputStream.write(payload);
 			}
 			exchange.close();
-		}
-
-		private static void consume(InputStream inputStream) throws IOException {
-			try (InputStream in = inputStream) {
-				in.transferTo(OutputStream.nullOutputStream());
-			}
 		}
 
 		@Override
@@ -184,5 +229,3 @@ class OmrClientTest {
 		}
 	}
 }
-
-
