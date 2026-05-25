@@ -122,7 +122,7 @@ class OmrClientTest {
 				server.baseUrl(),
 				"request-key",
 				null,
-				"http://localhost:8080/api"
+				"http://localhost:8080"
 			));
 			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
 
@@ -144,14 +144,14 @@ class OmrClientTest {
 				server.baseUrl(),
 				null,
 				null,
-				"http://localhost:8080/api/"
+				"http://localhost:8080/"
 			));
 			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
 
 			client.submitJob(file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.SOLO);
 
 			assertThat(server.lastRequestBody()).contains("http://localhost:8080/api/v1/solos/omr/callback");
-			assertThat(server.lastRequestBody()).doesNotContain("http://localhost:8080/api//v1/solos");
+			assertThat(server.lastRequestBody()).doesNotContain("http://localhost:8080//api/v1/solos");
 		}
 	}
 
