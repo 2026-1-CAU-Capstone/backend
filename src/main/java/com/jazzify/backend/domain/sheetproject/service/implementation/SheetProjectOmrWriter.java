@@ -62,6 +62,21 @@ public class SheetProjectOmrWriter {
 			.ifPresent(project -> project.markOmrProcessing(normalizeProgress(progress)));
 	}
 
+	/**
+	 * OMR 서버 제출 후 job_id 를 저장하고 처리 중 상태로 전환한다.
+	 *
+	 * @param projectPublicId 프로젝트 식별자
+	 * @param omrJobId        OMR 서버에서 발급된 job ID
+	 * @param progress        진행도 (0~100)
+	 */
+	public void storeJobIdAndMarkProcessing(UUID projectPublicId, String omrJobId, int progress) {
+		sheetProjectRepository.findByPublicId(projectPublicId)
+			.ifPresent(project -> {
+				project.storeOmrJobId(omrJobId);
+				project.markOmrProcessing(normalizeProgress(progress));
+			});
+	}
+
 	public void complete(UUID projectPublicId, String title, @Nullable MusicKey key, String timeSignature, String progression) {
 		sheetProjectRepository.findByPublicId(projectPublicId)
 			.ifPresent(project -> {

@@ -9,7 +9,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
-import com.jazzify.backend.shared.omr.OmrFileValidator;
 import com.jazzify.backend.shared.musicxml.MusicXmlParser;
 import com.jazzify.backend.shared.musicxml.ParsedMeasure;
 import com.jazzify.backend.shared.musicxml.ParsedSheetData;
@@ -17,6 +16,8 @@ import com.jazzify.backend.shared.omr.OmrClient;
 
 import lombok.RequiredArgsConstructor;
 
+// TODO: SheetProject 도메인처럼 콜백 기반 비동기 흐름으로 전환 필요.
+//       현재 OMR API는 동기 처리를 지원하지 않으므로 이 메서드는 사용 불가 상태다.
 @NullMarked
 @Component
 @RequiredArgsConstructor
@@ -28,12 +29,22 @@ public class ChordProjectOmrProcessor {
 	private final OmrClient omrClient;
 
 	public ChordProjectOmrData process(MultipartFile file) {
-		validateFile(file);
+		throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException(
+			"ChordProject 도메인은 아직 비동기 OMR 콜백 방식으로 전환되지 않았습니다."
+		);
+	}
 
-		OmrClient.OmrRecognitionResult omrResult = omrClient.recognize(file);
+	/**
+	 * OMR job_id로 결과를 조회하여 ChordProjectOmrData로 변환한다.
+	 * 콜백 기반 비동기 흐름 전환 시 이 메서드를 사용할 것.
+	 */
+	public ChordProjectOmrData processJobResult(String jobId) {
+		String musicXml = omrClient.fetchMusicXml(jobId);
+		java.util.Map<String, String> chordsByMeasureNumber = omrClient.fetchChordAssignments(jobId);
+
 		ParsedSheetData parsed;
 		try {
-			parsed = MusicXmlParser.parse(omrResult.musicXml(), omrResult.chordsByMeasureNumber());
+			parsed = MusicXmlParser.parse(musicXml, chordsByMeasureNumber);
 		} catch (Exception e) {
 			throw OmrErrorCode.OMR_PARSE_FAILED.toException(e.getMessage());
 		}
@@ -48,10 +59,6 @@ public class ChordProjectOmrProcessor {
 			parsed.timeSignature().isBlank() ? DEFAULT_TIME_SIGNATURE : parsed.timeSignature(),
 			toProgression(parsed)
 		);
-	}
-
-	private void validateFile(MultipartFile file) {
-		OmrFileValidator.validate(file);
 	}
 
 	private String toProgression(ParsedSheetData parsed) {

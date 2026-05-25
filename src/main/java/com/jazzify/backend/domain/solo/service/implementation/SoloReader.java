@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.solo.service.implementation;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -29,6 +30,10 @@ public class SoloReader {
 	public Solo getByPublicId(UUID publicId) {
 		return soloRepository.findByPublicId(publicId)
 			.orElseThrow(SoloErrorCode.SOLO_NOT_FOUND::toException);
+	}
+
+	public Optional<Solo> findByPublicId(UUID publicId) {
+		return soloRepository.findByPublicId(publicId);
 	}
 
 	public Page<Solo> getAll(Pageable pageable, @Nullable String composer, @Nullable String performer) {

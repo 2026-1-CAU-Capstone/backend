@@ -5,6 +5,7 @@ services:
     env_file: .env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=${JAVA_OPTS}
     ports:
       - "8080:8080"
     volumes:
@@ -16,6 +17,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      pgvector:
         condition: service_healthy
 
   db:
@@ -54,9 +57,28 @@ services:
       timeout: 5s
       retries: 10
 
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${RAG_DB_NAME}
+      POSTGRES_USER: ${RAG_DB_USERNAME}
+      POSTGRES_PASSWORD: ${RAG_DB_PASSWORD}
+    volumes:
+      - pgvector-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${RAG_DB_USERNAME} -d ${RAG_DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   db-data:
   redis-data:
+  pgvector-data:
 
 networks:
   app-network:

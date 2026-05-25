@@ -1,6 +1,8 @@
 package com.jazzify.backend.domain.lick.service;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -15,6 +17,7 @@ import com.jazzify.backend.domain.lick.dto.request.LickCreateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickOmrRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickUpdateRequest;
 import com.jazzify.backend.domain.lick.dto.request.LickVideoRequest;
+import com.jazzify.backend.domain.sheetproject.dto.request.OmrCallbackRequest;
 import com.jazzify.backend.domain.lick.dto.app.LickMetadataValueCountResult;
 import com.jazzify.backend.domain.lick.dto.response.LickMetadataValueCountResponse;
 import com.jazzify.backend.domain.lick.dto.request.SheetDataRequest;
@@ -31,6 +34,12 @@ import com.jazzify.backend.domain.lick.util.LickMapper;
 import com.jazzify.backend.shared.domain.Instrument;
 import com.jazzify.backend.shared.domain.JazzStyle;
 import com.jazzify.backend.shared.domain.RhythmFeel;
+import com.jazzify.backend.shared.exception.CustomException;
+import com.jazzify.backend.shared.exception.code.OmrErrorCode;
+import com.jazzify.backend.shared.omr.OmrCallbackDomain;
+import com.jazzify.backend.shared.omr.OmrClient;
+import com.jazzify.backend.shared.omr.OmrFileValidator;
+import com.jazzify.backend.shared.omr.OmrProperties;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,10 +48,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class LickService {
 
+	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+
 	private final LickReader lickReader;
 	private final LickWriter lickWriter;
 	private final LickFeatureCalculator lickFeatureCalculator;
 	private final LickOmrProcessor lickOmrProcessor;
+	private final OmrClient omrClient;
+	private final OmrProperties omrProperties;
 
 	@Transactional
 	public LickResponse create(LickCreateRequest request) {
@@ -122,65 +135,106 @@ public class LickService {
 		lickWriter.deleteVideo(lick);
 	}
 
-	/**
-	 * 악보 파일(PNG/JPG/JPEG)을 OMR 서버로 처리한 뒤 릭으로 저장한다.
-	 * <p>
-	 * OMR 서버 호출은 트랜잭션 외부에서 수행되어 DB 커넥션을 장시간 점유하지 않는다.
-	 * MusicVision의 {@code /omr/process} → 결과 다운로드 → 안전하게 매핑 가능한 chord assignments 결합 흐름을 사용한다.
-	 * DB 쓰기는 {@link LickWriter}(별도 빈)의 {@code @Transactional} 메서드에서 처리된다.
-	 *
-	 * @param file     업로드된 악보 파일
-	 * @param metadata 연주자·악기 등 옵션 메타데이터 (미입력 시 MusicXML 파싱 값 사용)
-	 * @return 생성된 릭 응답 DTO
-	 */
 	public LickResponse createFromOmr(MultipartFile file, LickOmrRequest metadata) {
-		// 1. OMR 처리 (트랜잭션 외부 — HTTP 통신 + XML 파싱)
-		LickOmrProcessor.ProcessedSheetData processedSheetData = lickOmrProcessor.process(file);
-		LickCreateRequest request = buildOmrCreateRequest(metadata, processedSheetData);
+		OmrFileValidator.validate(file);
+		byte[] fileData = readFileBytes(file);
 
-		// 2. 화성 데이터 계산 (트랜잭션 불필요)
-		LickHarmonicData harmonic = lickFeatureCalculator.computeHarmonicData(
-			request.sheetData(),
-			request.chords(),
-			request.chordsPerNote(),
-			request.harmonicContext(),
-			request.targetChord()
+		String originalFilename = defaultFileName(file.getOriginalFilename());
+		String pendingTitle = hasText(metadata.title()) ? Objects.requireNonNull(metadata.title()).trim() : extractBaseName(originalFilename);
+
+		// 1단계: 트랜잭션 내에서 PENDING 엔티티를 생성하고 커밋한다.
+		//        LickWriter 는 @Transactional 이므로 호출 즉시 자체 트랜잭션을 열고 커밋한다.
+		Lick lick = lickWriter.createPending(
+			LickSource.from(metadata.source()),
+			parseUuid(metadata.userId()),
+			metadata.performer(),
+			metadata.composer(),
+			pendingTitle,
+			metadata.album(),
+			Instrument.from(metadata.instrument()),
+			JazzStyle.from(metadata.style()),
+			metadata.tempo(),
+			metadata.key(),
+			RhythmFeel.from(metadata.rhythmFeel())
 		);
 
-		// 3. 유사도 피처 계산 (트랜잭션 불필요)
-		LickFeatures features = lickFeatureCalculator.computeFeatures(
-			request.sheetData(),
-			request.features()
-		);
+		UUID lickPublicId = Objects.requireNonNull(lick.getPublicId());
 
-		// 4. DB 저장 — lickWriter 는 별도 빈(@Component)이므로 @Transactional 정상 작동
-		Lick lick = lickWriter.create(request, harmonic, features, true);
-		return LickMapper.toResponse(lick);
+		// 2단계: 커밋이 완료된 후 OMR 서버에 파일을 제출하고 job_id 응답을 확인한다.
+		try {
+			OmrClient.OmrSubmitResult result = omrClient.submitJob(fileData, originalFilename, lickPublicId.toString(), OmrCallbackDomain.LICK);
+			lickWriter.storeJobIdAndMarkProcessing(lickPublicId, Objects.requireNonNull(result.jobId()), 10);
+		} catch (CustomException e) {
+			lickWriter.fail(lickPublicId, e.getMessage(), 0);
+			throw e;
+		} catch (Exception e) {
+			lickWriter.fail(lickPublicId, e.getMessage(), 0);
+			throw OmrErrorCode.OMR_SUBMIT_FAILED.toException(e.getMessage());
+		}
+
+		// 3단계: 최신 상태(PROCESSING)를 DB에서 다시 읽어 반환한다.
+		return LickMapper.toResponse(lickReader.getByPublicId(lickPublicId));
+	}
+
+	@Transactional
+	public void handleOmrCallback(String callbackApiKey, OmrCallbackRequest callbackRequest) {
+		validateCallbackApiKey(callbackApiKey);
+
+		UUID lickPublicId;
+		try {
+			lickPublicId = UUID.fromString(callbackRequest.jobId());
+		} catch (IllegalArgumentException e) {
+			throw OmrErrorCode.OMR_JOB_NOT_FOUND.toException("유효하지 않은 job_id 형식입니다: " + callbackRequest.jobId());
+		}
+
+		Lick lick = lickReader.findByPublicId(lickPublicId)
+			.orElseThrow(() -> OmrErrorCode.OMR_JOB_NOT_FOUND.toException("job_id=" + callbackRequest.jobId()));
+
+		if (callbackRequest.isCompleted()) {
+			UUID publicId = Objects.requireNonNull(lick.getPublicId());
+			lickWriter.markProcessing(publicId, 80);
+
+			LickOmrProcessor.ProcessedSheetData processedSheetData = lickOmrProcessor.processJobResult(callbackRequest.jobId());
+			LickCreateRequest request = buildOmrCreateRequest(lick, processedSheetData);
+			LickHarmonicData harmonic = lickFeatureCalculator.computeHarmonicData(
+				request.sheetData(),
+				request.chords(),
+				request.chordsPerNote(),
+				request.harmonicContext(),
+				request.targetChord()
+			);
+			LickFeatures features = lickFeatureCalculator.computeFeatures(request.sheetData(), request.features());
+			lickWriter.completePending(publicId, request, harmonic, features);
+		} else if (callbackRequest.isFailed()) {
+			String errorMessage = hasText(callbackRequest.error()) ? callbackRequest.error()
+				: (hasText(callbackRequest.message()) ? callbackRequest.message() : "OMR 처리 실패");
+			lickWriter.fail(Objects.requireNonNull(lick.getPublicId()), errorMessage, 0);
+		}
 	}
 
 	// ─── Private ────────────────────────────────────────────────────────
 
 	private LickCreateRequest buildOmrCreateRequest(
-		LickOmrRequest metadata,
+		Lick lick,
 		LickOmrProcessor.ProcessedSheetData processedSheetData
 	) {
 		SheetDataRequest sheetData = processedSheetData.sheetData();
-		String title = metadata.title() != null ? metadata.title()
+		String title = lick.getTitle() != null ? lick.getTitle()
 			: (sheetData.title() != null ? sheetData.title() : "Untitled");
-		String composer = metadata.composer() != null ? metadata.composer() : processedSheetData.composer();
+		String composer = lick.getComposer() != null ? lick.getComposer() : processedSheetData.composer();
 
 		return new LickCreateRequest(
-			LickSource.from(metadata.source()),
-			parseUuid(metadata.userId()),
-			metadata.performer(),
+			lick.getSource(),
+			lick.getUserId(),
+			lick.getPerformer(),
 			composer,
 			title,
-			metadata.album(),
-			Instrument.from(metadata.instrument()),
-			JazzStyle.from(metadata.style()),
-			metadata.tempo() != null ? metadata.tempo() : sheetData.tempo(),
-			metadata.key() != null ? metadata.key() : sheetData.key(),
-			RhythmFeel.from(metadata.rhythmFeel()),
+			lick.getAlbum(),
+			lick.getInstrument(),
+			lick.getStyle(),
+			lick.getTempo() != null ? lick.getTempo() : sheetData.tempo(),
+			lick.getMusicalKey() != null ? lick.getMusicalKey() : sheetData.key(),
+			lick.getRhythmFeel(),
 			sheetData.timeSignature(),
 			null,  // chords       — 자동 추출
 			null,  // chordsPerNote — 자동 추출
@@ -203,5 +257,44 @@ public class LickService {
 
 	private static LickMetadataValueCountResponse toMetadataValueCountResponse(LickMetadataValueCountResult result) {
 		return new LickMetadataValueCountResponse(result.name(), result.count());
+	}
+
+	private void validateCallbackApiKey(String providedKey) {
+		String expectedKey = omrProperties.callbackApiKey();
+		if (expectedKey == null || expectedKey.isBlank()) {
+			return;
+		}
+		if (!expectedKey.equals(providedKey)) {
+			throw OmrErrorCode.OMR_CALLBACK_KEY_INVALID.toException();
+		}
+	}
+
+	private static boolean hasText(@Nullable String value) {
+		return value != null && !value.isBlank();
+	}
+
+	private static String defaultFileName(@Nullable String originalFilename) {
+		return hasText(originalFilename) ? Objects.requireNonNull(originalFilename).trim() : "upload.jpg";
+	}
+
+	private static String defaultContentType(@Nullable String contentType) {
+		return hasText(contentType) ? Objects.requireNonNull(contentType).trim() : "application/octet-stream";
+	}
+
+	private static String extractBaseName(String originalFilename) {
+		int lastDotIndex = originalFilename.lastIndexOf('.');
+		if (lastDotIndex <= 0) {
+			return hasText(originalFilename) ? originalFilename : DEFAULT_PENDING_TITLE;
+		}
+		String baseName = originalFilename.substring(0, lastDotIndex).trim();
+		return hasText(baseName) ? baseName : DEFAULT_PENDING_TITLE;
+	}
+
+	private static byte[] readFileBytes(MultipartFile file) {
+		try {
+			return file.getBytes();
+		} catch (IOException e) {
+			throw OmrErrorCode.OMR_FILE_READ_FAILED.toException(e.getMessage());
+		}
 	}
 }

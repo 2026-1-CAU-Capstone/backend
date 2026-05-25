@@ -12,7 +12,6 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,8 +28,12 @@ import reactor.core.publisher.Mono;
 /**
  * OMR(Optical Music Recognition) 서버와 통신하는 HTTP 클라이언트.
  * <p>
- * MusicVision 명세에 따라 악보 파일을 업로드하고,
- * 생성된 {@code job_id}를 이용해 MusicXML과 chord assignments를 조회한다.
+ * MusicVision 비동기 명세에 따라 악보 파일을 업로드(202 Accepted)하고,
+ * 콜백 또는 폴링으로 완료 확인 후 MusicXML과 chord assignments를 조회한다.
+ * <ul>
+ *   <li>dev 환경: {@code callbackUrl}이 설정된 경우 {@code /omr/dev/process} 엔드포인트 사용</li>
+ *   <li>prod 환경: {@code callbackUrl}이 미설정인 경우 {@code /omr/prod/process} 엔드포인트 사용</li>
+ * </ul>
  */
 @Slf4j
 @NullMarked
@@ -38,87 +41,151 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class OmrClient {
 
-	private static final String PROCESS_STATUS_COMPLETED = "completed";
 	private static final String MEASURE_ALIGNMENT_STATUS_ALIGNED = "aligned";
 	private static final String MEASURE_ALIGNMENT_STATUS_PARTIAL = "partial";
 	private static final String MEASURE_ALIGNMENT_STATUS_MISMATCH = "mismatch";
+	private static final String HEADER_OMR_API_KEY = "X-OMR-API-Key";
 
 	private final OmrProperties omrProperties;
 
 	/**
-	 * 악보 파일을 OMR 서버에 전송하고 MusicXML과 마디별 코드 매핑 결과를 반환한다.
+	 * 악보 파일을 OMR 서버에 비동기로 제출한다.
+	 * <p>
+	 * dev 환경({@code omr.callback-url} 설정 시) → {@code POST /omr/dev/process}
+	 * ({@code callback_url}에 베이스 URL + 도메인별 콜백 경로를 결합해 전달)<br>
+	 * prod 환경 → {@code POST /omr/prod/process}
 	 *
-	 * @param file 악보 파일 (PNG · JPG · JPEG)
-	 * @return MusicXML 문자열과 chord assignments 기반 마디 코드 매핑
-	 * @throws CustomException OMR 서버 미설정, 인식 실패 시
+	 * @param fileData 악보 파일 바이트 배열
+	 * @param filename 원본 파일명 (확장자 포함)
+	 * @param jobId    OMR 서버에 전달할 job ID (project publicId 문자열 권장)
+	 * @param domain   콜백을 받을 도메인 (도메인별 콜백 엔드포인트가 자동 부착됨)
+	 * @return 제출 결과 (jobId, status)
+	 * @throws CustomException OMR 서버 미설정, 제출 실패 시
 	 */
-	public OmrRecognitionResult recognize(MultipartFile file) {
-		String serverUrl = omrProperties.serverUrl();
-		if (serverUrl == null || serverUrl.isBlank()) {
-			throw OmrErrorCode.OMR_SERVER_NOT_CONFIGURED.toException();
+	public OmrSubmitResult submitJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain) {
+		String serverUrl = requireServerUrl();
+		WebClient webClient = createWebClient(serverUrl);
+
+		String ext = extractExtension(filename);
+		MediaType fileMediaType = deriveMediaType(ext);
+		final String sanitizedFilename = sanitizeFilename(filename);
+
+		MultipartBodyBuilder builder = new MultipartBodyBuilder();
+		builder.part("file", new ByteArrayResource(fileData) {
+			@Override
+			public String getFilename() {
+				return sanitizedFilename;
+			}
+		}).filename(sanitizedFilename).contentType(fileMediaType);
+
+		builder.part("job_id", jobId);
+
+		String callbackBaseUrl = omrProperties.callbackUrl();
+		boolean isDevMode = callbackBaseUrl != null && !callbackBaseUrl.isBlank();
+		String endpoint;
+
+		if (isDevMode) {
+			String fullCallbackUrl = buildCallbackUrl(callbackBaseUrl, domain);
+			builder.part("callback_url", fullCallbackUrl);
+			endpoint = "/omr/dev/process";
+			log.debug("[OMR] dev 모드: endpoint={}, jobId={}, callbackUrl={}", endpoint, jobId, fullCallbackUrl);
+		} else {
+			endpoint = "/omr/prod/process";
+			log.debug("[OMR] prod 모드: endpoint={}, jobId={}, domain={}", endpoint, jobId, domain);
 		}
 
 		try {
-			byte[] bytes = file.getBytes();
-			WebClient webClient = createWebClient(serverUrl);
+			WebClient.RequestBodySpec requestSpec = webClient.post().uri(endpoint);
+			requestSpec = addApiKeyHeader(requestSpec);
 
-			// getOriginalFilename()은 OS 파일 시스템 기반이므로 getContentType()보다 신뢰할 수 있다.
-			String filename = file.getOriginalFilename();
-			if (filename == null || filename.isBlank()) {
-				filename = "upload.jpg";
-			}
-
-			String ext = filename.contains(".")
-				? filename.substring(filename.lastIndexOf('.')).toLowerCase()
-				: ".jpg";
-			MediaType fileMediaType = deriveMediaType(ext);
-
-			// ── multipart POST ──────────────────────────────────────────────────
-			// MultipartBodyBuilder + BodyInserters.fromMultipartData(...) 조합은
-			// WebFlux의 MultipartHttpMessageWriter가 boundary와 part 헤더를 생성한다.
-			final String finalFilename = sanitizeFilename(filename);
-			MultipartBodyBuilder builder = new MultipartBodyBuilder();
-			builder.part("file", new ByteArrayResource(bytes) {
-				@Override
-				public String getFilename() {
-					return finalFilename;
-				}
-			})
-				.filename(finalFilename)
-				.contentType(fileMediaType);
-
-			if (log.isDebugEnabled()) {
-				log.debug("[OMR] multipart parts:");
-				log.debug(
-					"[OMR]   part='file' | filename={} | Content-Type={} | size={}B",
-					finalFilename,
-					fileMediaType,
-					bytes.length
-				);
-				log.debug("[OMR] 파일 전송 → endpoint={}/omr/process | filename={} | mediaType={} | size={}B",
-					serverUrl, finalFilename, fileMediaType, bytes.length);
-			}
-
-			OmrProcessResponse processResponse = webClient
-				.post()
-				.uri("/omr/process")
+			OmrSubmitResponse response = requestSpec
 				.body(BodyInserters.fromMultipartData(builder.build()))
 				.retrieve()
-				.bodyToMono(OmrProcessResponse.class)
+				.bodyToMono(OmrSubmitResponse.class)
 				.block();
-			// ───────────────────────────────────────────────────────────────────
 
-			String jobId = requireCompletedJobId(processResponse);
-			String musicXml = fetchMusicXml(webClient, jobId);
-			Map<String, String> chordsByMeasureNumber = fetchChordsByMeasureNumber(webClient, jobId);
+			if (response == null || response.jobId() == null) {
+				throw OmrErrorCode.OMR_SUBMIT_FAILED.toException("OMR 서버 응답에 job_id가 없습니다.");
+			}
 
-			return new OmrRecognitionResult(musicXml, chordsByMeasureNumber);
+			log.info("[OMR] 제출 완료: jobId={}, status={}", response.jobId(), response.status());
+			return new OmrSubmitResult(response.jobId(), response.status());
 
 		} catch (CustomException e) {
 			throw e;
 		} catch (Exception e) {
-			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException(e.getMessage());
+			throw OmrErrorCode.OMR_SUBMIT_FAILED.toException(e.getMessage());
 		}
+	}
+
+	/**
+	 * OMR 서버에서 완료된 작업의 MusicXML을 가져온다.
+	 *
+	 * @param jobId OMR 작업 ID
+	 * @return MusicXML 문자열
+	 */
+	public String fetchMusicXml(String jobId) {
+		String serverUrl = requireServerUrl();
+		WebClient webClient = createWebClient(serverUrl);
+
+		try {
+			String musicXml = addApiKeyHeader(
+				webClient.get().uri("/omr/jobs/{jobId}/musicxml", jobId)
+			).retrieve()
+				.bodyToMono(String.class)
+				.block();
+
+			if (musicXml == null || musicXml.isBlank()) {
+				throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("MusicXML 결과가 비어 있습니다. job_id=" + jobId);
+			}
+			return musicXml;
+		} catch (CustomException e) {
+			throw e;
+		} catch (Exception e) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("MusicXML 조회 중 오류: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * OMR 서버에서 완료된 작업의 chord assignments를 가져와 마디번호→코드 매핑으로 변환한다.
+	 *
+	 * @param jobId OMR 작업 ID
+	 * @return 마디번호(String) → 코드 문자열 매핑
+	 */
+	public Map<String, String> fetchChordAssignments(String jobId) {
+		String serverUrl = requireServerUrl();
+		WebClient webClient = createWebClient(serverUrl);
+
+		try {
+			ChordAssignmentsResponse response = addApiKeyHeader(
+				webClient.get().uri("/omr/jobs/{jobId}/chord-assignments", jobId)
+			).retrieve()
+				.bodyToMono(ChordAssignmentsResponse.class)
+				.block();
+
+			return extractChordsByMeasureNumber(response, jobId);
+		} catch (CustomException e) {
+			throw e;
+		} catch (Exception e) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord assignments 조회 중 오류: " + e.getMessage());
+		}
+	}
+
+	// ─── Private Helpers ─────────────────────────────────────────────────
+
+	private String buildCallbackUrl(String baseUrl, OmrCallbackDomain domain) {
+		String trimmedBase = baseUrl.endsWith("/")
+			? baseUrl.substring(0, baseUrl.length() - 1)
+			: baseUrl;
+		return trimmedBase + domain.path();
+	}
+
+	private String requireServerUrl() {
+		String serverUrl = omrProperties.serverUrl();
+		if (serverUrl == null || serverUrl.isBlank()) {
+			throw OmrErrorCode.OMR_SERVER_NOT_CONFIGURED.toException();
+		}
+		return serverUrl;
 	}
 
 	private WebClient createWebClient(String serverUrl) {
@@ -127,6 +194,30 @@ public class OmrClient {
 			.filter(logRequest())
 			.filter(logResponse())
 			.build();
+	}
+
+	/**
+	 * POST/GET RequestBodySpec에 API 키 헤더를 추가한다.
+	 * {@code omr.api-key}가 설정된 경우에만 헤더를 추가한다.
+	 */
+	private WebClient.RequestBodySpec addApiKeyHeader(WebClient.RequestBodySpec spec) {
+		String apiKey = omrProperties.apiKey();
+		if (apiKey != null && !apiKey.isBlank()) {
+			return spec.header(HEADER_OMR_API_KEY, apiKey);
+		}
+		return spec;
+	}
+
+	/**
+	 * GET RequestHeadersSpec에 API 키 헤더를 추가한다.
+	 */
+	@SuppressWarnings("unchecked")
+	private <S extends WebClient.RequestHeadersSpec<?>> S addApiKeyHeader(S spec) {
+		String apiKey = omrProperties.apiKey();
+		if (apiKey != null && !apiKey.isBlank()) {
+			return (S) spec.header(HEADER_OMR_API_KEY, apiKey);
+		}
+		return spec;
 	}
 
 	private ExchangeFilterFunction logRequest() {
@@ -152,46 +243,10 @@ public class OmrClient {
 			.replace("\"", "_");
 	}
 
-	private String requireCompletedJobId(@Nullable OmrProcessResponse processResponse) {
-		if (processResponse == null) {
-			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("OMR 서버가 처리 결과를 반환하지 않았습니다.");
-		}
-
-		String status = trimToNull(processResponse.status());
-		if (status != null && !PROCESS_STATUS_COMPLETED.equalsIgnoreCase(status)) {
-			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("OMR 처리 상태가 completed가 아닙니다: " + status);
-		}
-
-		String jobId = trimToNull(processResponse.jobId());
-		if (jobId == null) {
-			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("OMR 응답에 job_id가 없습니다.");
-		}
-		return jobId;
-	}
-
-	private String fetchMusicXml(WebClient webClient, String jobId) {
-		String musicXml = webClient
-			.get()
-			.uri("/omr/jobs/{jobId}/musicxml", jobId)
-			.retrieve()
-			.bodyToMono(String.class)
-			.block();
-
-		if (musicXml == null || musicXml.isBlank()) {
-			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("MusicXML 결과가 비어 있습니다. job_id=" + jobId);
-		}
-		return musicXml;
-	}
-
-	private Map<String, String> fetchChordsByMeasureNumber(WebClient webClient, String jobId) {
-		ChordAssignmentsResponse response = webClient
-			.get()
-			.uri("/omr/jobs/{jobId}/chord-assignments", jobId)
-			.retrieve()
-			.bodyToMono(ChordAssignmentsResponse.class)
-			.block();
-
-		return extractChordsByMeasureNumber(response, jobId);
+	private String extractExtension(String filename) {
+		return filename.contains(".")
+			? filename.substring(filename.lastIndexOf('.')).toLowerCase()
+			: ".jpg";
 	}
 
 	private Map<String, String> extractChordsByMeasureNumber(@Nullable ChordAssignmentsResponse response, String jobId) {
@@ -289,20 +344,21 @@ public class OmrClient {
 		return trimmed.isEmpty() ? null : trimmed;
 	}
 
-	// ─── Inner Helper ───────────────────────────────────────────────────
+	// ─── Inner DTO Records ───────────────────────────────────────────────
 
-	/** OMR 인식 결과. */
+	/** OMR 비동기 제출 결과. */
 	@NullMarked
-	public record OmrRecognitionResult(
-		String musicXml,
-		Map<String, String> chordsByMeasureNumber
+	public record OmrSubmitResult(
+		String jobId,
+		@Nullable String status
 	) {
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
-	private record OmrProcessResponse(
+	private record OmrSubmitResponse(
 		@JsonProperty("job_id") @Nullable String jobId,
-		@Nullable String status
+		@Nullable String status,
+		@Nullable String message
 	) {
 	}
 
