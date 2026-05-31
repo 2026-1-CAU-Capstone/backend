@@ -6,6 +6,7 @@ import org.jspecify.annotations.NullMarked;
 
 import com.jazzify.backend.domain.user.dto.response.SignUpResponse;
 import com.jazzify.backend.domain.user.dto.response.TokenResponse;
+import com.jazzify.backend.domain.user.dto.response.UserProfileResponse;
 import com.jazzify.backend.domain.user.dto.result.TokenResult;
 import com.jazzify.backend.domain.user.entity.User;
 
@@ -25,5 +26,16 @@ public final class UserMapper {
 
 	public static TokenResponse toTokenResponse(TokenResult result) {
 		return new TokenResponse(result.accessToken(), result.publicId(), result.username());
+	}
+
+	public static UserProfileResponse toUserProfileResponse(User user) {
+		return new UserProfileResponse(
+			Objects.requireNonNull(user.getPublicId(), "publicId must not be null"),
+			user.getName(),
+			user.getUsername(),
+			user.getRole(),
+			user.getCreatedAt(),
+			user.getUpdatedAt()
+		);
 	}
 }

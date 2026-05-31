@@ -17,6 +17,7 @@ import com.jazzify.backend.domain.user.dto.request.SignUpRequest;
 import com.jazzify.backend.domain.user.dto.response.SignUpResponse;
 import com.jazzify.backend.domain.user.dto.result.TokenResult;
 import com.jazzify.backend.domain.user.entity.User;
+import com.jazzify.backend.domain.user.entity.UserRole;
 import com.jazzify.backend.domain.user.service.implementation.UserReader;
 import com.jazzify.backend.domain.user.service.implementation.UserWriter;
 import com.jazzify.backend.domain.user.util.UserMapper;
@@ -53,8 +54,8 @@ public class AuthService {
 		User user = userReader.getByUsername(authentication.getName());
 
 		UUID publicId = Objects.requireNonNull(user.getPublicId(), "publicId must not be null after persist");
-		String accessToken = jwtTokenProvider.createAccessToken(publicId, user.getUsername());
-		String refreshToken = refreshTokenService.rotate(publicId, user.getUsername());
+		String accessToken = jwtTokenProvider.createAccessToken(publicId, user.getUsername(), user.getRole());
+		String refreshToken = refreshTokenService.rotate(publicId, user.getUsername(), user.getRole());
 
 		return new TokenResult(accessToken, refreshToken, publicId, user.getUsername());
 	}
@@ -71,6 +72,7 @@ public class AuthService {
 
 		UUID publicId = jwtTokenProvider.getPublicId(refreshToken);
 		String username = jwtTokenProvider.getUsername(refreshToken);
+		UserRole role = jwtTokenProvider.getRole(refreshToken);
 
 		String storedToken = refreshTokenService.find(publicId)
 			.orElseThrow(UserErrorCode.REFRESH_TOKEN_NOT_FOUND::toException);
@@ -80,8 +82,8 @@ public class AuthService {
 			throw UserErrorCode.INVALID_REFRESH_TOKEN.toException("토큰 재사용이 감지되었습니다.");
 		}
 
-		String newAccessToken = jwtTokenProvider.createAccessToken(publicId, username);
-		String newRefreshToken = refreshTokenService.rotate(publicId, username);
+		String newAccessToken = jwtTokenProvider.createAccessToken(publicId, username, role);
+		String newRefreshToken = refreshTokenService.rotate(publicId, username, role);
 
 		return new TokenResult(newAccessToken, newRefreshToken, publicId, username);
 	}

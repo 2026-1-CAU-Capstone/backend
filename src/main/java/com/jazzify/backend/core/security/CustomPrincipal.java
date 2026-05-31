@@ -4,9 +4,12 @@ import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
 
+import com.jazzify.backend.domain.user.entity.UserRole;
+
 @NullMarked
 public record CustomPrincipal(
 	UUID publicId,
-	String username
+	String username,
+	UserRole role
 ) {
 }

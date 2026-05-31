@@ -1,17 +1,20 @@
 package com.jazzify.backend.core.security;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.jazzify.backend.domain.user.entity.UserRole;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -42,10 +45,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			if ("access".equals(tokenType)) {
 				UUID publicId = jwtTokenProvider.getPublicId(token);
 				String username = jwtTokenProvider.getUsername(token);
-				CustomPrincipal principal = new CustomPrincipal(publicId, username);
+				UserRole role = jwtTokenProvider.getRole(token);
+				CustomPrincipal principal = new CustomPrincipal(publicId, username, role);
 
 				Authentication authentication = new UsernamePasswordAuthenticationToken(
-					principal, null, Collections.emptyList()
+					principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
 				);
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 			}
