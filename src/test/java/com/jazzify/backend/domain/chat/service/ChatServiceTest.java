@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.jazzify.backend.core.security.CustomPrincipal;
+import com.jazzify.backend.domain.user.entity.UserRole;
 import com.jazzify.backend.domain.chat.dto.request.ChatMessageRequest;
 import com.jazzify.backend.domain.chat.dto.request.ChatStreamRequest;
 import com.jazzify.backend.domain.chat.entity.Chat;
@@ -85,7 +86,7 @@ class ChatServiceTest {
 		);
 
 		ChatService.PreparedChatStream prepared = chatService.prepareDirectStream(
-			new CustomPrincipal(userPublicId, "tester"),
+			new CustomPrincipal(userPublicId, "tester", UserRole.MEMBER),
 			request
 		);
 
