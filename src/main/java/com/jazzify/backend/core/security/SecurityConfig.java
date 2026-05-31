@@ -38,7 +38,6 @@ public class SecurityConfig {
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/v1/auth/**").permitAll()
-				.requestMatchers("/v1/licks/**", "/v1/solos/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/v1/rag/health").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/sheet-projects/omr/callback").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/chord-projects/omr/callback").permitAll()
