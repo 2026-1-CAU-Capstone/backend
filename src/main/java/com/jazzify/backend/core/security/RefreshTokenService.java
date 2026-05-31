@@ -8,6 +8,8 @@ import org.jspecify.annotations.NullMarked;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import com.jazzify.backend.domain.user.entity.UserRole;
+
 import lombok.RequiredArgsConstructor;
 
 @NullMarked
@@ -44,9 +46,9 @@ public class RefreshTokenService {
 	/**
 	 * RTR (Refresh Token Rotation): 기존 토큰 삭제 후 새 토큰 저장
 	 */
-	public String rotate(UUID publicId, String username) {
+	public String rotate(UUID publicId, String username, UserRole role) {
 		delete(publicId);
-		String newRefreshToken = jwtTokenProvider.createRefreshToken(publicId, username);
+		String newRefreshToken = jwtTokenProvider.createRefreshToken(publicId, username, role);
 		save(publicId, newRefreshToken);
 		return newRefreshToken;
 	}

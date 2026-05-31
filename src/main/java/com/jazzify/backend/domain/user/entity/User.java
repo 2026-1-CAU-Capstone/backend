@@ -11,6 +11,8 @@ import com.jazzify.backend.shared.persistence.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -34,6 +36,10 @@ public class User extends BaseEntity {
 
 	@Column(nullable = false)
 	private String password;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 10)
+	private UserRole role = UserRole.MEMBER;
 
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
 	private List<SheetProject> sheetProjects = new ArrayList<>();

@@ -41,8 +41,18 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/v1/rag/health").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/sheet-projects/omr/callback").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/chord-projects/omr/callback").permitAll()
+				.requestMatchers(HttpMethod.POST, "/v1/licks/omr/callback").permitAll()
+				.requestMatchers(HttpMethod.POST, "/v1/solos/omr/callback").permitAll()
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+				// Lick 쓰기 작업: ADMIN 또는 MANAGE 권한 필요
+				.requestMatchers(HttpMethod.POST, "/v1/licks/**").hasAnyRole("ADMIN", "MANAGE")
+				.requestMatchers(HttpMethod.PUT, "/v1/licks/**").hasAnyRole("ADMIN", "MANAGE")
+				.requestMatchers(HttpMethod.DELETE, "/v1/licks/**").hasAnyRole("ADMIN", "MANAGE")
+				// Solo 쓰기 작업: ADMIN 또는 MANAGE 권한 필요
+				.requestMatchers(HttpMethod.POST, "/v1/solos/**").hasAnyRole("ADMIN", "MANAGE")
+				.requestMatchers(HttpMethod.PUT, "/v1/solos/**").hasAnyRole("ADMIN", "MANAGE")
+				.requestMatchers(HttpMethod.DELETE, "/v1/solos/**").hasAnyRole("ADMIN", "MANAGE")
 				.anyRequest().authenticated()
 			)
 			.exceptionHandling(exception -> exception
