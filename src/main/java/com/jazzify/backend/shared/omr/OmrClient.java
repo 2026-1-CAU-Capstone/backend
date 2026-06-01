@@ -85,13 +85,18 @@ public class OmrClient {
 		String endpoint;
 
 		if (isDevMode) {
-			String fullCallbackUrl = buildCallbackUrl(callbackBaseUrl, domain);
-			builder.part("callback_url", fullCallbackUrl);
 			endpoint = "/omr/dev/process";
-			log.debug("[OMR] dev 모드: endpoint={}, jobId={}, callbackUrl={}", endpoint, jobId, fullCallbackUrl);
 		} else {
 			endpoint = "/omr/prod/process";
-			log.debug("[OMR] prod 모드: endpoint={}, jobId={}, domain={}", endpoint, jobId, domain);
+		}
+
+		if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
+			String fullCallbackUrl = buildCallbackUrl(callbackBaseUrl, domain);
+			builder.part("callback_url", fullCallbackUrl);
+			log.debug("[OMR] {} 모드: endpoint={}, jobId={}, callbackUrl={}",
+				isDevMode ? "dev" : "prod", endpoint, jobId, fullCallbackUrl);
+		} else {
+			log.debug("[OMR] prod 모드 (callback 없음): endpoint={}, jobId={}, domain={}", endpoint, jobId, domain);
 		}
 
 		try {
