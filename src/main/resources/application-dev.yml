@@ -28,6 +28,9 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true  # PostgreSQL JDBC createClob() 미구현 경고 억제
 
   # ── Redis ─────────────────────────────────
   data:
@@ -138,7 +141,7 @@ rag:
     driver-class-name: org.postgresql.Driver
     maximum-pool-size: 4
   bootstrap:
-    enabled: false
+    enabled: true
     create-schema: true
     data-root: ./data/explanation
   vector-store:
