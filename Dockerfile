@@ -20,6 +20,9 @@ ENV JAVA_OPTS="-Xms256m -Xmx512m \
 # JAR 파일을 컨테이너로 복사
 COPY build/libs/*.jar app.jar
 
+# RAG 부트스트랩용 데이터 디렉터리 복사
+COPY data/ /app/data/
+
 # 포트 노출
 EXPOSE 8080
 

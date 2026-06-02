@@ -150,7 +150,7 @@ rag:
   bootstrap:
     enabled: true
     create-schema: true
-    data-root: ./data/explanation
+    data-root: /app/data/explanation
   vector-store:
     schema-name: ${RAG_VECTOR_SCHEMA:public}
     table-name: ${RAG_VECTOR_TABLE:rag_chunk_store}
