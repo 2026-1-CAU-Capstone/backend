@@ -28,9 +28,6 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
-        jdbc:
-          lob:
-            non_contextual_creation: true  # PostgreSQL JDBC createClob() 미구현 경고 억제
 
   # ── Redis ─────────────────────────────────
   data:
