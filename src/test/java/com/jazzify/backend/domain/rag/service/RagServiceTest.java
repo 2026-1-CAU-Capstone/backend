@@ -68,7 +68,6 @@ class RagServiceTest {
 				true,
 				new RagProperties.Datasource("jdbc:postgresql://localhost:5432/rag", "user", "pw", "org.postgresql.Driver", 4),
 				new RagProperties.Bootstrap(false, false, null),
-				new RagProperties.Embedding("http://localhost:8000", "/api/v1/embeddings", null),
 				new RagProperties.Retrieval(5, 3, 60),
 				new RagProperties.VectorStore("public", "rag_chunk_store", false, false, 768)
 			),

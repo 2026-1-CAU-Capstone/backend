@@ -4,20 +4,24 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/**
+ * RAG 서버 연동 설정.
+ * <p>
+ * 임베딩 서버 설정은 {@code embedding.*} 키를 사용하는
+ * {@link com.jazzify.backend.shared.embedding.EmbeddingProperties}에서 관리된다.
+ */
 @NullMarked
 @ConfigurationProperties(prefix = "rag")
 public record RagProperties(
 	boolean enabled,
 	@Nullable Datasource datasource,
 	@Nullable Bootstrap bootstrap,
-	@Nullable Embedding embedding,
 	@Nullable Retrieval retrieval,
 	@Nullable VectorStore vectorStore
 ) {
 
 	private static final Datasource DEFAULT_DATASOURCE = new Datasource(null, null, null, "org.postgresql.Driver", 4);
 	private static final Bootstrap DEFAULT_BOOTSTRAP = new Bootstrap(false, false, null);
-	private static final Embedding DEFAULT_EMBEDDING = new Embedding(null, "/api/v1/embeddings", null);
 	private static final Retrieval DEFAULT_RETRIEVAL = new Retrieval(5, 3, 60);
 	private static final VectorStore DEFAULT_VECTOR_STORE = new VectorStore("public", "rag_chunk_store", false, false, 768);
 
@@ -29,11 +33,6 @@ public record RagProperties(
 	@Override
 	public Bootstrap bootstrap() {
 		return bootstrap != null ? bootstrap : DEFAULT_BOOTSTRAP;
-	}
-
-	@Override
-	public Embedding embedding() {
-		return embedding != null ? embedding : DEFAULT_EMBEDDING;
 	}
 
 	@Override
@@ -65,14 +64,6 @@ public record RagProperties(
 	}
 
 	@NullMarked
-	public record Embedding(
-		@Nullable String serverUrl,
-		String endpoint,
-		@Nullable String apiKey
-	) {
-	}
-
-	@NullMarked
 	public record Retrieval(
 		int topK,
 		int nPerQuery,
@@ -90,7 +81,3 @@ public record RagProperties(
 	) {
 	}
 }
-
-
-
-

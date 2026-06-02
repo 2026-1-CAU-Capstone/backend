@@ -94,7 +94,8 @@ logging:
     root: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE
-    com.jazzify.backend.shared.omr.OmrClient: DEBUG   # OMR 요청/응답 헤더 · body 크기 로그
+    com.jazzify.backend.shared.omr.OmrClient: DEBUG          # OMR 요청/응답 헤더 · body 크기 로그
+    com.jazzify.backend.shared.embedding.EmbeddingClient: DEBUG # 임베딩 요청/응답 로그
 
 # ── Swagger / Springdoc ───────────────────
 springdoc:
@@ -119,9 +120,17 @@ omr:
   callback-url: ${OMR_CALLBACK_URL:}
 
 
+# ── Embedding Server ──────────────────────
+# OMR 서버와 동일한 호스트, 포트만 다름 (기본 8001)
+# 컨테이너 내부 통신: http://jazzify-embedding-worker:8000
+embedding:
+  server-url: ${EMBEDDING_SERVER_URL:}  # 임베딩 서버 베이스 URL (예: http://127.0.0.1:8001)
+  api-key: ${EMBEDDING_API_KEY:}        # 내부망 호출이면 비워도 됨
+
+
 # ── RAG Server (PostgreSQL + pgvector) ─────────────
 rag:
-  enabled: false
+  enabled: true
   datasource:
     url: ${RAG_DB_URL:}
     username: ${RAG_DB_USERNAME:}
@@ -132,15 +141,11 @@ rag:
     enabled: true
     create-schema: true
     data-root: ./data/explanation
-  embedding:
-    server-url: ${RAG_EMBEDDING_SERVER_URL:} # 임베딩 전용 서버 주소
-    endpoint: /api/v1/embeddings # TODO: 임베딩 서버에 실제 엔드포인트가 확정되면 교체
-    api-key: ${RAG_EMBEDDING_API_KEY:} # 내부망 호출이면 비워도 됨
   vector-store:
     schema-name: ${RAG_VECTOR_SCHEMA:public}
     table-name: ${RAG_VECTOR_TABLE:rag_chunk_store}
-    initialize-schema: ${RAG_VECTOR_INITIALIZE_SCHEMA:false}
-    schema-validation: ${RAG_VECTOR_SCHEMA_VALIDATION:false}
+    initialize-schema: true
+    schema-validation: true
     dimensions: ${RAG_VECTOR_DIMENSIONS:768}
   retrieval:
     top-k: 5

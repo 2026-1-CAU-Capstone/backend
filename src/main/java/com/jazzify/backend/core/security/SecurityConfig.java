@@ -39,12 +39,15 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/v1/auth/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/v1/rag/health").permitAll()
+				.requestMatchers(HttpMethod.GET, "/v1/embedding/health").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/sheet-projects/omr/callback").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/chord-projects/omr/callback").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/licks/omr/callback").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/solos/omr/callback").permitAll()
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+				// Embedding 프로브: ADMIN 또는 MANAGE 권한 필요
+				.requestMatchers(HttpMethod.POST, "/v1/embedding/**").hasAnyRole("ADMIN", "MANAGE")
 				// Lick 쓰기 작업: ADMIN 또는 MANAGE 권한 필요
 				.requestMatchers(HttpMethod.POST, "/v1/licks/**").hasAnyRole("ADMIN", "MANAGE")
 				.requestMatchers(HttpMethod.PUT, "/v1/licks/**").hasAnyRole("ADMIN", "MANAGE")

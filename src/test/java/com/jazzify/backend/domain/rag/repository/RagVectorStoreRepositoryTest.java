@@ -44,7 +44,6 @@ class RagVectorStoreRepositoryTest {
 				true,
 				null,
 				null,
-				new RagProperties.Embedding("http://embedding-server", "/api/v1/embeddings", null),
 				new RagProperties.Retrieval(5, 3, 60),
 				new RagProperties.VectorStore("public", "rag_chunk_store", false, false, 768)
 			)

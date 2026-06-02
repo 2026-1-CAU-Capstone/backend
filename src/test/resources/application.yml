@@ -15,8 +15,17 @@ spring:
           model: claude-sonnet-4-6
           max-tokens: 16384
 
-  # ── Database (H2 인메모리 - Spring Boot 자동 설정) ─
-  # H2가 클래스패스에 있으면 datasource URL/driver 없이도 자동 구성됨
+  # ── Database (H2 인메모리) ──────────────────────
+  # MainDataSourceConfig 가 @Value("${spring.datasource.url}") 를 직접 읽으므로
+  # 테스트에서도 명시적으로 H2 URL 을 지정해야 한다.
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
 
   # ── JPA ───────────────────────────────────
   jpa:

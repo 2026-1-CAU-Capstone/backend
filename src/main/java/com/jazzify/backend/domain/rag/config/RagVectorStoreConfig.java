@@ -3,6 +3,7 @@ package com.jazzify.backend.domain.rag.config;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +17,11 @@ import com.jazzify.backend.domain.rag.service.implementation.RagEmbeddingModel;
 public class RagVectorStoreConfig {
 
 	@Bean(name = "ragVectorStore")
-	public VectorStore ragVectorStore(JdbcTemplate ragJdbcTemplate, RagEmbeddingModel ragEmbeddingModel, RagProperties ragProperties) {
+	public VectorStore ragVectorStore(
+		@Qualifier("ragJdbcTemplate") JdbcTemplate ragJdbcTemplate,
+		RagEmbeddingModel ragEmbeddingModel,
+		RagProperties ragProperties
+	) {
 		RagProperties.VectorStore vectorStore = ragProperties.vectorStore();
 		return PgVectorStore.builder(ragJdbcTemplate, ragEmbeddingModel)
 			.schemaName(vectorStore.schemaName())

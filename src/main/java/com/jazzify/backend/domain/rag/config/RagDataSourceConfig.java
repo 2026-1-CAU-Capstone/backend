@@ -4,6 +4,7 @@ import javax.sql.DataSource;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -40,17 +41,17 @@ public class RagDataSourceConfig {
 	}
 
 	@Bean(name = "ragJdbcTemplate")
-	public JdbcTemplate ragJdbcTemplate(DataSource ragDataSource) {
+	public JdbcTemplate ragJdbcTemplate(@Qualifier("ragDataSource") DataSource ragDataSource) {
 		return new JdbcTemplate(ragDataSource);
 	}
 
 	@Bean(name = "ragJdbcClient")
-	public JdbcClient ragJdbcClient(JdbcTemplate ragJdbcTemplate) {
+	public JdbcClient ragJdbcClient(@Qualifier("ragJdbcTemplate") JdbcTemplate ragJdbcTemplate) {
 		return JdbcClient.create(ragJdbcTemplate);
 	}
 
 	@Bean(name = "ragTransactionManager")
-	public PlatformTransactionManager ragTransactionManager(DataSource ragDataSource) {
+	public PlatformTransactionManager ragTransactionManager(@Qualifier("ragDataSource") DataSource ragDataSource) {
 		return new DataSourceTransactionManager(ragDataSource);
 	}
 
