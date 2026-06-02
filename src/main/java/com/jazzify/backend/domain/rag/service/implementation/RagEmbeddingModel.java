@@ -1,96 +1,57 @@
 package com.jazzify.backend.domain.rag.service.implementation;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jazzify.backend.domain.rag.config.RagProperties;
+import com.jazzify.backend.shared.embedding.EmbeddingClient;
 import com.jazzify.backend.shared.exception.code.RagErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Spring AI {@link EmbeddingModel} 구현체.
+ * <p>
+ * 공유 {@link EmbeddingClient}를 통해 Jazzify Embedding Worker에 임베딩을 요청하고,
+ * Spring AI 내부 형식인 {@link EmbeddingResponse}로 변환하여 반환한다.
+ * 벡터 차원 수는 {@code rag.vector-store.dimensions} 설정을 따른다.
+ */
 @Component
 @NullMarked
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 public class RagEmbeddingModel implements EmbeddingModel {
 
-	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
+	private final EmbeddingClient embeddingClient;
 	private final RagProperties ragProperties;
 
 	@Override
 	public EmbeddingResponse call(EmbeddingRequest request) {
-		String serverUrl = resolveServerUrl();
-		if (serverUrl == null || serverUrl.isBlank()) {
-			throw RagErrorCode.RAG_EMBEDDING_NOT_CONFIGURED.toException();
-		}
 		if (request.getInstructions().isEmpty()) {
 			return new EmbeddingResponse(List.of());
 		}
 
-		WebClient.Builder webClientBuilder = WebClient.builder()
-			.baseUrl(serverUrl)
-			.defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+		List<List<Double>> vectors = embeddingClient.embedBatch(request.getInstructions());
 
-		String apiKey = ragProperties.embedding().apiKey();
-		if (apiKey != null && !apiKey.isBlank()) {
-			webClientBuilder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey);
+		List<Embedding> embeddings = new ArrayList<>();
+		for (int i = 0; i < vectors.size(); i++) {
+			List<Double> vector = vectors.get(i);
+			float[] values = new float[vector.size()];
+			for (int j = 0; j < vector.size(); j++) {
+				values[j] = vector.get(j).floatValue();
+			}
+			embeddings.add(new Embedding(values, i));
 		}
-
-		Map<String, Object> body = new LinkedHashMap<>();
-		body.put("input", request.getInstructions());
-
-		try {
-			String response = webClientBuilder.build().post()
-				.uri(ragProperties.embedding().endpoint())
-				.bodyValue(body)
-				.retrieve()
-				.bodyToMono(String.class)
-				.block();
-
-			if (response == null || response.isBlank()) {
-				throw RagErrorCode.RAG_EMBEDDING_REQUEST_FAILED.toException("빈 응답");
-			}
-
-			JsonNode root = OBJECT_MAPPER.readTree(response);
-			JsonNode data = root.get("data");
-			if (data == null || !data.isArray() || data.isEmpty()) {
-				throw RagErrorCode.RAG_EMBEDDING_REQUEST_FAILED.toException("embedding data가 비어 있습니다.");
-			}
-
-			List<Embedding> embeddings = new ArrayList<>();
-			for (int i = 0; i < data.size(); i++) {
-				JsonNode embeddingNode = data.get(i).get("embedding");
-				if (embeddingNode == null || !embeddingNode.isArray() || embeddingNode.isEmpty()) {
-					throw RagErrorCode.RAG_EMBEDDING_REQUEST_FAILED.toException("embedding 배열 형식이 올바르지 않습니다.");
-				}
-				float[] values = new float[embeddingNode.size()];
-				for (int j = 0; j < embeddingNode.size(); j++) {
-					values[j] = embeddingNode.get(j).floatValue();
-				}
-				embeddings.add(new Embedding(values, i));
-			}
-			return new EmbeddingResponse(embeddings);
-		} catch (Exception e) {
-			throw RagErrorCode.RAG_EMBEDDING_REQUEST_FAILED.toException(e.getMessage());
-		}
+		return new EmbeddingResponse(embeddings);
 	}
 
 	@Override
@@ -108,13 +69,6 @@ public class RagEmbeddingModel implements EmbeddingModel {
 	}
 
 	public boolean isConfigured() {
-		String serverUrl = resolveServerUrl();
-		return serverUrl != null && !serverUrl.isBlank();
-	}
-
-	private @Nullable String resolveServerUrl() {
-		return ragProperties.embedding().serverUrl();
+		return embeddingClient.isConfigured();
 	}
 }
-
-

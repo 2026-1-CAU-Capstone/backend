@@ -6,6 +6,8 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=${JAVA_OPTS}
+      # EMBEDDING_SERVER_URL 은 외부 서버(.env)에서 주입 — OMR 서버와 동일 호스트, 포트만 다름
+      # 예) EMBEDDING_SERVER_URL=http://<omr-server-host>:8001
     ports:
       - "8080:8080"
     volumes:
