@@ -140,7 +140,7 @@ embedding:
 
 # ── RAG Server (PostgreSQL + pgvector) ─────────────
 rag:
-  enabled: false
+  enabled: true
   datasource:
     url: ${RAG_DB_URL:}
     username: ${RAG_DB_USERNAME:}
@@ -148,14 +148,14 @@ rag:
     driver-class-name: org.postgresql.Driver
     maximum-pool-size: 8
   bootstrap:
-    enabled: false
-    create-schema: false
+    enabled: true
+    create-schema: true
     data-root: ./data/explanation
   vector-store:
     schema-name: ${RAG_VECTOR_SCHEMA:public}
     table-name: ${RAG_VECTOR_TABLE:rag_chunk_store}
-    initialize-schema: ${RAG_VECTOR_INITIALIZE_SCHEMA:false}
-    schema-validation: ${RAG_VECTOR_SCHEMA_VALIDATION:false}
+    initialize-schema: true          # prod: 앱이 테이블을 자동 생성하지 않음 (스키마는 사전 배포)
+    schema-validation: true           # prod: 구동 시 테이블 구조 불일치 시 즉시 실패 (fail-fast)
     dimensions: ${RAG_VECTOR_DIMENSIONS:768}
   retrieval:
     top-k: 5

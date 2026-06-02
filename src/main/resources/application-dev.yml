@@ -144,8 +144,8 @@ rag:
   vector-store:
     schema-name: ${RAG_VECTOR_SCHEMA:public}
     table-name: ${RAG_VECTOR_TABLE:rag_chunk_store}
-    initialize-schema: ${RAG_VECTOR_INITIALIZE_SCHEMA:false}
-    schema-validation: ${RAG_VECTOR_SCHEMA_VALIDATION:false}
+    initialize-schema: true
+    schema-validation: true
     dimensions: ${RAG_VECTOR_DIMENSIONS:768}
   retrieval:
     top-k: 5
