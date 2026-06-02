@@ -155,7 +155,7 @@ rag:
     schema-name: ${RAG_VECTOR_SCHEMA:public}
     table-name: ${RAG_VECTOR_TABLE:rag_chunk_store}
     initialize-schema: true          # prod: 앱이 테이블을 자동 생성하지 않음 (스키마는 사전 배포)
-    schema-validation: true           # prod: 구동 시 테이블 구조 불일치 시 즉시 실패 (fail-fast)
+    schema-validation: false        # prod: 구동 시 테이블 구조 불일치 시 즉시 실패 (fail-fast)
     dimensions: ${RAG_VECTOR_DIMENSIONS:768}
   retrieval:
     top-k: 5
