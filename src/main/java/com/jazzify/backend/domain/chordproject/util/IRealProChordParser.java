@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 import com.jazzify.backend.shared.exception.code.ChordProjectErrorCode;
 
@@ -55,6 +56,7 @@ public final class IRealProChordParser {
 		@Nullable ChordProject chordProject,
 		@Nullable SheetProject sheetProject
 	) {
+		@Nullable Session session = extractSession(chordProject, sheetProject);
 		int beatsPerBar = extractBeatsPerBar(timeSignature);
 		String[] bars = progression.split(BAR_DELIMITER);
 
@@ -85,6 +87,7 @@ public final class IRealProChordParser {
 					.durationBeats(duration)
 					.chordProject(chordProject)
 					.sheetProject(sheetProject)
+					.session(session)
 					.build());
 
 				currentBeat += duration;
@@ -119,6 +122,7 @@ public final class IRealProChordParser {
 					.durationBeats(current.getDurationBeats() + next.getDurationBeats())
 					.chordProject(current.getChordProject())
 					.sheetProject(current.getSheetProject())
+					.session(current.getSession())
 					.build();
 			} else {
 				merged.add(current);
@@ -161,6 +165,19 @@ public final class IRealProChordParser {
 		} catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
 			throw ChordProjectErrorCode.INVALID_TIME_SIGNATURE.toException();
 		}
+	}
+
+	private static @Nullable Session extractSession(
+		@Nullable ChordProject chordProject,
+		@Nullable SheetProject sheetProject
+	) {
+		if (chordProject != null) {
+			return chordProject.getSession();
+		}
+		if (sheetProject != null) {
+			return sheetProject.getSession();
+		}
+		return null;
 	}
 }
 

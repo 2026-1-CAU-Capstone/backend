@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
 import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
+import com.jazzify.backend.domain.session.entity.Session;
+import com.jazzify.backend.domain.session.repository.SessionRepository;
 import com.jazzify.backend.domain.sheetproject.entity.FileType;
 import com.jazzify.backend.domain.sheetproject.entity.SheetFile;
 import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
@@ -34,6 +36,7 @@ public class SheetProjectOmrWriter {
 	private final SheetProjectWriter sheetProjectWriter;
 	private final SheetFileWriter sheetFileWriter;
 	private final ChordInfoWriter chordInfoWriter;
+	private final SessionRepository sessionRepository;
 	private final StorageFileService storageFileService;
 	private final StorageFileReader storageFileReader;
 
@@ -52,7 +55,10 @@ public class SheetProjectOmrWriter {
 		SheetFile sheetFile = sheetFileWriter.create(fileType);
 		storageFile.linkToSheetFile(sheetFile);
 
-		SheetProject project = sheetProjectWriter.create(title, key, user, sheetFile);
+		Session session = sessionRepository.save(Session.builder()
+			.title(title)
+			.build());
+		SheetProject project = sheetProjectWriter.create(title, key, user, sheetFile, session);
 		project.markOmrQueued();
 		return project;
 	}
@@ -105,4 +111,3 @@ public class SheetProjectOmrWriter {
 			: failureReason.substring(0, FAILED_MESSAGE_MAX_LENGTH);
 	}
 }
-
