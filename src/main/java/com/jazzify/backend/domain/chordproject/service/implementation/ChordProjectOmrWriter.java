@@ -12,10 +12,10 @@ import com.jazzify.backend.domain.chordproject.entity.ChordProject;
 import com.jazzify.backend.domain.chordproject.repository.ChordProjectRepository;
 import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
 import com.jazzify.backend.domain.session.entity.Session;
-import com.jazzify.backend.domain.session.repository.SessionRepository;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.shared.domain.MusicKey;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 
 @NullMarked
@@ -27,8 +27,8 @@ public class ChordProjectOmrWriter {
 	private static final int FAILED_MESSAGE_MAX_LENGTH = 500;
 
 	private final ChordProjectRepository chordProjectRepository;
-	private final SessionRepository sessionRepository;
 	private final ChordInfoWriter chordInfoWriter;
+	private final EntityManager entityManager;
 
 	public ChordProject createPending(
 		User user,
@@ -39,9 +39,10 @@ public class ChordProjectOmrWriter {
 		@Nullable MusicKey requestedKey,
 		@Nullable String requestedTimeSignature
 	) {
-		Session session = sessionRepository.save(Session.builder()
+		Session session = Session.builder()
 			.title(title)
-			.build());
+			.build();
+		entityManager.persist(session);
 		ChordProject project = ChordProject.builder()
 			.title(title)
 			.keySignature(key)

@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
 import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
 import com.jazzify.backend.domain.session.entity.Session;
-import com.jazzify.backend.domain.session.repository.SessionRepository;
 import com.jazzify.backend.domain.sheetproject.entity.FileType;
 import com.jazzify.backend.domain.sheetproject.entity.SheetFile;
 import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
@@ -22,6 +21,7 @@ import com.jazzify.backend.domain.storagefile.service.implementation.StorageFile
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.shared.domain.MusicKey;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 
 @NullMarked
@@ -36,9 +36,9 @@ public class SheetProjectOmrWriter {
 	private final SheetProjectWriter sheetProjectWriter;
 	private final SheetFileWriter sheetFileWriter;
 	private final ChordInfoWriter chordInfoWriter;
-	private final SessionRepository sessionRepository;
 	private final StorageFileService storageFileService;
 	private final StorageFileReader storageFileReader;
+	private final EntityManager entityManager;
 
 	public SheetProject createPending(
 		User user,
@@ -55,9 +55,10 @@ public class SheetProjectOmrWriter {
 		SheetFile sheetFile = sheetFileWriter.create(fileType);
 		storageFile.linkToSheetFile(sheetFile);
 
-		Session session = sessionRepository.save(Session.builder()
+		Session session = Session.builder()
 			.title(title)
-			.build());
+			.build();
+		entityManager.persist(session);
 		SheetProject project = sheetProjectWriter.create(title, key, user, sheetFile, session);
 		project.markOmrQueued();
 		return project;
