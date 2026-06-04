@@ -22,6 +22,7 @@ public class ChordInfoWriter {
 	private final ChordInfoRepository chordInfoRepository;
 
 	public List<ChordInfo> saveAll(List<ChordInfo> chordInfos) {
+		ensureSortOrder(chordInfos);
 		return chordInfoRepository.saveAll(chordInfos);
 	}
 
@@ -31,6 +32,15 @@ public class ChordInfoWriter {
 
 	public void deleteAllBySheetProject(SheetProject sheetProject) {
 		chordInfoRepository.deleteAllBySheetProject(sheetProject);
+	}
+
+	private static void ensureSortOrder(List<ChordInfo> chordInfos) {
+		for (int i = 0; i < chordInfos.size(); i++) {
+			ChordInfo chordInfo = chordInfos.get(i);
+			if (chordInfo.getSortOrder() <= 0) {
+				chordInfo.updateSortOrder(i + 1);
+			}
+		}
 	}
 }
 

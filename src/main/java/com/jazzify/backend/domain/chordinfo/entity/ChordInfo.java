@@ -41,6 +41,9 @@ public class ChordInfo extends BaseEntity {
 	@Column(nullable = false)
 	private double durationBeats;
 
+	@Column(name = "sort_order", nullable = false)
+	private int sortOrder;
+
 	// ── 1:1 분석 결과 ──
 	@OneToOne(mappedBy = "chordInfo", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private @Nullable ChordAnalysis analysis;
@@ -59,13 +62,14 @@ public class ChordInfo extends BaseEntity {
 	private @Nullable Session session;
 
 	@Builder
-	public ChordInfo(@Nullable String chord, int bar, double beat, double durationBeats,
+	public ChordInfo(@Nullable String chord, int bar, double beat, double durationBeats, int sortOrder,
 		@Nullable SheetProject sheetProject, @Nullable ChordProject chordProject,
 		@Nullable Session session) {
 		this.chord = chord;
 		this.bar = bar;
 		this.beat = beat;
 		this.durationBeats = durationBeats;
+		this.sortOrder = sortOrder;
 		this.sheetProject = sheetProject;
 		this.chordProject = chordProject;
 		this.session = session;
@@ -74,5 +78,8 @@ public class ChordInfo extends BaseEntity {
 	public void assignAnalysis(ChordAnalysis analysis) {
 		this.analysis = analysis;
 	}
-}
 
+	public void updateSortOrder(int sortOrder) {
+		this.sortOrder = sortOrder;
+	}
+}
