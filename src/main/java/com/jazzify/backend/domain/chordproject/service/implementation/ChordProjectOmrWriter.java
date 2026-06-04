@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.chordproject.model.ChordProjectOmrSourceType;
 import com.jazzify.backend.domain.chordproject.repository.ChordProjectRepository;
 import com.jazzify.backend.domain.chordproject.util.IRealProChordParser;
 import com.jazzify.backend.domain.session.entity.Session;
@@ -37,7 +38,8 @@ public class ChordProjectOmrWriter {
 		String timeSignature,
 		@Nullable String requestedTitle,
 		@Nullable MusicKey requestedKey,
-		@Nullable String requestedTimeSignature
+		@Nullable String requestedTimeSignature,
+		ChordProjectOmrSourceType sourceType
 	) {
 		Session session = Session.builder()
 			.title(title)
@@ -50,7 +52,7 @@ public class ChordProjectOmrWriter {
 			.user(user)
 			.session(session)
 			.build();
-		project.markOmrQueued(requestedTitle, requestedKey, requestedTimeSignature);
+		project.markOmrQueued(requestedTitle, requestedKey, requestedTimeSignature, sourceType);
 		return chordProjectRepository.save(project);
 	}
 

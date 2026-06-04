@@ -18,7 +18,11 @@ public record ChordProjectOmrCreateRequest(
 
 	@Nullable
 	@Size(max = 10, message = "박자표는 10자 이하여야 합니다.")
-	String timeSignature
+	String timeSignature,
+
+	@Nullable
+	@Size(max = 30, message = "sourceType은 30자 이하여야 합니다.")
+	String sourceType
 ) {
 }
 

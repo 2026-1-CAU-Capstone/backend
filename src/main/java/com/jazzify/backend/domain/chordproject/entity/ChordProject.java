@@ -8,6 +8,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
+import com.jazzify.backend.domain.chordproject.model.ChordProjectOmrSourceType;
 import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.shared.domain.MusicKey;
@@ -73,6 +74,11 @@ public class ChordProject extends BaseEntity {
 	@Column(length = 10)
 	private @Nullable String omrRequestedTimeSignature;
 
+	/** ChordProject OMR 입력 유형. null이면 기존 데이터 호환을 위해 chord-chart로 해석한다. */
+	@Enumerated(EnumType.STRING)
+	@Column(length = 30)
+	private @Nullable ChordProjectOmrSourceType omrSourceType;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
@@ -124,7 +130,12 @@ public class ChordProject extends BaseEntity {
 		this.timeSignature = timeSignature;
 	}
 
-	public void markOmrQueued(@Nullable String requestedTitle, @Nullable MusicKey requestedKey, @Nullable String requestedTimeSignature) {
+	public void markOmrQueued(
+		@Nullable String requestedTitle,
+		@Nullable MusicKey requestedKey,
+		@Nullable String requestedTimeSignature,
+		ChordProjectOmrSourceType sourceType
+	) {
 		this.omrStatus = OmrProcessingStatus.PENDING;
 		this.omrProgress = 0;
 		this.omrFailureReason = null;
@@ -132,6 +143,7 @@ public class ChordProject extends BaseEntity {
 		this.omrRequestedTitle = requestedTitle;
 		this.omrRequestedKey = requestedKey;
 		this.omrRequestedTimeSignature = requestedTimeSignature;
+		this.omrSourceType = sourceType;
 	}
 
 	public void storeOmrJobId(String jobId) {
@@ -166,4 +178,3 @@ public class ChordProject extends BaseEntity {
 		this.maxAmbiguityScore = maxAmbiguityScore;
 	}
 }
-

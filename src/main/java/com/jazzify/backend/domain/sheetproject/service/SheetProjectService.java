@@ -41,10 +41,13 @@ import com.jazzify.backend.shared.omr.OmrCallbackDomain;
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrFileValidator;
 import com.jazzify.backend.shared.omr.OmrProperties;
+import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @NullMarked
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SheetProjectService {
@@ -147,7 +150,13 @@ public class SheetProjectService {
 	public SheetProjectOmrStatusResponse getOmrStatus(UUID userPublicId, UUID projectPublicId) {
 		User user = userReader.getByPublicId(userPublicId);
 		SheetProject project = sheetProjectReader.getByPublicIdAndUser(projectPublicId, user);
-		return SheetProjectMapper.toOmrStatusResponse(project);
+		int progress = resolveLatestOmrProgress(project.getOmrStatus(), project.getOmrJobId(), project.getOmrProgress());
+		return new SheetProjectOmrStatusResponse(
+			Objects.requireNonNull(project.getPublicId()),
+			project.getOmrStatus(),
+			progress,
+			project.getOmrFailureReason()
+		);
 	}
 
 	@Transactional
@@ -253,5 +262,31 @@ public class SheetProjectService {
 		} catch (IOException e) {
 			throw OmrErrorCode.OMR_FILE_READ_FAILED.toException(e.getMessage());
 		}
+	}
+
+	private int resolveLatestOmrProgress(
+		OmrProcessingStatus status,
+		@Nullable String omrJobId,
+		int fallbackProgress
+	) {
+		if (!isInProgress(status) || !hasText(omrJobId)) {
+			return fallbackProgress;
+		}
+
+		try {
+			Integer progress = omrClient.fetchJobStatus(Objects.requireNonNull(omrJobId)).progress();
+			return progress != null ? normalizeProgress(progress) : fallbackProgress;
+		} catch (Exception e) {
+			log.warn("[OMR] SheetProject status progress 조회 실패: jobId={}", omrJobId, e);
+			return fallbackProgress;
+		}
+	}
+
+	private static boolean isInProgress(OmrProcessingStatus status) {
+		return status == OmrProcessingStatus.PENDING || status == OmrProcessingStatus.PROCESSING;
+	}
+
+	private static int normalizeProgress(int progress) {
+		return Math.max(0, Math.min(progress, 100));
 	}
 }
