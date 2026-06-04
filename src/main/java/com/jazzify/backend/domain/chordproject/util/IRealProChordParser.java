@@ -85,6 +85,7 @@ public final class IRealProChordParser {
 					.bar(barNumber)
 					.beat(currentBeat)
 					.durationBeats(duration)
+					.sortOrder(rawEntries.size() + 1)
 					.chordProject(chordProject)
 					.sheetProject(sheetProject)
 					.session(session)
@@ -95,7 +96,7 @@ public final class IRealProChordParser {
 			barNumber++;
 		}
 
-		return mergeConsecutive(rawEntries);
+		return renumberSortOrder(mergeConsecutive(rawEntries));
 	}
 
 	/**
@@ -120,6 +121,7 @@ public final class IRealProChordParser {
 					.bar(current.getBar())
 					.beat(current.getBeat())
 					.durationBeats(current.getDurationBeats() + next.getDurationBeats())
+					.sortOrder(current.getSortOrder())
 					.chordProject(current.getChordProject())
 					.sheetProject(current.getSheetProject())
 					.session(current.getSession())
@@ -132,6 +134,24 @@ public final class IRealProChordParser {
 		merged.add(current);
 
 		return merged;
+	}
+
+	private static List<ChordInfo> renumberSortOrder(List<ChordInfo> entries) {
+		List<ChordInfo> numbered = new ArrayList<>();
+		for (int i = 0; i < entries.size(); i++) {
+			ChordInfo entry = entries.get(i);
+			numbered.add(ChordInfo.builder()
+				.chord(entry.getChord())
+				.bar(entry.getBar())
+				.beat(entry.getBeat())
+				.durationBeats(entry.getDurationBeats())
+				.sortOrder(i + 1)
+				.chordProject(entry.getChordProject())
+				.sheetProject(entry.getSheetProject())
+				.session(entry.getSession())
+				.build());
+		}
+		return numbered;
 	}
 
 	private static boolean isSameChord(@Nullable String a, @Nullable String b) {

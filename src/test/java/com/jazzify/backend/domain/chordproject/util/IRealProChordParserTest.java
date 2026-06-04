@@ -36,6 +36,9 @@ class IRealProChordParserTest {
 
 		assertThat(chordInfos).hasSize(3);
 		assertThat(chordInfos)
+			.extracting(ChordInfo::getSortOrder)
+			.containsExactly(1, 2, 3);
+		assertThat(chordInfos)
 			.allSatisfy(chordInfo -> {
 				assertThat(chordInfo.getChordProject()).isSameAs(project);
 				assertThat(chordInfo.getSession()).isSameAs(session);
@@ -60,6 +63,9 @@ class IRealProChordParserTest {
 		List<ChordInfo> chordInfos = IRealProChordParser.parseForSheetProject("Fmaj7 | Gm7 C7", "4/4", project);
 
 		assertThat(chordInfos).hasSize(3);
+		assertThat(chordInfos)
+			.extracting(ChordInfo::getSortOrder)
+			.containsExactly(1, 2, 3);
 		assertThat(chordInfos)
 			.allSatisfy(chordInfo -> {
 				assertThat(chordInfo.getSheetProject()).isSameAs(project);
