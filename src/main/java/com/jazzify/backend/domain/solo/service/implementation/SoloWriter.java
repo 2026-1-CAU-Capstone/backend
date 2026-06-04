@@ -29,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class SoloWriter {
 
+	private static final String UNKNOWN_METADATA = "Unknown";
 	private static final int FAILED_MESSAGE_MAX_LENGTH = 500;
 
 	private final SoloRepository soloRepository;
@@ -44,20 +45,22 @@ public class SoloWriter {
 		@Nullable JazzStyle style,
 		@Nullable Integer tempo,
 		@Nullable String musicalKey,
+		@Nullable String timeSignature,
 		@Nullable RhythmFeel rhythmFeel
 	) {
 		Solo solo = Solo.builder()
 			.source(source)
 			.userId(userId)
 			.isOMR(true)
-			.performer(performer)
-			.composer(composer)
-			.title(title)
+			.performer(unknownIfBlank(performer))
+			.composer(unknownIfBlank(composer))
+			.title(unknownIfBlank(title))
 			.album(album)
 			.instrument(instrument)
 			.style(style)
 			.tempo(tempo)
 			.musicalKey(musicalKey)
+			.timeSignature(timeSignature)
 			.rhythmFeel(rhythmFeel)
 			.build();
 		solo.markOmrQueued();
@@ -71,9 +74,9 @@ public class SoloWriter {
 			.userId(request.userId())
 			.isOMR(isOMR)
 			// 2. Performance
-			.performer(request.performer())
-			.composer(request.composer())
-			.title(request.title())
+			.performer(unknownIfBlank(request.performer()))
+			.composer(unknownIfBlank(request.composer()))
+			.title(unknownIfBlank(request.title()))
 			.album(request.album())
 			.instrument(request.instrument() != null ? request.instrument() : Instrument.UNKNOWN)
 			.style(request.style())
@@ -109,9 +112,9 @@ public class SoloWriter {
 	public void update(Solo solo, SoloUpdateRequest request, SoloHarmonicData harmonic, SoloFeatures features) {
 		solo.update(
 			// 2. Performance
-			request.performer(),
-			request.composer(),
-			request.title(),
+			unknownIfBlank(request.performer()),
+			unknownIfBlank(request.composer()),
+			unknownIfBlank(request.title()),
 			request.album(),
 			request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,
 			request.style(),
@@ -145,9 +148,9 @@ public class SoloWriter {
 		soloRepository.findByPublicId(publicId)
 			.ifPresent(solo -> {
 				solo.update(
-					request.performer(),
-					request.composer(),
-					request.title(),
+					unknownIfBlank(request.performer()),
+					unknownIfBlank(request.composer()),
+					unknownIfBlank(request.title()),
 					request.album(),
 					request.instrument() != null ? request.instrument() : Instrument.UNKNOWN,
 					request.style(),
@@ -222,6 +225,13 @@ public class SoloWriter {
 
 	private static int normalizeProgress(int progress) {
 		return Math.max(0, Math.min(progress, 100));
+	}
+
+	private static String unknownIfBlank(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return UNKNOWN_METADATA;
+		}
+		return value.trim();
 	}
 
 	private static String truncate(@Nullable String failureReason) {
