@@ -5,14 +5,10 @@ import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,11 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import com.jazzify.backend.core.security.CustomPrincipal;
-import com.jazzify.backend.domain.chat.service.ChatService;
-import com.jazzify.backend.domain.rag.dto.request.RagChatRequest;
 import com.jazzify.backend.domain.rag.dto.request.RagDocumentCreateRequest;
 import com.jazzify.backend.domain.rag.dto.request.RagDocumentUpdateRequest;
 import com.jazzify.backend.domain.rag.dto.response.RagDocumentResponse;
@@ -88,23 +80,6 @@ public class RagController implements RagControllerSpec {
 	public ApiResponse<Void> deleteDocument(@PathVariable UUID publicId) {
 		ragService.deleteDocument(publicId);
 		return ApiResponse.ok();
-	}
-
-	@Override
-	@PostMapping(value = "/chat", produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<StreamingResponseBody> chat(
-		@AuthenticationPrincipal CustomPrincipal principal,
-		@Valid @RequestBody RagChatRequest request
-	) {
-		ChatService.PreparedChatStream preparedChatStream = ragService.prepareChat(principal, request);
-		StreamingResponseBody body = outputStream -> ragService.streamChat(preparedChatStream, request, outputStream);
-		return ResponseEntity.ok()
-			.contentType(MediaType.TEXT_PLAIN)
-			.cacheControl(CacheControl.noCache())
-			.header("X-Chat-Public-Id", preparedChatStream.chatPublicId().toString())
-			.header("X-Accel-Buffering", "no")
-			.header("Cache-Control", "no-cache, no-transform")
-			.body(body);
 	}
 
 	@Override

@@ -51,7 +51,7 @@ class ClaudeChatStreamerTest {
 		List<ChatHistoryMessage> history = List.of(new ChatHistoryMessage("assistant", "이전 응답"));
 		String response = claudeChatStreamer.stream(request, history, outputStream);
 
-		assertThat(claudeChatStreamer.buildSystem(request.category(), request.chordContext(), request.songTitle()))
+		assertThat(claudeChatStreamer.buildSystem(request.category(), request.directChordContext(), request.songTitle()))
 			.contains("현재 분석 중인 곡: It Could Happen to You")
 			.contains("[Analysis Focus: Improvisation]")
 			.contains("Do NOT emit a ```chart fenced block for THIS song");

@@ -96,6 +96,17 @@ class ChatServiceTest {
 	}
 
 	@Test
+	void delete_verifiesOwnershipAndDeletesChat() {
+		UUID userPublicId = UUID.randomUUID();
+		UUID chatPublicId = UUID.randomUUID();
+		when(chatReader.getChatByPublicId(chatPublicId, userPublicId)).thenReturn(chat);
+
+		chatService.delete(new CustomPrincipal(userPublicId, "tester", UserRole.MEMBER), chatPublicId);
+
+		verify(chatWriter).delete(chat);
+	}
+
+	@Test
 	void persistTurn_appendsUserAndAssistantMessages() {
 		UUID chatPublicId = UUID.randomUUID();
 		when(chatReader.getChatByPublicId(chatPublicId)).thenReturn(chat);
@@ -116,6 +127,5 @@ class ChatServiceTest {
 			);
 	}
 }
-
 
 

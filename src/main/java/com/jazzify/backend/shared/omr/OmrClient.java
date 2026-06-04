@@ -16,6 +16,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jazzify.backend.shared.exception.CustomException;
@@ -63,6 +64,19 @@ public class OmrClient {
 	 * @throws CustomException OMR 서버 미설정, 제출 실패 시
 	 */
 	public OmrSubmitResult submitJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain) {
+		return submitJob(fileData, filename, jobId, domain, "/omr");
+	}
+
+	/**
+	 * 코드 차트 이미지를 chord-chart 전용 OMR 서버에 비동기로 제출한다.
+	 * <p>
+	 * ChordProject OMR 생성 전용으로 사용한다.
+	 */
+	public OmrSubmitResult submitChordChartJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain) {
+		return submitJob(fileData, filename, jobId, domain, "/chords/chart");
+	}
+
+	private OmrSubmitResult submitJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain, String endpointPrefix) {
 		String serverUrl = requireServerUrl();
 		WebClient webClient = createWebClient(serverUrl);
 
@@ -84,11 +98,7 @@ public class OmrClient {
 		boolean isDevMode = callbackBaseUrl != null && !callbackBaseUrl.isBlank();
 		String endpoint;
 
-		if (isDevMode) {
-			endpoint = "/omr/dev/process";
-		} else {
-			endpoint = "/omr/prod/process";
-		}
+		endpoint = endpointPrefix + (isDevMode ? "/dev/process" : "/prod/process");
 
 		if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
 			String fullCallbackUrl = buildCallbackUrl(callbackBaseUrl, domain);
@@ -173,6 +183,31 @@ public class OmrClient {
 			throw e;
 		} catch (Exception e) {
 			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord assignments 조회 중 오류: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * chord-chart 전용 OMR 결과를 가져와 ChordProject 진행 문자열로 변환한다.
+	 *
+	 * @param jobId OMR 작업 ID
+	 * @return 코드 차트 데이터
+	 */
+	public ChordChartResult fetchChordChart(String jobId) {
+		String serverUrl = requireServerUrl();
+		WebClient webClient = createWebClient(serverUrl);
+
+		try {
+			ChordChartResponse response = addApiKeyHeader(
+				webClient.get().uri("/omr/jobs/{jobId}/chord-chart", jobId)
+			).retrieve()
+				.bodyToMono(ChordChartResponse.class)
+				.block();
+
+			return extractChordChart(response, jobId);
+		} catch (CustomException e) {
+			throw e;
+		} catch (Exception e) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 조회 중 오류: " + e.getMessage());
 		}
 	}
 
@@ -315,6 +350,58 @@ public class OmrClient {
 		return chordsByMeasureNumber;
 	}
 
+	private ChordChartResult extractChordChart(@Nullable ChordChartResponse response, String jobId) {
+		if (response == null) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 결과가 비어 있습니다. job_id=" + jobId);
+		}
+
+		List<String> bars = new ArrayList<>();
+		for (ChartPage page : nullSafeList(response.pages())) {
+			for (ChartSystem system : nullSafeList(page.systems())) {
+				for (ChartMeasure measure : nullSafeList(system.measures())) {
+					bars.add(toChartBarToken(measure));
+				}
+			}
+		}
+
+		if (bars.isEmpty()) {
+			throw OmrErrorCode.OMR_PARSE_FAILED.toException("Chord chart에서 인식된 마디가 없습니다. job_id=" + jobId);
+		}
+
+		return new ChordChartResult(toTimeSignature(response.timeSignature()), String.join(" | ", bars));
+	}
+
+	private String toChartBarToken(ChartMeasure measure) {
+		List<MeasureChord> measureChords = new ArrayList<>();
+		for (ChordAssignment chord : nullSafeList(measure.chords())) {
+			MeasureChord measureChord = toMeasureChord(chord);
+			if (measureChord != null) {
+				measureChords.add(measureChord);
+			}
+		}
+
+		measureChords.sort(Comparator.comparingInt(MeasureChord::beat).thenComparing(MeasureChord::text));
+		String joined = measureChords.stream()
+			.map(MeasureChord::text)
+			.reduce((left, right) -> left + " " + right)
+			.orElse("");
+		return joined.isBlank() ? "N.C." : joined.trim().replaceAll("\\s+", " ");
+	}
+
+	private String toTimeSignature(@Nullable ChartTimeSignature timeSignature) {
+		if (timeSignature == null) {
+			return "4/4";
+		}
+		String textRaw = trimToNull(timeSignature.textRaw());
+		if (textRaw != null) {
+			return textRaw;
+		}
+		if (timeSignature.numerator() != null && timeSignature.denominator() != null) {
+			return timeSignature.numerator() + "/" + timeSignature.denominator();
+		}
+		return "4/4";
+	}
+
 	@Nullable
 	private MeasureChord toMeasureChord(ChordAssignment chord) {
 		String chordText = trimToNull(chord.textNorm());
@@ -359,6 +446,12 @@ public class OmrClient {
 	) {
 	}
 
+	public record ChordChartResult(
+		String timeSignature,
+		String progression
+	) {
+	}
+
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record OmrSubmitResponse(
 		@JsonProperty("job_id") @Nullable String jobId,
@@ -371,6 +464,39 @@ public class OmrClient {
 	private record ChordAssignmentsResponse(
 		@JsonProperty("measure_alignment") @Nullable MeasureAlignment measureAlignment,
 		@Nullable List<PageAssignments> pages
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChordChartResponse(
+		@JsonProperty("time_signature") @Nullable ChartTimeSignature timeSignature,
+		@Nullable List<ChartPage> pages
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartTimeSignature(
+		@JsonProperty("text_raw") @JsonAlias("text") @Nullable String textRaw,
+		@Nullable Integer numerator,
+		@Nullable Integer denominator
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartPage(
+		@Nullable List<ChartSystem> systems
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartSystem(
+		@Nullable List<ChartMeasure> measures
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartMeasure(
+		@Nullable List<ChordAssignment> chords
 	) {
 	}
 
