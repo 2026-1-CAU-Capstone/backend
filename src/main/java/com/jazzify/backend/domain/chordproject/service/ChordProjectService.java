@@ -39,6 +39,7 @@ import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrCreat
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectOmrStatusResponse;
 import com.jazzify.backend.domain.chordproject.dto.response.ChordProjectResponse;
 import com.jazzify.backend.domain.chordproject.entity.ChordProject;
+import com.jazzify.backend.domain.chordproject.model.ChordProjectOmrSourceType;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectOmrProcessor;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectOmrWriter;
 import com.jazzify.backend.domain.chordproject.service.implementation.ChordProjectReader;
@@ -55,10 +56,13 @@ import com.jazzify.backend.shared.omr.OmrCallbackDomain;
 import com.jazzify.backend.shared.omr.OmrClient;
 import com.jazzify.backend.shared.omr.OmrFileValidator;
 import com.jazzify.backend.shared.omr.OmrProperties;
+import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @NullMarked
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChordProjectService {
@@ -105,6 +109,7 @@ public class ChordProjectService {
 		String pendingTimeSignature = hasText(request.timeSignature())
 			? request.timeSignature().trim()
 			: DEFAULT_PENDING_TIME_SIGNATURE;
+		ChordProjectOmrSourceType sourceType = ChordProjectOmrSourceType.from(request.sourceType());
 
 		// 1단계: User 조회와 PENDING 엔티티 생성을 같은 트랜잭션 안에서 실행하고 커밋한다.
 		ChordProject project = Objects.requireNonNull(
@@ -114,7 +119,8 @@ public class ChordProjectService {
 					user, pendingTitle, pendingKey, pendingTimeSignature,
 					hasText(request.title()) ? request.title().trim() : null,
 					request.key(),
-					hasText(request.timeSignature()) ? request.timeSignature().trim() : null
+					hasText(request.timeSignature()) ? request.timeSignature().trim() : null,
+					sourceType
 				);
 			})
 		);
@@ -123,7 +129,7 @@ public class ChordProjectService {
 
 		// 2단계: 커밋 후 OMR 서버에 파일을 제출하고 job_id 응답을 확인한다.
 		try {
-			OmrClient.OmrSubmitResult result = omrClient.submitChordChartJob(fileData, originalFilename, projectPublicId.toString(), OmrCallbackDomain.CHORD_PROJECT);
+			OmrClient.OmrSubmitResult result = submitChordProjectOmrJob(sourceType, fileData, originalFilename, projectPublicId.toString());
 			chordProjectOmrWriter.storeJobIdAndMarkProcessing(projectPublicId, Objects.requireNonNull(result.jobId()), 10);
 		} catch (CustomException e) {
 			chordProjectOmrWriter.fail(projectPublicId, e.getMessage(), 0);
@@ -157,7 +163,13 @@ public class ChordProjectService {
 	public ChordProjectOmrStatusResponse getOmrStatus(UUID userPublicId, UUID projectPublicId) {
 		User user = userReader.getByPublicId(userPublicId);
 		ChordProject project = chordProjectReader.getByPublicIdAndUser(projectPublicId, user);
-		return ChordProjectMapper.toOmrStatusResponse(project);
+		int progress = resolveLatestOmrProgress(project.getOmrStatus(), project.getOmrJobId(), project.getOmrProgress());
+		return new ChordProjectOmrStatusResponse(
+			Objects.requireNonNull(project.getPublicId()),
+			project.getOmrStatus(),
+			progress,
+			project.getOmrFailureReason()
+		);
 	}
 
 	@Transactional
@@ -353,7 +365,10 @@ public class ChordProjectService {
 			UUID publicId = Objects.requireNonNull(project.getPublicId());
 			chordProjectOmrWriter.markProcessing(publicId, 80);
 
-			ChordProjectOmrProcessor.ChordProjectOmrData omrData = chordProjectOmrProcessor.processJobResult(jobId);
+			ChordProjectOmrSourceType sourceType = project.getOmrSourceType() != null
+				? project.getOmrSourceType()
+				: ChordProjectOmrSourceType.CHORD_CHART;
+			ChordProjectOmrProcessor.ChordProjectOmrData omrData = chordProjectOmrProcessor.processJobResult(jobId, sourceType);
 
 			String title = project.getOmrRequestedTitle() != null ? project.getOmrRequestedTitle() : omrData.title();
 			MusicKey key = project.getOmrRequestedKey() != null ? project.getOmrRequestedKey() : omrData.key();
@@ -385,5 +400,47 @@ public class ChordProjectService {
 		if (!expectedKey.equals(providedKey)) {
 			throw OmrErrorCode.OMR_CALLBACK_KEY_INVALID.toException();
 		}
+	}
+
+	private OmrClient.OmrSubmitResult submitChordProjectOmrJob(
+		ChordProjectOmrSourceType sourceType,
+		byte[] fileData,
+		String originalFilename,
+		String jobId
+	) {
+		return switch (sourceType) {
+			case SHEET_MUSIC -> omrClient.submitChordSheetMusicJob(
+				fileData, originalFilename, jobId, OmrCallbackDomain.CHORD_PROJECT
+			);
+			case CHORD_CHART -> omrClient.submitChordChartJob(
+				fileData, originalFilename, jobId, OmrCallbackDomain.CHORD_PROJECT
+			);
+		};
+	}
+
+	private int resolveLatestOmrProgress(
+		OmrProcessingStatus status,
+		@Nullable String omrJobId,
+		int fallbackProgress
+	) {
+		if (!isInProgress(status) || !hasText(omrJobId)) {
+			return fallbackProgress;
+		}
+
+		try {
+			Integer progress = omrClient.fetchJobStatus(Objects.requireNonNull(omrJobId)).progress();
+			return progress != null ? normalizeProgress(progress) : fallbackProgress;
+		} catch (Exception e) {
+			log.warn("[OMR] ChordProject status progress 조회 실패: jobId={}", omrJobId, e);
+			return fallbackProgress;
+		}
+	}
+
+	private static boolean isInProgress(OmrProcessingStatus status) {
+		return status == OmrProcessingStatus.PENDING || status == OmrProcessingStatus.PROCESSING;
+	}
+
+	private static int normalizeProgress(int progress) {
+		return Math.max(0, Math.min(progress, 100));
 	}
 }

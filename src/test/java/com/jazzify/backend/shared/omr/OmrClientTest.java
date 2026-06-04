@@ -178,6 +178,27 @@ class OmrClientTest {
 	}
 
 	@Test
+	void submitChordSheetMusicJob_usesChordSheetMusicEndpoint() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				"request-key",
+				null,
+				"http://localhost:8080"
+			));
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			OmrClient.OmrSubmitResult result = client.submitChordSheetMusicJob(
+				file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.CHORD_PROJECT);
+
+			assertThat(result.jobId()).isEqualTo(TestOmrServer.JOB_ID);
+			assertThat(server.lastProcessPath()).isEqualTo("/chords/sheet-music/dev/process");
+			assertThat(server.lastOmrApiKey()).isEqualTo("request-key");
+			assertThat(server.lastRequestBody()).contains("http://localhost:8080/api/v1/chord-projects/omr/callback");
+		}
+	}
+
+	@Test
 	void submitJob_usesProdEndpointWhenProdProfileIsActiveEvenWithCallbackUrl() throws Exception {
 		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
 			MockEnvironment environment = new MockEnvironment();
@@ -263,6 +284,30 @@ class OmrClientTest {
 		}
 	}
 
+	@Test
+	void fetchJobStatus_returnsProgressFromStatusEndpoint() throws Exception {
+		String statusJson = """
+			{
+			  "job_id": "job-123",
+			  "status": "processing",
+			  "message": "Reading chart cells",
+			  "progress": 62
+			}
+			""";
+
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}", "{}", statusJson)) {
+			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl(), "request-key", null, null));
+
+			OmrClient.OmrJobStatusResult result = client.fetchJobStatus(TestOmrServer.JOB_ID);
+
+			assertThat(result.jobId()).isEqualTo(TestOmrServer.JOB_ID);
+			assertThat(result.status()).isEqualTo("processing");
+			assertThat(result.message()).isEqualTo("Reading chart cells");
+			assertThat(result.progress()).isEqualTo(62);
+			assertThat(server.lastOmrApiKey()).isEqualTo("request-key");
+		}
+	}
+
 	private static final class TestOmrServer implements AutoCloseable {
 
 		private static final String JOB_ID = "job-123";
@@ -271,6 +316,7 @@ class OmrClientTest {
 		private final String musicXml;
 		private final String chordAssignmentsJson;
 		private final String chordChartJson;
+		private final String statusJson;
 		private final AtomicReference<String> lastProcessPath = new AtomicReference<>("");
 		private final AtomicReference<String> lastOmrApiKey = new AtomicReference<>("");
 		private final AtomicReference<String> lastRequestBody = new AtomicReference<>("");
@@ -280,12 +326,25 @@ class OmrClientTest {
 		}
 
 		private TestOmrServer(String musicXml, String chordAssignmentsJson, String chordChartJson) throws IOException {
+			this(musicXml, chordAssignmentsJson, chordChartJson, """
+				{
+				  "job_id": "job-123",
+				  "status": "completed",
+				  "progress": 100
+				}
+				""");
+		}
+
+		private TestOmrServer(String musicXml, String chordAssignmentsJson, String chordChartJson, String statusJson) throws IOException {
 			this.musicXml = musicXml;
 			this.chordAssignmentsJson = chordAssignmentsJson;
 			this.chordChartJson = chordChartJson;
+			this.statusJson = statusJson;
 			server = HttpServer.create(new InetSocketAddress(0), 0);
 			server.createContext("/omr/dev/process", this::respondToProcess);
 			server.createContext("/omr/prod/process", this::respondToProcess);
+			server.createContext("/chords/sheet-music/dev/process", this::respondToProcess);
+			server.createContext("/chords/sheet-music/prod/process", this::respondToProcess);
 			server.createContext("/chords/chart/dev/process", this::respondToProcess);
 			server.createContext("/chords/chart/prod/process", this::respondToProcess);
 			server.createContext("/omr/jobs/" + JOB_ID + "/musicxml", exchange ->
@@ -294,6 +353,10 @@ class OmrClientTest {
 				respond(exchange, 200, "application/json", this.chordAssignmentsJson));
 			server.createContext("/omr/jobs/" + JOB_ID + "/chord-chart", exchange ->
 				respond(exchange, 200, "application/json", this.chordChartJson));
+			server.createContext("/omr/jobs/" + JOB_ID, exchange -> {
+				lastOmrApiKey.set(exchange.getRequestHeaders().getFirst("X-OMR-API-Key"));
+				respond(exchange, 200, "application/json", this.statusJson);
+			});
 			server.start();
 		}
 

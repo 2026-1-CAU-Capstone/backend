@@ -91,6 +91,15 @@ public class OmrClient {
 		return submitJob(fileData, filename, jobId, domain, "/chords/chart");
 	}
 
+	/**
+	 * 일반 악보 이미지를 chord sheet-music 전용 OMR 서버에 비동기로 제출한다.
+	 * <p>
+	 * ChordProject OMR 생성 전용으로 사용한다.
+	 */
+	public OmrSubmitResult submitChordSheetMusicJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain) {
+		return submitJob(fileData, filename, jobId, domain, "/chords/sheet-music");
+	}
+
 	private OmrSubmitResult submitJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain, String endpointPrefix) {
 		String serverUrl = requireServerUrl();
 		WebClient webClient = createWebClient(serverUrl);
@@ -224,6 +233,34 @@ public class OmrClient {
 			throw e;
 		} catch (Exception e) {
 			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 조회 중 오류: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * OMR 서버 작업 상태를 조회한다.
+	 *
+	 * @param jobId OMR 작업 ID
+	 * @return 작업 상태, 메시지, 진행률
+	 */
+	public OmrJobStatusResult fetchJobStatus(String jobId) {
+		String serverUrl = requireServerUrl();
+		WebClient webClient = createWebClient(serverUrl);
+
+		try {
+			OmrJobStatusResponse response = addApiKeyHeader(
+				webClient.get().uri("/omr/jobs/{jobId}", jobId)
+			).retrieve()
+				.bodyToMono(OmrJobStatusResponse.class)
+				.block();
+
+			if (response == null || response.jobId() == null) {
+				throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("OMR 작업 상태 응답이 비어 있습니다. job_id=" + jobId);
+			}
+			return new OmrJobStatusResult(response.jobId(), response.status(), response.message(), response.progress());
+		} catch (CustomException e) {
+			throw e;
+		} catch (Exception e) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("OMR 작업 상태 조회 중 오류: " + e.getMessage());
 		}
 	}
 
@@ -476,6 +513,14 @@ public class OmrClient {
 	) {
 	}
 
+	public record OmrJobStatusResult(
+		String jobId,
+		@Nullable String status,
+		@Nullable String message,
+		@Nullable Integer progress
+	) {
+	}
+
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record OmrSubmitResponse(
 		@JsonProperty("job_id") @Nullable String jobId,
@@ -495,6 +540,15 @@ public class OmrClient {
 	private record ChordChartResponse(
 		@JsonProperty("time_signature") @Nullable ChartTimeSignature timeSignature,
 		@Nullable List<ChartPage> pages
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record OmrJobStatusResponse(
+		@JsonProperty("job_id") @Nullable String jobId,
+		@Nullable String status,
+		@Nullable String message,
+		@Nullable Integer progress
 	) {
 	}
 
