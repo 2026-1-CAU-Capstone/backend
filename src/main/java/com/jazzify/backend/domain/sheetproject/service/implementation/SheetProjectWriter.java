@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jazzify.backend.domain.sheetproject.entity.SheetFile;
 import com.jazzify.backend.domain.sheetproject.entity.SheetProject;
 import com.jazzify.backend.domain.sheetproject.repository.SheetProjectRepository;
+import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.shared.domain.MusicKey;
 
@@ -22,11 +23,22 @@ public class SheetProjectWriter {
 	private final SheetProjectRepository sheetProjectRepository;
 
 	public SheetProject create(String title, @Nullable MusicKey key, User user, SheetFile sheetFile) {
+		return create(title, key, user, sheetFile, null);
+	}
+
+	public SheetProject create(
+		String title,
+		@Nullable MusicKey key,
+		User user,
+		SheetFile sheetFile,
+		@Nullable Session session
+	) {
 		SheetProject project = SheetProject.builder()
 			.title(title)
 			.keySignature(key)
 			.user(user)
 			.sheetFile(sheetFile)
+			.session(session)
 			.build();
 		return sheetProjectRepository.save(project);
 	}
@@ -35,4 +47,3 @@ public class SheetProjectWriter {
 		sheetProjectRepository.delete(project);
 	}
 }
-
