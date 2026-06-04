@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -173,6 +174,47 @@ class OmrClientTest {
 			assertThat(server.lastProcessPath()).isEqualTo("/chords/chart/dev/process");
 			assertThat(server.lastOmrApiKey()).isEqualTo("request-key");
 			assertThat(server.lastRequestBody()).contains("http://localhost:8080/api/v1/chord-projects/omr/callback");
+		}
+	}
+
+	@Test
+	void submitJob_usesProdEndpointWhenProdProfileIsActiveEvenWithCallbackUrl() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			MockEnvironment environment = new MockEnvironment();
+			environment.setActiveProfiles("prod");
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				"request-key",
+				null,
+				"http://backend.example"
+			), environment);
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			client.submitJob(file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.SHEET_PROJECT);
+
+			assertThat(server.lastProcessPath()).isEqualTo("/omr/prod/process");
+			assertThat(server.lastRequestBody()).contains("name=\"callback_url\"");
+			assertThat(server.lastRequestBody()).contains("http://backend.example/api/v1/sheet-projects/omr/callback");
+		}
+	}
+
+	@Test
+	void submitJob_usesDevEndpointWhenProdProfileIsNotActiveEvenWithoutCallbackUrl() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			MockEnvironment environment = new MockEnvironment();
+			environment.setActiveProfiles("dev");
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				null,
+				null,
+				null
+			), environment);
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			client.submitJob(file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.SOLO);
+
+			assertThat(server.lastProcessPath()).isEqualTo("/omr/dev/process");
+			assertThat(server.lastRequestBody()).doesNotContain("name=\"callback_url\"");
 		}
 	}
 

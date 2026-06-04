@@ -1,6 +1,7 @@
 package com.jazzify.backend.shared.omr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,7 +9,9 @@ import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
@@ -22,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jazzify.backend.shared.exception.CustomException;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -32,29 +34,42 @@ import reactor.core.publisher.Mono;
  * MusicVision 비동기 명세에 따라 악보 파일을 업로드(202 Accepted)하고,
  * 콜백 또는 폴링으로 완료 확인 후 MusicXML과 chord assignments를 조회한다.
  * <ul>
- *   <li>dev 환경: {@code callbackUrl}이 설정된 경우 {@code /omr/dev/process} 엔드포인트 사용</li>
- *   <li>prod 환경: {@code callbackUrl}이 미설정인 경우 {@code /omr/prod/process} 엔드포인트 사용</li>
+ *   <li>prod profile 활성화: {@code /omr/prod/process} 엔드포인트 사용</li>
+ *   <li>그 외 profile: {@code /omr/dev/process} 엔드포인트 사용</li>
  * </ul>
  */
 @Slf4j
 @NullMarked
 @Component
-@RequiredArgsConstructor
 public class OmrClient {
 
 	private static final String MEASURE_ALIGNMENT_STATUS_ALIGNED = "aligned";
 	private static final String MEASURE_ALIGNMENT_STATUS_PARTIAL = "partial";
 	private static final String MEASURE_ALIGNMENT_STATUS_MISMATCH = "mismatch";
 	private static final String HEADER_OMR_API_KEY = "X-OMR-API-Key";
+	private static final String PROD_PROFILE = "prod";
 
 	private final OmrProperties omrProperties;
+	private final @Nullable Environment environment;
+
+	@Autowired
+	public OmrClient(OmrProperties omrProperties, Environment environment) {
+		this.omrProperties = omrProperties;
+		this.environment = environment;
+	}
+
+	public OmrClient(OmrProperties omrProperties) {
+		this.omrProperties = omrProperties;
+		this.environment = null;
+	}
 
 	/**
 	 * 악보 파일을 OMR 서버에 비동기로 제출한다.
 	 * <p>
-	 * dev 환경({@code omr.callback-url} 설정 시) → {@code POST /omr/dev/process}
-	 * ({@code callback_url}에 베이스 URL + 도메인별 콜백 경로를 결합해 전달)<br>
-	 * prod 환경 → {@code POST /omr/prod/process}
+	 * prod profile 활성화 시 → {@code POST /omr/prod/process}<br>
+	 * 그 외 profile → {@code POST /omr/dev/process}<br>
+	 * {@code omr.callback-url}이 설정된 경우 profile과 무관하게 {@code callback_url}에
+	 * 베이스 URL + 도메인별 콜백 경로를 결합해 전달한다.
 	 *
 	 * @param fileData 악보 파일 바이트 배열
 	 * @param filename 원본 파일명 (확장자 포함)
@@ -95,18 +110,19 @@ public class OmrClient {
 		builder.part("job_id", jobId);
 
 		String callbackBaseUrl = omrProperties.callbackUrl();
-		boolean isDevMode = callbackBaseUrl != null && !callbackBaseUrl.isBlank();
+		boolean isProdMode = isProdProfileActive();
 		String endpoint;
 
-		endpoint = endpointPrefix + (isDevMode ? "/dev/process" : "/prod/process");
+		endpoint = endpointPrefix + (isProdMode ? "/prod/process" : "/dev/process");
 
 		if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
 			String fullCallbackUrl = buildCallbackUrl(callbackBaseUrl, domain);
 			builder.part("callback_url", fullCallbackUrl);
-			log.debug("[OMR] {} 모드: endpoint={}, jobId={}, callbackUrl={}",
-				isDevMode ? "dev" : "prod", endpoint, jobId, fullCallbackUrl);
+			log.debug("[OMR] {} profile routing: endpoint={}, jobId={}, callbackUrl={}",
+				isProdMode ? "prod" : "dev", endpoint, jobId, fullCallbackUrl);
 		} else {
-			log.debug("[OMR] prod 모드 (callback 없음): endpoint={}, jobId={}, domain={}", endpoint, jobId, domain);
+			log.debug("[OMR] {} profile routing (callback 없음): endpoint={}, jobId={}, domain={}",
+				isProdMode ? "prod" : "dev", endpoint, jobId, domain);
 		}
 
 		try {
@@ -212,6 +228,14 @@ public class OmrClient {
 	}
 
 	// ─── Private Helpers ─────────────────────────────────────────────────
+
+	private boolean isProdProfileActive() {
+		if (environment == null) {
+			return false;
+		}
+		return Arrays.stream(environment.getActiveProfiles())
+			.anyMatch(profile -> PROD_PROFILE.equalsIgnoreCase(profile));
+	}
 
 	private String buildCallbackUrl(String baseUrl, OmrCallbackDomain domain) {
 		String trimmedBase = baseUrl.endsWith("/")
