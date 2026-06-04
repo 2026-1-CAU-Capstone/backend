@@ -107,11 +107,12 @@ public class ClaudeChatStreamer {
 
 	public List<Message> buildMessages(ChatStreamRequest request, List<ChatHistoryMessage> history) {
 		List<Message> messages = new ArrayList<>();
-		messages.add(new SystemMessage(buildSystem(request.category(), request.chordContext(), request.songTitle())));
+		String chordContext = request.directChordContext();
+		messages.add(new SystemMessage(buildSystem(request.category(), chordContext, request.songTitle())));
 		for (ChatHistoryMessage historyMessage : history) {
 			messages.add(toTextMessage(historyMessage.role(), historyMessage.content()));
 		}
-		messages.add(toCurrentUserMessage(request.message(), request.chordContext(), request.images()));
+		messages.add(toCurrentUserMessage(request.message(), chordContext, request.images()));
 		return List.copyOf(messages);
 	}
 

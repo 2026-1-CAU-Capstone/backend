@@ -46,8 +46,17 @@ public interface ChatControllerSpec {
 	);
 
 	@Operation(
+		summary = "채팅 삭제",
+		description = "로그인한 사용자의 채팅 세션과 메시지 이력을 삭제합니다."
+	)
+	ApiResponse<Void> delete(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@PathVariable UUID publicId
+	);
+
+	@Operation(
 		summary = "Claude 스트리밍 채팅",
-		description = "Spring AI를 통해 Anthropic 모델을 호출하고 텍스트 스트림을 그대로 전달합니다. 응답 헤더 `X-Chat-Public-Id`로 채팅 식별자를 반환합니다."
+		description = "`useRag=true`이면 RAG 컨텍스트를 붙이고, 아니면 일반 Anthropic 스트림을 반환합니다. 응답 헤더 `X-Chat-Public-Id`로 채팅 식별자를 반환합니다."
 	)
 	ResponseEntity<StreamingResponseBody> stream(
 		@AuthenticationPrincipal CustomPrincipal principal,

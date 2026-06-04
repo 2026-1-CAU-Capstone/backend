@@ -60,6 +60,12 @@ public class ChatService {
 	}
 
 	@Transactional
+	public void delete(CustomPrincipal principal, UUID publicId) {
+		Chat chat = chatReader.getChatByPublicId(publicId, principal.publicId());
+		chatWriter.delete(chat);
+	}
+
+	@Transactional
 	public PreparedChatStream prepareDirectStream(CustomPrincipal principal, ChatStreamRequest request) {
 		return prepareStream(
 			userReader.getByPublicId(principal.publicId()),

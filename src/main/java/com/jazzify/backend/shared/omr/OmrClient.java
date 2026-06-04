@@ -1,6 +1,7 @@
 package com.jazzify.backend.shared.omr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,7 +9,9 @@ import java.util.Map;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
@@ -16,12 +19,12 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jazzify.backend.shared.exception.CustomException;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -31,29 +34,42 @@ import reactor.core.publisher.Mono;
  * MusicVision 비동기 명세에 따라 악보 파일을 업로드(202 Accepted)하고,
  * 콜백 또는 폴링으로 완료 확인 후 MusicXML과 chord assignments를 조회한다.
  * <ul>
- *   <li>dev 환경: {@code callbackUrl}이 설정된 경우 {@code /omr/dev/process} 엔드포인트 사용</li>
- *   <li>prod 환경: {@code callbackUrl}이 미설정인 경우 {@code /omr/prod/process} 엔드포인트 사용</li>
+ *   <li>prod profile 활성화: {@code /omr/prod/process} 엔드포인트 사용</li>
+ *   <li>그 외 profile: {@code /omr/dev/process} 엔드포인트 사용</li>
  * </ul>
  */
 @Slf4j
 @NullMarked
 @Component
-@RequiredArgsConstructor
 public class OmrClient {
 
 	private static final String MEASURE_ALIGNMENT_STATUS_ALIGNED = "aligned";
 	private static final String MEASURE_ALIGNMENT_STATUS_PARTIAL = "partial";
 	private static final String MEASURE_ALIGNMENT_STATUS_MISMATCH = "mismatch";
 	private static final String HEADER_OMR_API_KEY = "X-OMR-API-Key";
+	private static final String PROD_PROFILE = "prod";
 
 	private final OmrProperties omrProperties;
+	private final @Nullable Environment environment;
+
+	@Autowired
+	public OmrClient(OmrProperties omrProperties, Environment environment) {
+		this.omrProperties = omrProperties;
+		this.environment = environment;
+	}
+
+	public OmrClient(OmrProperties omrProperties) {
+		this.omrProperties = omrProperties;
+		this.environment = null;
+	}
 
 	/**
 	 * 악보 파일을 OMR 서버에 비동기로 제출한다.
 	 * <p>
-	 * dev 환경({@code omr.callback-url} 설정 시) → {@code POST /omr/dev/process}
-	 * ({@code callback_url}에 베이스 URL + 도메인별 콜백 경로를 결합해 전달)<br>
-	 * prod 환경 → {@code POST /omr/prod/process}
+	 * prod profile 활성화 시 → {@code POST /omr/prod/process}<br>
+	 * 그 외 profile → {@code POST /omr/dev/process}<br>
+	 * {@code omr.callback-url}이 설정된 경우 profile과 무관하게 {@code callback_url}에
+	 * 베이스 URL + 도메인별 콜백 경로를 결합해 전달한다.
 	 *
 	 * @param fileData 악보 파일 바이트 배열
 	 * @param filename 원본 파일명 (확장자 포함)
@@ -63,6 +79,19 @@ public class OmrClient {
 	 * @throws CustomException OMR 서버 미설정, 제출 실패 시
 	 */
 	public OmrSubmitResult submitJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain) {
+		return submitJob(fileData, filename, jobId, domain, "/omr");
+	}
+
+	/**
+	 * 코드 차트 이미지를 chord-chart 전용 OMR 서버에 비동기로 제출한다.
+	 * <p>
+	 * ChordProject OMR 생성 전용으로 사용한다.
+	 */
+	public OmrSubmitResult submitChordChartJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain) {
+		return submitJob(fileData, filename, jobId, domain, "/chords/chart");
+	}
+
+	private OmrSubmitResult submitJob(byte[] fileData, String filename, String jobId, OmrCallbackDomain domain, String endpointPrefix) {
 		String serverUrl = requireServerUrl();
 		WebClient webClient = createWebClient(serverUrl);
 
@@ -81,22 +110,19 @@ public class OmrClient {
 		builder.part("job_id", jobId);
 
 		String callbackBaseUrl = omrProperties.callbackUrl();
-		boolean isDevMode = callbackBaseUrl != null && !callbackBaseUrl.isBlank();
+		boolean isProdMode = isProdProfileActive();
 		String endpoint;
 
-		if (isDevMode) {
-			endpoint = "/omr/dev/process";
-		} else {
-			endpoint = "/omr/prod/process";
-		}
+		endpoint = endpointPrefix + (isProdMode ? "/prod/process" : "/dev/process");
 
 		if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
 			String fullCallbackUrl = buildCallbackUrl(callbackBaseUrl, domain);
 			builder.part("callback_url", fullCallbackUrl);
-			log.debug("[OMR] {} 모드: endpoint={}, jobId={}, callbackUrl={}",
-				isDevMode ? "dev" : "prod", endpoint, jobId, fullCallbackUrl);
+			log.debug("[OMR] {} profile routing: endpoint={}, jobId={}, callbackUrl={}",
+				isProdMode ? "prod" : "dev", endpoint, jobId, fullCallbackUrl);
 		} else {
-			log.debug("[OMR] prod 모드 (callback 없음): endpoint={}, jobId={}, domain={}", endpoint, jobId, domain);
+			log.debug("[OMR] {} profile routing (callback 없음): endpoint={}, jobId={}, domain={}",
+				isProdMode ? "prod" : "dev", endpoint, jobId, domain);
 		}
 
 		try {
@@ -176,7 +202,40 @@ public class OmrClient {
 		}
 	}
 
+	/**
+	 * chord-chart 전용 OMR 결과를 가져와 ChordProject 진행 문자열로 변환한다.
+	 *
+	 * @param jobId OMR 작업 ID
+	 * @return 코드 차트 데이터
+	 */
+	public ChordChartResult fetchChordChart(String jobId) {
+		String serverUrl = requireServerUrl();
+		WebClient webClient = createWebClient(serverUrl);
+
+		try {
+			ChordChartResponse response = addApiKeyHeader(
+				webClient.get().uri("/omr/jobs/{jobId}/chord-chart", jobId)
+			).retrieve()
+				.bodyToMono(ChordChartResponse.class)
+				.block();
+
+			return extractChordChart(response, jobId);
+		} catch (CustomException e) {
+			throw e;
+		} catch (Exception e) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 조회 중 오류: " + e.getMessage());
+		}
+	}
+
 	// ─── Private Helpers ─────────────────────────────────────────────────
+
+	private boolean isProdProfileActive() {
+		if (environment == null) {
+			return false;
+		}
+		return Arrays.stream(environment.getActiveProfiles())
+			.anyMatch(profile -> PROD_PROFILE.equalsIgnoreCase(profile));
+	}
 
 	private String buildCallbackUrl(String baseUrl, OmrCallbackDomain domain) {
 		String trimmedBase = baseUrl.endsWith("/")
@@ -315,6 +374,58 @@ public class OmrClient {
 		return chordsByMeasureNumber;
 	}
 
+	private ChordChartResult extractChordChart(@Nullable ChordChartResponse response, String jobId) {
+		if (response == null) {
+			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 결과가 비어 있습니다. job_id=" + jobId);
+		}
+
+		List<String> bars = new ArrayList<>();
+		for (ChartPage page : nullSafeList(response.pages())) {
+			for (ChartSystem system : nullSafeList(page.systems())) {
+				for (ChartMeasure measure : nullSafeList(system.measures())) {
+					bars.add(toChartBarToken(measure));
+				}
+			}
+		}
+
+		if (bars.isEmpty()) {
+			throw OmrErrorCode.OMR_PARSE_FAILED.toException("Chord chart에서 인식된 마디가 없습니다. job_id=" + jobId);
+		}
+
+		return new ChordChartResult(toTimeSignature(response.timeSignature()), String.join(" | ", bars));
+	}
+
+	private String toChartBarToken(ChartMeasure measure) {
+		List<MeasureChord> measureChords = new ArrayList<>();
+		for (ChordAssignment chord : nullSafeList(measure.chords())) {
+			MeasureChord measureChord = toMeasureChord(chord);
+			if (measureChord != null) {
+				measureChords.add(measureChord);
+			}
+		}
+
+		measureChords.sort(Comparator.comparingInt(MeasureChord::beat).thenComparing(MeasureChord::text));
+		String joined = measureChords.stream()
+			.map(MeasureChord::text)
+			.reduce((left, right) -> left + " " + right)
+			.orElse("");
+		return joined.isBlank() ? "N.C." : joined.trim().replaceAll("\\s+", " ");
+	}
+
+	private String toTimeSignature(@Nullable ChartTimeSignature timeSignature) {
+		if (timeSignature == null) {
+			return "4/4";
+		}
+		String textRaw = trimToNull(timeSignature.textRaw());
+		if (textRaw != null) {
+			return textRaw;
+		}
+		if (timeSignature.numerator() != null && timeSignature.denominator() != null) {
+			return timeSignature.numerator() + "/" + timeSignature.denominator();
+		}
+		return "4/4";
+	}
+
 	@Nullable
 	private MeasureChord toMeasureChord(ChordAssignment chord) {
 		String chordText = trimToNull(chord.textNorm());
@@ -359,6 +470,12 @@ public class OmrClient {
 	) {
 	}
 
+	public record ChordChartResult(
+		String timeSignature,
+		String progression
+	) {
+	}
+
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record OmrSubmitResponse(
 		@JsonProperty("job_id") @Nullable String jobId,
@@ -371,6 +488,39 @@ public class OmrClient {
 	private record ChordAssignmentsResponse(
 		@JsonProperty("measure_alignment") @Nullable MeasureAlignment measureAlignment,
 		@Nullable List<PageAssignments> pages
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChordChartResponse(
+		@JsonProperty("time_signature") @Nullable ChartTimeSignature timeSignature,
+		@Nullable List<ChartPage> pages
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartTimeSignature(
+		@JsonProperty("text_raw") @JsonAlias("text") @Nullable String textRaw,
+		@Nullable Integer numerator,
+		@Nullable Integer denominator
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartPage(
+		@Nullable List<ChartSystem> systems
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartSystem(
+		@Nullable List<ChartMeasure> measures
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartMeasure(
+		@Nullable List<ChordAssignment> chords
 	) {
 	}
 

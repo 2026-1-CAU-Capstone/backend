@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -155,6 +156,113 @@ class OmrClientTest {
 		}
 	}
 
+	@Test
+	void submitChordChartJob_usesChordChartEndpoint() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				"request-key",
+				null,
+				"http://localhost:8080"
+			));
+			MockMultipartFile file = new MockMultipartFile("file", "chart.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			OmrClient.OmrSubmitResult result = client.submitChordChartJob(
+				file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.CHORD_PROJECT);
+
+			assertThat(result.jobId()).isEqualTo(TestOmrServer.JOB_ID);
+			assertThat(server.lastProcessPath()).isEqualTo("/chords/chart/dev/process");
+			assertThat(server.lastOmrApiKey()).isEqualTo("request-key");
+			assertThat(server.lastRequestBody()).contains("http://localhost:8080/api/v1/chord-projects/omr/callback");
+		}
+	}
+
+	@Test
+	void submitJob_usesProdEndpointWhenProdProfileIsActiveEvenWithCallbackUrl() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			MockEnvironment environment = new MockEnvironment();
+			environment.setActiveProfiles("prod");
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				"request-key",
+				null,
+				"http://backend.example"
+			), environment);
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			client.submitJob(file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.SHEET_PROJECT);
+
+			assertThat(server.lastProcessPath()).isEqualTo("/omr/prod/process");
+			assertThat(server.lastRequestBody()).contains("name=\"callback_url\"");
+			assertThat(server.lastRequestBody()).contains("http://backend.example/api/v1/sheet-projects/omr/callback");
+		}
+	}
+
+	@Test
+	void submitJob_usesDevEndpointWhenProdProfileIsNotActiveEvenWithoutCallbackUrl() throws Exception {
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}")) {
+			MockEnvironment environment = new MockEnvironment();
+			environment.setActiveProfiles("dev");
+			OmrClient client = new OmrClient(new OmrProperties(
+				server.baseUrl(),
+				null,
+				null,
+				null
+			), environment);
+			MockMultipartFile file = new MockMultipartFile("file", "score.png", "image/png", "dummy".getBytes(StandardCharsets.UTF_8));
+
+			client.submitJob(file.getBytes(), file.getOriginalFilename(), "job-999", OmrCallbackDomain.SOLO);
+
+			assertThat(server.lastProcessPath()).isEqualTo("/omr/dev/process");
+			assertThat(server.lastRequestBody()).doesNotContain("name=\"callback_url\"");
+		}
+	}
+
+	@Test
+	void fetchChordChart_buildsProgressionFromChartJson() throws Exception {
+		String chordChartJson = """
+			{
+			  "time_signature": {
+			    "numerator": 3,
+			    "denominator": 4
+			  },
+			  "pages": [
+			    {
+			      "systems": [
+			        {
+			          "measures": [
+			            {
+			              "chords": [
+			                { "text_norm": "G7", "beat": 3 },
+			                { "text_norm": "Dm7", "beat": 1 }
+			              ]
+			            },
+			            {
+			              "chords": [
+			                { "text_raw": "Cmaj7", "beat": 1 }
+			              ]
+			            },
+			            {
+			              "chords": []
+			            }
+			          ]
+			        }
+			      ]
+			    }
+			  ]
+			}
+			""";
+
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}", chordChartJson)) {
+			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl(), null, null, null));
+
+			OmrClient.ChordChartResult result = client.fetchChordChart(TestOmrServer.JOB_ID);
+
+			assertThat(result.timeSignature()).isEqualTo("3/4");
+			assertThat(result.progression()).isEqualTo("Dm7 G7 | Cmaj7 | N.C.");
+		}
+	}
+
 	private static final class TestOmrServer implements AutoCloseable {
 
 		private static final String JOB_ID = "job-123";
@@ -162,20 +270,30 @@ class OmrClientTest {
 		private final HttpServer server;
 		private final String musicXml;
 		private final String chordAssignmentsJson;
+		private final String chordChartJson;
 		private final AtomicReference<String> lastProcessPath = new AtomicReference<>("");
 		private final AtomicReference<String> lastOmrApiKey = new AtomicReference<>("");
 		private final AtomicReference<String> lastRequestBody = new AtomicReference<>("");
 
 		private TestOmrServer(String musicXml, String chordAssignmentsJson) throws IOException {
+			this(musicXml, chordAssignmentsJson, "{}");
+		}
+
+		private TestOmrServer(String musicXml, String chordAssignmentsJson, String chordChartJson) throws IOException {
 			this.musicXml = musicXml;
 			this.chordAssignmentsJson = chordAssignmentsJson;
+			this.chordChartJson = chordChartJson;
 			server = HttpServer.create(new InetSocketAddress(0), 0);
 			server.createContext("/omr/dev/process", this::respondToProcess);
 			server.createContext("/omr/prod/process", this::respondToProcess);
+			server.createContext("/chords/chart/dev/process", this::respondToProcess);
+			server.createContext("/chords/chart/prod/process", this::respondToProcess);
 			server.createContext("/omr/jobs/" + JOB_ID + "/musicxml", exchange ->
 				respond(exchange, 200, "application/vnd.recordare.musicxml+xml", this.musicXml));
 			server.createContext("/omr/jobs/" + JOB_ID + "/chord-assignments", exchange ->
 				respond(exchange, 200, "application/json", this.chordAssignmentsJson));
+			server.createContext("/omr/jobs/" + JOB_ID + "/chord-chart", exchange ->
+				respond(exchange, 200, "application/json", this.chordChartJson));
 			server.start();
 		}
 

@@ -4,17 +4,12 @@ import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import com.jazzify.backend.core.security.CustomPrincipal;
-import com.jazzify.backend.domain.rag.dto.request.RagChatRequest;
 import com.jazzify.backend.domain.rag.dto.request.RagDocumentCreateRequest;
 import com.jazzify.backend.domain.rag.dto.request.RagDocumentUpdateRequest;
 import com.jazzify.backend.domain.rag.dto.response.RagDocumentResponse;
@@ -65,15 +60,6 @@ public interface RagControllerSpec {
 		description = "RAG 문서와 연결된 청크를 함께 삭제합니다."
 	)
 	ApiResponse<Void> deleteDocument(@PathVariable UUID publicId);
-
-	@Operation(
-		summary = "RAG 채팅",
-		description = "멀티쿼리 + RRF로 RAG 컨텍스트를 구성한 뒤 Spring AI 기반 LLM 텍스트 스트림을 반환합니다. 응답 헤더 `X-Chat-Public-Id`로 채팅 식별자를 반환합니다."
-	)
-	ResponseEntity<StreamingResponseBody> chat(
-		@AuthenticationPrincipal CustomPrincipal principal,
-		@Valid @RequestBody RagChatRequest request
-	);
 
 	@Operation(
 		summary = "RAG 검색",

@@ -15,5 +15,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 	List<ChatMessage> findAllByChatOrderBySortOrderAsc(Chat chat);
 
 	Optional<ChatMessage> findTopByChatOrderBySortOrderDesc(Chat chat);
+
+	void deleteAllByChat(Chat chat);
 }
 

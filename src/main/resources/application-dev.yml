@@ -113,10 +113,10 @@ omr:
   api-key: ${OMR_API_KEY:}
   # OMR 서버가 콜백 시 보내는 X-OMR-Callback-API-Key 검증용 (미설정 시 검증 생략)
   callback-api-key: ${OMR_CALLBACK_API_KEY:}
-  # dev 환경: OMR 서버에 전달할 콜백 베이스 URL → /omr/dev/process 사용
+  # OMR 서버에 전달할 콜백 베이스 URL
   # 도메인별 콜백 경로(/v1/{solos|licks|chord-projects|sheet-projects}/omr/callback)는 OmrClient 가 자동 부착
   # (예: http://localhost:8080/api)
-  # 미설정 시 /omr/prod/process 사용
+  # endpoint dev/prod 분기는 callback-url 유무가 아니라 active profile 로 결정
   callback-url: ${OMR_CALLBACK_URL:}
 
 
@@ -151,5 +151,4 @@ rag:
     top-k: 5
     n-per-query: 3
     rrf-k: 60
-
 

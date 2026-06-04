@@ -20,14 +20,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jazzify.backend.domain.analysis.dto.response.AnalysisExplanationResponse;
 import com.jazzify.backend.domain.analysis.service.HarmonicAnalysisService;
-import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
+import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;
+import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
 import com.jazzify.backend.domain.chordinfo.entity.ChordSection;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysisReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordAnalysisWriter;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoReader;
 import com.jazzify.backend.domain.chordinfo.service.implementation.ChordInfoWriter;
 import com.jazzify.backend.domain.chordinfo.util.ChordInfoMapper;
-import com.jazzify.backend.domain.sheetproject.dto.request.OmrCallbackRequest;
 import com.jazzify.backend.domain.sheetproject.dto.request.OmrCallbackRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.AddChordsRequest;
 import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectCreateRequest;
@@ -123,7 +123,7 @@ public class ChordProjectService {
 
 		// 2단계: 커밋 후 OMR 서버에 파일을 제출하고 job_id 응답을 확인한다.
 		try {
-			OmrClient.OmrSubmitResult result = omrClient.submitJob(fileData, originalFilename, projectPublicId.toString(), OmrCallbackDomain.CHORD_PROJECT);
+			OmrClient.OmrSubmitResult result = omrClient.submitChordChartJob(fileData, originalFilename, projectPublicId.toString(), OmrCallbackDomain.CHORD_PROJECT);
 			chordProjectOmrWriter.storeJobIdAndMarkProcessing(projectPublicId, Objects.requireNonNull(result.jobId()), 10);
 		} catch (CustomException e) {
 			chordProjectOmrWriter.fail(projectPublicId, e.getMessage(), 0);
@@ -357,6 +357,9 @@ public class ChordProjectService {
 
 			String title = project.getOmrRequestedTitle() != null ? project.getOmrRequestedTitle() : omrData.title();
 			MusicKey key = project.getOmrRequestedKey() != null ? project.getOmrRequestedKey() : omrData.key();
+			if (key == null) {
+				key = project.getKeySignature();
+			}
 			if (key == null) {
 				chordProjectOmrWriter.fail(publicId, ChordProjectErrorCode.CHORD_PROJECT_KEY_REQUIRED.getMessage(), 80);
 				return;

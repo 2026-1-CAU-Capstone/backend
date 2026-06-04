@@ -70,6 +70,11 @@ public class ChatWriter {
 		chat.increaseMessageCount(drafts.size());
 		chatRepository.save(chat);
 	}
+
+	public void delete(Chat chat) {
+		chatMessageRepository.deleteAllByChat(chat);
+		chatRepository.delete(chat);
+	}
 }
 
 
