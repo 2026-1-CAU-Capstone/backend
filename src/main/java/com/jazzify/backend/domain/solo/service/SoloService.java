@@ -49,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 public class SoloService {
 
 	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String UNKNOWN_METADATA = "Unknown";
 
 	private final SoloReader soloReader;
 	private final SoloWriter soloWriter;
@@ -141,23 +142,27 @@ public class SoloService {
 		byte[] fileData = readFileBytes(file);
 
 		String originalFilename = defaultFileName(file.getOriginalFilename());
-		String pendingTitle = hasText(metadata.title()) ? Objects.requireNonNull(metadata.title()).trim() : extractBaseName(originalFilename);
+		String requestedTitle = trimToNull(metadata.title());
+		String pendingTitle = requestedTitle != null ? requestedTitle : DEFAULT_PENDING_TITLE;
 
-		soloReader.validateNoDuplicate(pendingTitle, metadata.performer());
+		if (requestedTitle != null) {
+			soloReader.validateNoDuplicate(requestedTitle, trimToNull(metadata.performer()));
+		}
 
 		// 1단계: PENDING 엔티티를 생성하고 커밋한다.
 		Solo solo = soloWriter.createPending(
-			SoloSource.from(metadata.source()),
-			parseUuid(metadata.userId()),
-			metadata.performer(),
-			metadata.composer(),
+			SoloSource.from(trimToNull(metadata.source())),
+			parseUuid(trimToNull(metadata.userId())),
+			trimToNull(metadata.performer()),
+			trimToNull(metadata.composer()),
 			pendingTitle,
-			metadata.album(),
-			Instrument.from(metadata.instrument()),
-			JazzStyle.from(metadata.style()),
+			trimToNull(metadata.album()),
+			Instrument.from(trimToNull(metadata.instrument())),
+			JazzStyle.from(trimToNull(metadata.style())),
 			metadata.tempo(),
-			metadata.key(),
-			RhythmFeel.from(metadata.rhythmFeel())
+			trimToNull(metadata.key()),
+			trimToNull(metadata.timeSignature()),
+			RhythmFeel.from(trimToNull(metadata.rhythmFeel()))
 		);
 
 		UUID soloPublicId = Objects.requireNonNull(solo.getPublicId());
@@ -218,9 +223,16 @@ public class SoloService {
 		Solo solo,
 		SoloOmrProcessor.ProcessedSheetData processedSheetData
 	) {
-		SheetDataRequest sheetData = processedSheetData.sheetData();
-		String title = solo.getTitle();
-		String composer = solo.getComposer() != null ? solo.getComposer() : processedSheetData.composer();
+		SheetDataRequest omrSheetData = processedSheetData.sheetData();
+		String title = resolveTitle(solo.getTitle(), omrSheetData.title());
+		String composer = isKnownMetadata(solo.getComposer()) ? solo.getComposer() : processedSheetData.composer();
+		SheetDataRequest sheetData = withResolvedSheetMetadata(
+			omrSheetData,
+			title,
+			solo.getMusicalKey(),
+			solo.getTimeSignature(),
+			solo.getTempo()
+		);
 
 		return new SoloCreateRequest(
 			solo.getSource(),
@@ -231,8 +243,8 @@ public class SoloService {
 			solo.getAlbum(),
 			solo.getInstrument(),
 			solo.getStyle(),
-			solo.getTempo() != null ? solo.getTempo() : sheetData.tempo(),
-			solo.getMusicalKey() != null ? solo.getMusicalKey() : sheetData.key(),
+			sheetData.tempo(),
+			sheetData.key(),
 			solo.getRhythmFeel(),
 			sheetData.timeSignature(),
 			null,
@@ -242,6 +254,33 @@ public class SoloService {
 			sheetData,
 			null
 		);
+	}
+
+	private static SheetDataRequest withResolvedSheetMetadata(
+		SheetDataRequest sheetData,
+		String title,
+		@Nullable String key,
+		@Nullable String timeSignature,
+		@Nullable Integer tempo
+	) {
+		return new SheetDataRequest(
+			title,
+			key != null ? key : sheetData.key(),
+			timeSignature != null ? timeSignature : sheetData.timeSignature(),
+			tempo != null ? tempo : sheetData.tempo(),
+			sheetData.measures()
+		);
+	}
+
+	private static String resolveTitle(String pendingTitle, String omrTitle) {
+		if (!DEFAULT_PENDING_TITLE.equals(pendingTitle)) {
+			return pendingTitle;
+		}
+		return hasText(omrTitle) ? omrTitle : UNKNOWN_METADATA;
+	}
+
+	private static boolean isKnownMetadata(@Nullable String value) {
+		return hasText(value) && !UNKNOWN_METADATA.equalsIgnoreCase(Objects.requireNonNull(value).trim());
 	}
 
 	private static @Nullable UUID parseUuid(@Nullable String uuidStr) {
@@ -273,21 +312,15 @@ public class SoloService {
 		return value != null && !value.isBlank();
 	}
 
+	private static @Nullable String trimToNull(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value.trim();
+	}
+
 	private static String defaultFileName(@Nullable String originalFilename) {
 		return hasText(originalFilename) ? Objects.requireNonNull(originalFilename).trim() : "upload.jpg";
-	}
-
-	private static String defaultContentType(@Nullable String contentType) {
-		return hasText(contentType) ? Objects.requireNonNull(contentType).trim() : "application/octet-stream";
-	}
-
-	private static String extractBaseName(String originalFilename) {
-		int lastDotIndex = originalFilename.lastIndexOf('.');
-		if (lastDotIndex <= 0) {
-			return hasText(originalFilename) ? originalFilename : DEFAULT_PENDING_TITLE;
-		}
-		String baseName = originalFilename.substring(0, lastDotIndex).trim();
-		return hasText(baseName) ? baseName : DEFAULT_PENDING_TITLE;
 	}
 
 	private static byte[] readFileBytes(MultipartFile file) {

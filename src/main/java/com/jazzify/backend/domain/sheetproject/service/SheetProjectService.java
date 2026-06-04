@@ -91,7 +91,7 @@ public class SheetProjectService {
 		String contentType = defaultContentType(file.getContentType());
 		String pendingTitle = hasText(request.title())
 			? request.title().trim()
-			: extractBaseName(originalFilename);
+			: DEFAULT_PENDING_TITLE;
 
 		// 1단계: User 조회와 PENDING 엔티티 생성을 같은 트랜잭션 안에서 실행하고 커밋한다.
 		//        User 엔티티가 detached 되지 않도록 TransactionTemplate 으로 감싼다.
@@ -245,15 +245,6 @@ public class SheetProjectService {
 
 	private static String defaultContentType(@Nullable String contentType) {
 		return hasText(contentType) ? Objects.requireNonNull(contentType).trim() : "application/octet-stream";
-	}
-
-	private static String extractBaseName(String originalFilename) {
-		int lastDotIndex = originalFilename.lastIndexOf('.');
-		if (lastDotIndex <= 0) {
-			return hasText(originalFilename) ? originalFilename : DEFAULT_PENDING_TITLE;
-		}
-		String baseName = originalFilename.substring(0, lastDotIndex).trim();
-		return hasText(baseName) ? baseName : DEFAULT_PENDING_TITLE;
 	}
 
 	private static byte[] readFileBytes(MultipartFile file) {

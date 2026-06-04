@@ -2,6 +2,7 @@ package com.jazzify.backend.domain.lick.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,6 +21,7 @@ import com.jazzify.backend.domain.lick.entity.LickSource;
 import com.jazzify.backend.domain.lick.model.LickFeatures;
 import com.jazzify.backend.domain.lick.model.LickHarmonicData;
 import com.jazzify.backend.domain.lick.repository.LickRepository;
+import com.jazzify.backend.domain.lick.service.LickService;
 import com.jazzify.backend.domain.lick.util.LickMapper;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
@@ -54,6 +56,115 @@ class LickWriterTest {
 
 		assertThat(lick.isOMR()).isTrue();
 		assertThat(lickRepository.findById(Objects.requireNonNull(lick.getId())).orElseThrow().isOMR()).isTrue();
+	}
+
+	@Test
+	void createPending_normalizesBlankMetadataToUnknown() {
+		Lick lick = lickWriter.createPending(
+			LickSource.USER,
+			null,
+			null,
+			"   ",
+			" ",
+			null,
+			Instrument.TP,
+			null,
+			null,
+			null,
+			null,
+			null
+		);
+
+		assertThat(lick.getPerformer()).isEqualTo("Unknown");
+		assertThat(lick.getComposer()).isEqualTo("Unknown");
+		assertThat(lick.getTitle()).isEqualTo("Unknown");
+		assertThat(lickRepository.findById(Objects.requireNonNull(lick.getId())).orElseThrow())
+			.extracting(Lick::getPerformer, Lick::getComposer, Lick::getTitle)
+			.containsExactly("Unknown", "Unknown", "Unknown");
+	}
+
+	@Test
+	void buildOmrCreateRequest_appliesUserMetadataToSheetData() throws Exception {
+		Lick lick = Lick.builder()
+			.source(LickSource.USER)
+			.isOMR(true)
+			.performer("User Performer")
+			.composer("User Composer")
+			.title("User Title")
+			.album("User Album")
+			.instrument(Instrument.TP)
+			.tempo(180)
+			.musicalKey("F")
+			.timeSignature("3/4")
+			.build();
+		LickOmrProcessor.ProcessedSheetData processedSheetData = new LickOmrProcessor.ProcessedSheetData(
+			"OMR Composer",
+			new SheetDataRequest(
+				"OMR Title",
+				"C",
+				"4/4",
+				120,
+				List.of(new MeasureRequest(
+					"Dm7",
+					List.of(new NoteInfoRequest(List.of("d/4"), "q", null, null, null, null, null, null))
+				))
+			)
+		);
+
+		LickCreateRequest request = invokeBuildOmrCreateRequest(lick, processedSheetData);
+
+		assertThat(request.title()).isEqualTo("User Title");
+		assertThat(request.composer()).isEqualTo("User Composer");
+		assertThat(request.tempo()).isEqualTo(180);
+		assertThat(request.key()).isEqualTo("F");
+		assertThat(request.timeSignature()).isEqualTo("3/4");
+		assertThat(request.sheetData())
+			.extracting(SheetDataRequest::title, SheetDataRequest::key, SheetDataRequest::timeSignature, SheetDataRequest::tempo)
+			.containsExactly("User Title", "F", "3/4", 180);
+	}
+
+	@Test
+	void buildOmrCreateRequest_usesParsedTitleWhenUserTitleWasNotProvided() throws Exception {
+		Lick lick = Lick.builder()
+			.source(LickSource.USER)
+			.isOMR(true)
+			.title("OMR Processing")
+			.composer("Unknown")
+			.instrument(Instrument.TP)
+			.build();
+		LickOmrProcessor.ProcessedSheetData processedSheetData = new LickOmrProcessor.ProcessedSheetData(
+			"Parsed Composer",
+			new SheetDataRequest(
+				"Parsed Title",
+				"C",
+				"4/4",
+				120,
+				List.of(new MeasureRequest(
+					"Dm7",
+					List.of(new NoteInfoRequest(List.of("d/4"), "q", null, null, null, null, null, null))
+				))
+			)
+		);
+
+		LickCreateRequest request = invokeBuildOmrCreateRequest(lick, processedSheetData);
+
+		assertThat(request.title()).isEqualTo("Parsed Title");
+		assertThat(request.composer()).isEqualTo("Parsed Composer");
+		assertThat(request.sheetData().title()).isEqualTo("Parsed Title");
+	}
+
+	private static LickCreateRequest invokeBuildOmrCreateRequest(
+		Lick lick,
+		LickOmrProcessor.ProcessedSheetData processedSheetData
+	) throws Exception {
+		LickService service = new LickService(null, null, null, null, null, null);
+		Method method = LickService.class.getDeclaredMethod(
+			"buildOmrCreateRequest",
+			Lick.class,
+			LickOmrProcessor.ProcessedSheetData.class
+		);
+		method.setAccessible(true);
+		return (LickCreateRequest) method.invoke(service, lick, processedSheetData);
 	}
 
 	private static LickCreateRequest sampleRequest() {

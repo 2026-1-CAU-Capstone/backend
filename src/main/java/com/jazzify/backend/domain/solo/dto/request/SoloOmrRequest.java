@@ -56,6 +56,9 @@ public record SoloOmrRequest(
 	/** 조성. 미입력 시 MusicXML에서 추출. */
 	@Nullable @Size(max = 20) String key,
 
+	/** 박자표. 미입력 시 MusicXML에서 추출. */
+	@Nullable @Size(max = 10) String timeSignature,
+
 	/** 리듬감 문자열. {@code "SWING"}, {@code "BOSSA"} 등. */
 	@Nullable String rhythmFeel,
 
@@ -63,4 +66,3 @@ public record SoloOmrRequest(
 	@Nullable String userId
 ) {
 }
-

@@ -22,6 +22,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Lob;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -37,6 +39,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Solo extends BaseEntity {
+
+	private static final String UNKNOWN_METADATA = "Unknown";
 
 	// ─── 1. IDENTITY ────────────────────────────────────────────────────
 	@Enumerated(EnumType.STRING)
@@ -207,9 +211,9 @@ public class Solo extends BaseEntity {
 		@Nullable Integer startPitch,
 		@Nullable Integer endPitch
 	) {
-		this.performer = performer;
-		this.composer = composer;
-		this.title = title;
+		this.performer = unknownIfBlank(performer);
+		this.composer = unknownIfBlank(composer);
+		this.title = unknownIfBlank(title);
 		this.album = album;
 		this.instrument = instrument;
 		this.style = style;
@@ -277,5 +281,20 @@ public class Solo extends BaseEntity {
 	 */
 	public void replaceVideo(@Nullable SoloVideo newVideo) {
 		this.video = newVideo;
+	}
+
+	@PrePersist
+	@PreUpdate
+	private void normalizeMetadata() {
+		this.performer = unknownIfBlank(this.performer);
+		this.composer = unknownIfBlank(this.composer);
+		this.title = unknownIfBlank(this.title);
+	}
+
+	private static String unknownIfBlank(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return UNKNOWN_METADATA;
+		}
+		return value.trim();
 	}
 }

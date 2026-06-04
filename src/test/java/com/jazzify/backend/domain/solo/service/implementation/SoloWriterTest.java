@@ -2,6 +2,7 @@ package com.jazzify.backend.domain.solo.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,6 +21,7 @@ import com.jazzify.backend.domain.solo.entity.SoloSource;
 import com.jazzify.backend.domain.solo.model.SoloFeatures;
 import com.jazzify.backend.domain.solo.model.SoloHarmonicData;
 import com.jazzify.backend.domain.solo.repository.SoloRepository;
+import com.jazzify.backend.domain.solo.service.SoloService;
 import com.jazzify.backend.domain.solo.util.SoloMapper;
 import com.jazzify.backend.shared.domain.HarmonicContext;
 import com.jazzify.backend.shared.domain.Instrument;
@@ -54,6 +56,115 @@ class SoloWriterTest {
 
 		assertThat(solo.isOMR()).isTrue();
 		assertThat(soloRepository.findById(Objects.requireNonNull(solo.getId())).orElseThrow().isOMR()).isTrue();
+	}
+
+	@Test
+	void createPending_normalizesBlankMetadataToUnknown() {
+		Solo solo = soloWriter.createPending(
+			SoloSource.USER,
+			null,
+			null,
+			"   ",
+			" ",
+			null,
+			Instrument.AS,
+			null,
+			null,
+			null,
+			null,
+			null
+		);
+
+		assertThat(solo.getPerformer()).isEqualTo("Unknown");
+		assertThat(solo.getComposer()).isEqualTo("Unknown");
+		assertThat(solo.getTitle()).isEqualTo("Unknown");
+		assertThat(soloRepository.findById(Objects.requireNonNull(solo.getId())).orElseThrow())
+			.extracting(Solo::getPerformer, Solo::getComposer, Solo::getTitle)
+			.containsExactly("Unknown", "Unknown", "Unknown");
+	}
+
+	@Test
+	void buildOmrCreateRequest_appliesUserMetadataToSheetData() throws Exception {
+		Solo solo = Solo.builder()
+			.source(SoloSource.USER)
+			.isOMR(true)
+			.performer("User Performer")
+			.composer("User Composer")
+			.title("User Title")
+			.album("User Album")
+			.instrument(Instrument.AS)
+			.tempo(180)
+			.musicalKey("F")
+			.timeSignature("3/4")
+			.build();
+		SoloOmrProcessor.ProcessedSheetData processedSheetData = new SoloOmrProcessor.ProcessedSheetData(
+			"OMR Composer",
+			new SheetDataRequest(
+				"OMR Title",
+				"C",
+				"4/4",
+				120,
+				List.of(new MeasureRequest(
+					"Gm7",
+					List.of(new NoteInfoRequest(List.of("g/4"), "q", null, null, null, null, null, null))
+				))
+			)
+		);
+
+		SoloCreateRequest request = invokeBuildOmrCreateRequest(solo, processedSheetData);
+
+		assertThat(request.title()).isEqualTo("User Title");
+		assertThat(request.composer()).isEqualTo("User Composer");
+		assertThat(request.tempo()).isEqualTo(180);
+		assertThat(request.key()).isEqualTo("F");
+		assertThat(request.timeSignature()).isEqualTo("3/4");
+		assertThat(request.sheetData())
+			.extracting(SheetDataRequest::title, SheetDataRequest::key, SheetDataRequest::timeSignature, SheetDataRequest::tempo)
+			.containsExactly("User Title", "F", "3/4", 180);
+	}
+
+	@Test
+	void buildOmrCreateRequest_usesParsedTitleWhenUserTitleWasNotProvided() throws Exception {
+		Solo solo = Solo.builder()
+			.source(SoloSource.USER)
+			.isOMR(true)
+			.title("OMR Processing")
+			.composer("Unknown")
+			.instrument(Instrument.AS)
+			.build();
+		SoloOmrProcessor.ProcessedSheetData processedSheetData = new SoloOmrProcessor.ProcessedSheetData(
+			"Parsed Composer",
+			new SheetDataRequest(
+				"Parsed Title",
+				"C",
+				"4/4",
+				120,
+				List.of(new MeasureRequest(
+					"Gm7",
+					List.of(new NoteInfoRequest(List.of("g/4"), "q", null, null, null, null, null, null))
+				))
+			)
+		);
+
+		SoloCreateRequest request = invokeBuildOmrCreateRequest(solo, processedSheetData);
+
+		assertThat(request.title()).isEqualTo("Parsed Title");
+		assertThat(request.composer()).isEqualTo("Parsed Composer");
+		assertThat(request.sheetData().title()).isEqualTo("Parsed Title");
+	}
+
+	private static SoloCreateRequest invokeBuildOmrCreateRequest(
+		Solo solo,
+		SoloOmrProcessor.ProcessedSheetData processedSheetData
+	) throws Exception {
+		SoloService service = new SoloService(null, null, null, null, null, null);
+		Method method = SoloService.class.getDeclaredMethod(
+			"buildOmrCreateRequest",
+			Solo.class,
+			SoloOmrProcessor.ProcessedSheetData.class
+		);
+		method.setAccessible(true);
+		return (SoloCreateRequest) method.invoke(service, solo, processedSheetData);
 	}
 
 	private static SoloCreateRequest sampleRequest() {

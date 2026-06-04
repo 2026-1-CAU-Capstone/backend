@@ -49,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 public class LickService {
 
 	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String UNKNOWN_METADATA = "Unknown";
 
 	private final LickReader lickReader;
 	private final LickWriter lickWriter;
@@ -140,22 +141,24 @@ public class LickService {
 		byte[] fileData = readFileBytes(file);
 
 		String originalFilename = defaultFileName(file.getOriginalFilename());
-		String pendingTitle = hasText(metadata.title()) ? Objects.requireNonNull(metadata.title()).trim() : extractBaseName(originalFilename);
+		String requestedTitle = trimToNull(metadata.title());
+		String pendingTitle = requestedTitle != null ? requestedTitle : DEFAULT_PENDING_TITLE;
 
 		// 1단계: 트랜잭션 내에서 PENDING 엔티티를 생성하고 커밋한다.
 		//        LickWriter 는 @Transactional 이므로 호출 즉시 자체 트랜잭션을 열고 커밋한다.
 		Lick lick = lickWriter.createPending(
-			LickSource.from(metadata.source()),
-			parseUuid(metadata.userId()),
-			metadata.performer(),
-			metadata.composer(),
+			LickSource.from(trimToNull(metadata.source())),
+			parseUuid(trimToNull(metadata.userId())),
+			trimToNull(metadata.performer()),
+			trimToNull(metadata.composer()),
 			pendingTitle,
-			metadata.album(),
-			Instrument.from(metadata.instrument()),
-			JazzStyle.from(metadata.style()),
+			trimToNull(metadata.album()),
+			Instrument.from(trimToNull(metadata.instrument())),
+			JazzStyle.from(trimToNull(metadata.style())),
 			metadata.tempo(),
-			metadata.key(),
-			RhythmFeel.from(metadata.rhythmFeel())
+			trimToNull(metadata.key()),
+			trimToNull(metadata.timeSignature()),
+			RhythmFeel.from(trimToNull(metadata.rhythmFeel()))
 		);
 
 		UUID lickPublicId = Objects.requireNonNull(lick.getPublicId());
@@ -218,10 +221,16 @@ public class LickService {
 		Lick lick,
 		LickOmrProcessor.ProcessedSheetData processedSheetData
 	) {
-		SheetDataRequest sheetData = processedSheetData.sheetData();
-		String title = lick.getTitle() != null ? lick.getTitle()
-			: (sheetData.title() != null ? sheetData.title() : "Untitled");
-		String composer = lick.getComposer() != null ? lick.getComposer() : processedSheetData.composer();
+		SheetDataRequest omrSheetData = processedSheetData.sheetData();
+		String title = resolveTitle(lick.getTitle(), omrSheetData.title());
+		String composer = isKnownMetadata(lick.getComposer()) ? lick.getComposer() : processedSheetData.composer();
+		SheetDataRequest sheetData = withResolvedSheetMetadata(
+			omrSheetData,
+			title,
+			lick.getMusicalKey(),
+			lick.getTimeSignature(),
+			lick.getTempo()
+		);
 
 		return new LickCreateRequest(
 			lick.getSource(),
@@ -232,8 +241,8 @@ public class LickService {
 			lick.getAlbum(),
 			lick.getInstrument(),
 			lick.getStyle(),
-			lick.getTempo() != null ? lick.getTempo() : sheetData.tempo(),
-			lick.getMusicalKey() != null ? lick.getMusicalKey() : sheetData.key(),
+			sheetData.tempo(),
+			sheetData.key(),
 			lick.getRhythmFeel(),
 			sheetData.timeSignature(),
 			null,  // chords       — 자동 추출
@@ -243,6 +252,33 @@ public class LickService {
 			sheetData,
 			null   // features     — 자동 계산
 		);
+	}
+
+	private static SheetDataRequest withResolvedSheetMetadata(
+		SheetDataRequest sheetData,
+		String title,
+		@Nullable String key,
+		@Nullable String timeSignature,
+		@Nullable Integer tempo
+	) {
+		return new SheetDataRequest(
+			title,
+			key != null ? key : sheetData.key(),
+			timeSignature != null ? timeSignature : sheetData.timeSignature(),
+			tempo != null ? tempo : sheetData.tempo(),
+			sheetData.measures()
+		);
+	}
+
+	private static String resolveTitle(String pendingTitle, String omrTitle) {
+		if (!DEFAULT_PENDING_TITLE.equals(pendingTitle)) {
+			return pendingTitle;
+		}
+		return hasText(omrTitle) ? omrTitle : UNKNOWN_METADATA;
+	}
+
+	private static boolean isKnownMetadata(@Nullable String value) {
+		return hasText(value) && !UNKNOWN_METADATA.equalsIgnoreCase(Objects.requireNonNull(value).trim());
 	}
 
 	@org.jspecify.annotations.Nullable
@@ -273,21 +309,15 @@ public class LickService {
 		return value != null && !value.isBlank();
 	}
 
+	private static @Nullable String trimToNull(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value.trim();
+	}
+
 	private static String defaultFileName(@Nullable String originalFilename) {
 		return hasText(originalFilename) ? Objects.requireNonNull(originalFilename).trim() : "upload.jpg";
-	}
-
-	private static String defaultContentType(@Nullable String contentType) {
-		return hasText(contentType) ? Objects.requireNonNull(contentType).trim() : "application/octet-stream";
-	}
-
-	private static String extractBaseName(String originalFilename) {
-		int lastDotIndex = originalFilename.lastIndexOf('.');
-		if (lastDotIndex <= 0) {
-			return hasText(originalFilename) ? originalFilename : DEFAULT_PENDING_TITLE;
-		}
-		String baseName = originalFilename.substring(0, lastDotIndex).trim();
-		return hasText(baseName) ? baseName : DEFAULT_PENDING_TITLE;
 	}
 
 	private static byte[] readFileBytes(MultipartFile file) {
