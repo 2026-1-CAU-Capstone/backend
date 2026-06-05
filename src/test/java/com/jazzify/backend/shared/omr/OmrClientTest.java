@@ -285,6 +285,53 @@ class OmrClientTest {
 	}
 
 	@Test
+	void fetchChordChart_usesAcceptedTokensWhenMeasureChordsAreIncomplete() throws Exception {
+		String chordChartJson = """
+			{
+			  "time_signature": {
+			    "text_raw": "4/4",
+			    "numerator": 4,
+			    "denominator": 4
+			  },
+			  "chart_ocr": {
+			    "accepted_tokens": [
+			      { "text_norm": "G", "bbox": [477.5, 606.0, 499.0, 668.0] },
+			      { "text_norm": "C7", "bbox": [482.5, 615.0, 516.6, 667.5] },
+			      { "text_norm": "Fdim", "bbox": [516.6, 615.0, 550.8, 667.5] },
+			      { "text_norm": "Bb7", "bbox": [550.8, 615.0, 585.0, 667.5] }
+			    ]
+			  },
+			  "pages": [
+			    {
+			      "systems": [
+			        {
+			          "measures": [
+			            {
+			              "bbox": [448.0, 609.0, 593.5, 671.0],
+			              "chords": [
+			                { "text_norm": "C7", "beat": 2 },
+			                { "text_norm": "Bb7", "beat": 4 }
+			              ]
+			            }
+			          ]
+			        }
+			      ]
+			    }
+			  ]
+			}
+			""";
+
+		try (TestOmrServer server = new TestOmrServer(MUSIC_XML, "{}", chordChartJson)) {
+			OmrClient client = new OmrClient(new OmrProperties(server.baseUrl(), null, null, null));
+
+			OmrClient.ChordChartResult result = client.fetchChordChart(TestOmrServer.JOB_ID);
+
+			assertThat(result.timeSignature()).isEqualTo("4/4");
+			assertThat(result.progression()).isEqualTo("G C7 Fdim Bb7");
+		}
+	}
+
+	@Test
 	void fetchJobStatus_returnsProgressFromStatusEndpoint() throws Exception {
 		String statusJson = """
 			{

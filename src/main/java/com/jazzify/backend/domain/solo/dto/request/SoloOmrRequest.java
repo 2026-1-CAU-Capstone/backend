@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
  * Solo OMR API 요청의 메타데이터 부분 (multipart form-data).
  * <p>
  * 파일은 컨트롤러에서 {@code @RequestPart("file")}로 별도 수신한다.
- * 모든 필드가 선택(optional)이며, 미입력 시 MusicXML 파싱 결과로 채워진다.
+ * 모든 필드가 선택(optional)이며, 가능한 값은 완료 callback 처리 중 MusicXML 파싱 결과로 보완된다.
  *
  * <ul>
  *   <li>{@code title}         – 미입력 시 MusicXML의 work-title 사용</li>
@@ -37,7 +37,7 @@ public record SoloOmrRequest(
 
 	/**
 	 * 출처 코드 문자열. {@code "user"}, {@code "weimar"}, {@code "curated"}.
-	 * 미입력 시 {@code "user"}로 설정됨.
+	 * 미입력 또는 알 수 없는 값은 {@code "unknown"}으로 설정됨.
 	 */
 	@Nullable String source,
 

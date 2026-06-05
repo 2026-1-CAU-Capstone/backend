@@ -1,6 +1,7 @@
 package com.jazzify.backend.domain.chordproject.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -18,6 +19,7 @@ public record ChordProjectResponse(
 	OmrProcessingStatus omrStatus,
 	int omrProgress,
 	@Nullable String omrFailureReason,
+	List<ChordInfoResponse> chords,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt
 ) {
