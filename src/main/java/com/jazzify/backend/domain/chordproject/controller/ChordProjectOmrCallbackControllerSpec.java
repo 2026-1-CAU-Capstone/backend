@@ -19,11 +19,15 @@ public interface ChordProjectOmrCallbackControllerSpec {
 	@Operation(
 		summary = "ChordProject OMR 처리 결과 콜백 수신",
 		description = """
-			OMR 서버가 악보 인식을 완료하거나 실패했을 때 호출하는 콜백 엔드포인트.
+			MusicVision이 ChordProject OMR 작업을 완료하거나 실패했을 때 호출하는 내부 엔드포인트입니다.
+			프론트엔드가 직접 호출하지 않습니다.
 			
-			- `X-OMR-Callback-API-Key` 헤더로 요청 유효성을 검증한다.
-			- `status=completed`: MusicXML과 chord assignments를 파싱하여 ChordProject를 업데이트한다.
-			- `status=failed`: ChordProject를 실패 상태로 마킹한다.
+			- callback URL: `/api/v1/chord-projects/omr/callback`
+			- JWT 인증 없이 `X-OMR-Callback-API-Key` 헤더로 요청 유효성을 검증합니다.
+			- `job_id`는 ChordProject `publicId` 문자열이어야 합니다.
+			- `status=completed`: 저장된 `omrSourceType`에 따라 chord-chart JSON 또는 MusicXML + chord assignments를 조회하고 `ChordInfo`를 저장합니다.
+			- `status=failed`: ChordProject를 `FAILED`로 마킹하고 실패 사유를 저장합니다.
+			- `queued`, `processing` 같은 중간 상태 callback은 상태 변경 없이 무시됩니다.
 			"""
 	)
 	ApiResponse<Void> handleCallback(
@@ -32,4 +36,3 @@ public interface ChordProjectOmrCallbackControllerSpec {
 		OmrCallbackRequest request
 	);
 }
-

@@ -51,26 +51,44 @@ public interface ChordProjectControllerSpec {
 	@Operation(
 		summary = "OMR로 코드 프로젝트 생성 요청",
 		description = """
-			악보 파일을 OMR로 해석하는 비동기 작업을 큐잉하고 코드 프로젝트를 생성합니다.
+			악보 또는 코드 차트 이미지를 MusicVision OMR 서버에 비동기로 제출하고 `ChordProject`를 생성합니다.
+			이 API는 최종 인식 결과를 즉시 반환하지 않습니다. 응답의 `project.publicId`로 상태 조회 API를 폴링하세요.
 			
 			### 요청 형식
-			- `file`: 악보 파일 (`png`, `jpg`, `jpeg`)
-			- `title`: 선택. 미입력 시 MusicXML 제목 사용
-			- `key`: 선택. 미입력 시 MusicXML key/mode 기반 자동 추론
-			- `timeSignature`: 선택. 미입력 시 MusicXML 박자표 사용
+			`multipart/form-data`로 전송합니다.
+			
+			| 필드 | 필수 | 설명 |
+			| --- | --- | --- |
+			| `file` | 예 | 이미지 파일. `png`, `jpg`, `jpeg`만 허용 |
+			| `title` | 아니오 | 미입력 시 파일명 base name을 임시 제목으로 사용. 완료 시 OMR 제목으로 대체될 수 있음 |
+			| `key` | 아니오 | `MusicKey` enum 이름. 미입력 시 OMR 결과에서 추론, 실패하면 `CHORD_PROJECT_006` |
+			| `timeSignature` | 아니오 | 예: `4/4`. 미입력 시 임시값 `4/4`, 완료 시 OMR 결과로 대체될 수 있음 |
+			| `sourceType` | 아니오 | `chart`/`chord-chart` 또는 `sheet`/`sheet-music`. 미입력 시 `chart` |
+			
+			### MusicVision 제출 경로
+			Spring active profile 기준으로 dev/prod가 선택됩니다.
+			
+			| `sourceType` | dev endpoint | prod endpoint | callback URL | 완료 후 결과 조회 |
+			| --- | --- | --- | --- | --- |
+			| `chart`, `chord-chart`, 미입력 | `/chords/chart/dev/process` | `/chords/chart/prod/process` | `/api/v1/chord-projects/omr/callback` | `/omr/jobs/{jobId}/chord-chart` |
+			| `sheet`, `sheet-music` | `/chords/sheet-music/dev/process` | `/chords/sheet-music/prod/process` | `/api/v1/chord-projects/omr/callback` | `/omr/jobs/{jobId}/musicxml`, `/chord-assignments` |
+			
+			두 경로 모두 설정된 `omr.api-key`를 `X-OMR-API-Key`로 사용합니다.
 			
 			### 처리 결과
-			- 프로젝트를 즉시 생성하고 `omrStatus=PENDING`, `omrProgress=0` 상태로 반환합니다.
-			- 실제 OMR 처리와 `ChordInfo` 저장은 트랜잭션 커밋 후 이벤트 리스너에서 비동기로 수행됩니다.
-			- 생성 직후 `chords[]`는 비어 있으며, 진행상황은 상태 조회 API로 확인합니다.
+			- 백엔드가 PENDING 프로젝트를 만든 뒤 MusicVision 제출까지 성공하면 보통 `omrStatus=PROCESSING`, `omrProgress=10` 상태로 반환합니다.
+			- 생성 직후 `chords[]`는 비어 있습니다.
+			- 실제 `ChordInfo` 저장과 제목/조성/박자 확정은 MusicVision callback 수신 후 수행됩니다.
+			- 진행률은 `GET /v1/chord-projects/{publicId}/omr-status`로 확인합니다.
 			
 			### 에러
 			- `400 OMR_004`: 지원하지 않는 파일 형식
 			- `400 OMR_005`: 빈 파일
 			- `500 OMR_007`: 업로드 파일 읽기 실패
+			- `400 CHORD_PROJECT_007`: 지원하지 않는 `sourceType`
 			- `400 CHORD_PROJECT_006`: 비동기 처리 중 조성 자동 판별 실패 및 key 미입력 (`omrStatus=FAILED`로 반영)
 			- `503 OMR_001`: OMR 서버 미설정
-			- `502 OMR_002`, `422 OMR_003`, `422 OMR_006`: 비동기 작업 실패 시 프로젝트의 `omrStatus=FAILED`와 `omrFailureReason`에 반영
+			- `502 OMR_002`, `502 OMR_008`, `422 OMR_003`, `422 OMR_006`: 제출 또는 callback 처리 실패 시 `omrStatus=FAILED`와 `omrFailureReason`에 반영
 			"""
 	)
 	ApiResponse<ChordProjectOmrCreateResponse> createFromOmr(
@@ -98,6 +116,7 @@ public interface ChordProjectControllerSpec {
 		description = """
 			`publicId`에 해당하는 코드 프로젝트를 조회합니다.
 			본인 소유의 프로젝트만 조회할 수 있습니다.
+			응답의 `chords`에는 프로젝트에 저장된 `ChordInfo` 목록이 bar/beat 순서로 포함됩니다.
 			"""
 	)
 	ApiResponse<ChordProjectResponse> getByPublicId(
@@ -110,8 +129,10 @@ public interface ChordProjectControllerSpec {
 			비동기 OMR 프로젝트 생성의 현재 진행 상태를 조회합니다.
 			
 			- `status`: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
-			- `progress`: 0~100 진행률
+			- `progress`: 0~100 진행률. `PENDING`/`PROCESSING`이고 `omrJobId`가 있으면 MusicVision `GET /omr/jobs/{jobId}`의 최신 progress를 우선 사용합니다.
 			- `failureReason`: 실패 시 원인 메시지
+			
+			MusicVision status 조회가 일시적으로 실패하면 DB에 마지막으로 저장된 progress를 fallback으로 반환합니다.
 			"""
 	)
 	ApiResponse<ChordProjectOmrStatusResponse> getOmrStatus(

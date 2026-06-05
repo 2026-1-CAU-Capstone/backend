@@ -156,7 +156,8 @@ public class ChordProjectService {
 	public ChordProjectResponse getByPublicId(UUID userPublicId, UUID projectPublicId) {
 		User user = userReader.getByPublicId(userPublicId);
 		ChordProject project = chordProjectReader.getByPublicIdAndUser(projectPublicId, user);
-		return ChordProjectMapper.toResponse(project);
+		List<ChordInfo> chordInfos = chordInfoReader.getAllByChordProject(project);
+		return ChordProjectMapper.toResponse(project, chordInfos);
 	}
 
 	@Transactional(readOnly = true)
@@ -365,9 +366,7 @@ public class ChordProjectService {
 			UUID publicId = Objects.requireNonNull(project.getPublicId());
 			chordProjectOmrWriter.markProcessing(publicId, 80);
 
-			ChordProjectOmrSourceType sourceType = project.getOmrSourceType() != null
-				? project.getOmrSourceType()
-				: ChordProjectOmrSourceType.CHORD_CHART;
+			ChordProjectOmrSourceType sourceType = resolveCallbackSourceType(project);
 			ChordProjectOmrProcessor.ChordProjectOmrData omrData = chordProjectOmrProcessor.processJobResult(jobId, sourceType);
 
 			String title = project.getOmrRequestedTitle() != null ? project.getOmrRequestedTitle() : omrData.title();
@@ -400,6 +399,13 @@ public class ChordProjectService {
 		if (!expectedKey.equals(providedKey)) {
 			throw OmrErrorCode.OMR_CALLBACK_KEY_INVALID.toException();
 		}
+	}
+
+	private static ChordProjectOmrSourceType resolveCallbackSourceType(ChordProject project) {
+		if (project.getOmrSourceType() != null) {
+			return project.getOmrSourceType();
+		}
+		return ChordProjectOmrSourceType.CHORD_CHART;
 	}
 
 	private OmrClient.OmrSubmitResult submitChordProjectOmrJob(

@@ -416,11 +416,14 @@ public class OmrClient {
 			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 결과가 비어 있습니다. job_id=" + jobId);
 		}
 
+		List<ChordAssignment> acceptedTokens = response.chartOcr() != null
+			? nullSafeList(response.chartOcr().acceptedTokens())
+			: List.of();
 		List<String> bars = new ArrayList<>();
 		for (ChartPage page : nullSafeList(response.pages())) {
 			for (ChartSystem system : nullSafeList(page.systems())) {
 				for (ChartMeasure measure : nullSafeList(system.measures())) {
-					bars.add(toChartBarToken(measure));
+					bars.add(toChartBarToken(measure, acceptedTokens));
 				}
 			}
 		}
@@ -432,7 +435,7 @@ public class OmrClient {
 		return new ChordChartResult(toTimeSignature(response.timeSignature()), String.join(" | ", bars));
 	}
 
-	private String toChartBarToken(ChartMeasure measure) {
+	private String toChartBarToken(ChartMeasure measure, List<ChordAssignment> acceptedTokens) {
 		List<MeasureChord> measureChords = new ArrayList<>();
 		for (ChordAssignment chord : nullSafeList(measure.chords())) {
 			MeasureChord measureChord = toMeasureChord(chord);
@@ -441,12 +444,40 @@ public class OmrClient {
 			}
 		}
 
-		measureChords.sort(Comparator.comparingInt(MeasureChord::beat).thenComparing(MeasureChord::text));
-		String joined = measureChords.stream()
+		List<MeasureChord> acceptedMeasureChords = extractAcceptedTokensForMeasure(measure, acceptedTokens);
+		List<MeasureChord> selectedChords = acceptedMeasureChords.size() > measureChords.size()
+			? acceptedMeasureChords
+			: measureChords;
+
+		selectedChords.sort(Comparator.comparingInt(MeasureChord::beat)
+			.thenComparingDouble(MeasureChord::horizontalOrder)
+			.thenComparing(MeasureChord::text));
+		String joined = selectedChords.stream()
 			.map(MeasureChord::text)
 			.reduce((left, right) -> left + " " + right)
 			.orElse("");
 		return joined.isBlank() ? "N.C." : joined.trim().replaceAll("\\s+", " ");
+	}
+
+	private List<MeasureChord> extractAcceptedTokensForMeasure(ChartMeasure measure, List<ChordAssignment> acceptedTokens) {
+		@Nullable Bounds measureBounds = Bounds.from(measure.bbox());
+		if (measureBounds == null || acceptedTokens.isEmpty()) {
+			return List.of();
+		}
+
+		List<MeasureChord> measureChords = new ArrayList<>();
+		for (ChordAssignment token : acceptedTokens) {
+			@Nullable Bounds tokenBounds = Bounds.from(token.bbox());
+			if (tokenBounds == null || !measureBounds.containsCenterOf(tokenBounds)) {
+				continue;
+			}
+
+			MeasureChord measureChord = toMeasureChord(token);
+			if (measureChord != null) {
+				measureChords.add(measureChord);
+			}
+		}
+		return measureChords;
 	}
 
 	private String toTimeSignature(@Nullable ChartTimeSignature timeSignature) {
@@ -474,7 +505,7 @@ public class OmrClient {
 		}
 
 		int beat = chord.beat() != null ? chord.beat() : Integer.MAX_VALUE;
-		return new MeasureChord(beat, chordText);
+		return new MeasureChord(beat, chordText, Bounds.centerX(chord.bbox()));
 	}
 
 	private static MediaType deriveMediaType(String ext) {
@@ -539,7 +570,14 @@ public class OmrClient {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record ChordChartResponse(
 		@JsonProperty("time_signature") @Nullable ChartTimeSignature timeSignature,
+		@JsonProperty("chart_ocr") @Nullable ChartOcr chartOcr,
 		@Nullable List<ChartPage> pages
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartOcr(
+		@JsonProperty("accepted_tokens") @Nullable List<ChordAssignment> acceptedTokens
 	) {
 	}
 
@@ -574,6 +612,7 @@ public class OmrClient {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record ChartMeasure(
+		@Nullable List<Double> bbox,
 		@Nullable List<ChordAssignment> chords
 	) {
 	}
@@ -607,11 +646,40 @@ public class OmrClient {
 	private record ChordAssignment(
 		@JsonProperty("text_raw") @Nullable String textRaw,
 		@JsonProperty("text_norm") @Nullable String textNorm,
+		@Nullable List<Double> bbox,
 		@Nullable Integer beat
 	) {
 	}
 
-	private record MeasureChord(int beat, String text) {
+	private record MeasureChord(int beat, String text, double horizontalOrder) {
+	}
+
+	private record Bounds(double left, double top, double right, double bottom) {
+
+		private boolean containsCenterOf(Bounds other) {
+			double centerX = (other.left + other.right) / 2.0;
+			double centerY = (other.top + other.bottom) / 2.0;
+			return centerX >= left && centerX <= right && centerY >= top && centerY <= bottom;
+		}
+
+		private static @Nullable Bounds from(@Nullable List<Double> bbox) {
+			if (bbox == null || bbox.size() < 4) {
+				return null;
+			}
+			double left = Math.min(bbox.get(0), bbox.get(2));
+			double top = Math.min(bbox.get(1), bbox.get(3));
+			double right = Math.max(bbox.get(0), bbox.get(2));
+			double bottom = Math.max(bbox.get(1), bbox.get(3));
+			return new Bounds(left, top, right, bottom);
+		}
+
+		private static double centerX(@Nullable List<Double> bbox) {
+			@Nullable Bounds bounds = from(bbox);
+			if (bounds == null) {
+				return Double.MAX_VALUE;
+			}
+			return (bounds.left + bounds.right) / 2.0;
+		}
 	}
 
 }

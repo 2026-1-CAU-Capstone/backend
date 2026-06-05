@@ -39,4 +39,3 @@ public class ChordProjectOmrCallbackController implements ChordProjectOmrCallbac
 		return ApiResponse.ok();
 	}
 }
-

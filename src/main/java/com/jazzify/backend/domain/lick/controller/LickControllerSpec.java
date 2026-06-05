@@ -426,9 +426,8 @@ public interface LickControllerSpec {
 	@Operation(
 		summary = "OMR로 릭 생성 (악보 파일 업로드)",
 			description = """
-				악보 파일(PNG/JPG/JPEG)을 업로드하여 MusicVision OMR 서버에서 인식한 뒤,
-				반환된 `job_id`로 MusicXML과 chord assignments를 조회하고,
-				안전하게 매핑 가능한 마디만 결합하여 Lick으로 저장합니다.
+				악보 이미지 파일을 MusicVision OMR 서버에 비동기로 제출하고 `isOMR=true`인 Lick을 생성합니다.
+				이 API는 최종 MusicXML 파싱 결과를 즉시 반환하지 않습니다. 응답의 `publicId`를 저장한 뒤 단건 조회 API로 `omrStatus`를 확인하세요.
 			
 			### 요청 형식
 			`multipart/form-data`로 전송해야 합니다.
@@ -436,42 +435,49 @@ public interface LickControllerSpec {
 			### 필수 파트
 			| 파라미터 | 타입 | 설명 |
 			|---------|------|------|
-			| `file` | file | 악보 파일. **PNG · JPG · JPEG** 만 허용. |
+			| `file` | file | 악보 이미지 파일. `png`, `jpg`, `jpeg`만 허용 |
 			
 			### 선택 파라미터 (form field)
-			모든 필드가 선택(optional)이며, 미입력 시 MusicXML에서 추출된 값이 사용됩니다.
+			모든 필드는 선택입니다. 사용자가 입력한 값은 callback 완료 후 OMR 결과보다 우선 적용됩니다.
 			
 			| 파라미터 | 타입 | 설명 |
 			|---------|------|------|
-			| `title` | string | 곡 제목 (미입력 시 MusicXML work-title 사용) |
+			| `title` | string | 곡 제목. 미입력 시 임시 제목 `OMR Processing`, 완료 후 MusicXML 제목 또는 `Unknown` 사용 |
 			| `performer` | string | 연주자 이름 |
-			| `composer` | string | 작곡자 이름 (미입력 시 MusicXML creator[type=composer] 사용) |
+			| `composer` | string | 작곡자 이름. 미입력/`Unknown`이면 완료 후 MusicXML composer fallback 허용 |
 			| `album` | string | 앨범명 |
-			| `source` | string | 출처: `user` · `weimar` · `curated` (기본: `user`) |
-			| `instrument` | string | 악기 코드: `as` · `ts` · `tp` · `p` · `g` 등 |
+			| `source` | string | 출처: `user`, `weimar`, `curated`. 미입력 또는 알 수 없는 값은 `unknown` |
+			| `instrument` | string | 악기 코드: `as`, `ts`, `tp`, `p`, `g`, `b`, `voc`, `cl`. 미입력 또는 알 수 없는 값은 `unknown` |
 			| `style` | string | 재즈 스타일: `SWING` · `BEBOP` · `HARDBOP` 등 |
-			| `tempo` | integer | 템포 BPM (미입력 시 MusicXML 값 사용) |
-			| `key` | string | 조성 (미입력 시 MusicXML fifths 값 사용) |
+			| `tempo` | integer | 템포 BPM. 미입력 시 MusicXML 값 사용 |
+			| `key` | string | 조성. 미입력 시 MusicXML key 사용 |
+			| `timeSignature` | string | 박자표. 미입력 시 MusicXML 박자표 사용 |
 			| `rhythmFeel` | string | 리듬감: `SWING` · `STRAIGHT` · `BOSSA` · `LATIN` |
-			| `userId` | string (UUID) | 소유자 ID |
+			| `userId` | string(UUID) | 소유자 ID. 잘못된 UUID 문자열은 `null`로 처리 |
 			
 			### 처리 흐름
-				1. 파일 확장자 검증 (`png`, `jpg`, `jpeg`)
-			2. MusicVision `POST /omr/process`로 파일 전송
-			3. 응답의 `job_id`로 `/omr/jobs/{job_id}/musicxml` 조회
-			4. `/omr/jobs/{job_id}/chord-assignments` 조회
-				5. `measure_alignment.status`가 `aligned`면 전체 결합, `partial`이면 `musicxml_measure_number`가 있는 마디만 결합, `mismatch`면 자동 결합 생략
-			6. MusicXML 파싱 (조성·박자표·마디·음표 추출)
-			7. 화성 맥락 및 유사도 피처 자동 계산
-			8. DB 저장 후 릭 응답 반환
+			1. 파일 확장자/빈 파일 검증
+			2. PENDING Lick 생성
+			3. MusicVision `/omr/dev/process` 또는 `/omr/prod/process`로 제출 (`X-OMR-API-Key` 사용)
+			4. 제출 성공 시 `omrStatus=PROCESSING`, `omrProgress=10` 응답
+			5. MusicVision callback 수신 시 `/omr/jobs/{jobId}/musicxml`과 `/chord-assignments` 조회
+			6. MusicXML 파싱, 화성 맥락 및 유사도 피처 자동 계산
+			7. Lick 데이터 채우기 및 `omrStatus=COMPLETED`, 실패 시 `FAILED`
+			
+			### 상태 확인
+			Lick에는 전용 `/omr-status` API가 없습니다.
+			`GET /v1/licks/{publicId}` 응답의 `omrStatus`, `omrProgress`, `omrFailureReason`를 확인하세요.
 			
 			### 에러
 			- `400 OMR_004`: 지원하지 않는 파일 형식
 			- `400 OMR_005`: 빈 파일
+			- `500 OMR_007`: 업로드 파일 읽기 실패
 			- `503 OMR_001`: OMR 서버 미설정
-			- `502 OMR_002`: OMR 서버 인식 실패
+			- `502 OMR_008`: OMR 서버 작업 제출 실패
+			- `502 OMR_002`: OMR 서버 결과 조회 실패
 			- `422 OMR_003`: MusicXML 파싱 실패
-			- `422 OMR_006`: MusicXML과 chord assignments의 마디 정렬 불일치
+			- `401 OMR_009`: callback API key 불일치
+			- `404 OMR_010`: callback `job_id`에 해당하는 Lick 없음
 			
 			### 태깅
 			- OMR로 생성된 릭은 응답/저장 데이터의 `isOMR = true`로 태깅됩니다.
