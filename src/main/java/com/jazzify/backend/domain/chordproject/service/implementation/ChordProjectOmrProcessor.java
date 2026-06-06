@@ -1,13 +1,15 @@
 package com.jazzify.backend.domain.chordproject.service.implementation;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.jazzify.backend.domain.chordproject.model.ChordProjectOmrChord;
 import com.jazzify.backend.domain.chordproject.model.ChordProjectOmrSourceType;
 import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
@@ -50,10 +52,18 @@ public class ChordProjectOmrProcessor {
 	private ChordProjectOmrData processChordChartJobResult(String jobId) {
 		OmrClient.ChordChartResult chordChart = omrClient.fetchChordChart(jobId);
 		return new ChordProjectOmrData(
-			DEFAULT_TITLE,
+			chordChart.title(),
 			null,
 			chordChart.timeSignature(),
-			chordChart.progression()
+			chordChart.beatsPerBar(),
+			chordChart.chords().stream()
+				.map(chord -> new ChordProjectOmrChord(
+					chord.bar(),
+					chord.chord(),
+					chord.beat(),
+					chord.durationBeats()
+				))
+				.toList()
 		);
 	}
 
@@ -73,32 +83,55 @@ public class ChordProjectOmrProcessor {
 		}
 
 		String timeSignature = parsed.timeSignature().isBlank() ? "4/4" : parsed.timeSignature();
+		int beatsPerBar = extractBeatsPerBar(timeSignature);
 		return new ChordProjectOmrData(
 			parsed.title().isBlank() ? DEFAULT_TITLE : parsed.title(),
 			MusicKey.fromAnalysisKey(parsed.key()),
 			timeSignature,
-			toProgression(parsed)
+			beatsPerBar,
+			toOmrChords(parsed, beatsPerBar)
 		);
 	}
 
-	private String toProgression(ParsedSheetData parsed) {
-		return parsed.measures().stream()
-			.map(this::toBarToken)
-			.collect(Collectors.joining(" | "));
+	private List<ChordProjectOmrChord> toOmrChords(ParsedSheetData parsed, int beatsPerBar) {
+		List<ChordProjectOmrChord> result = new ArrayList<>();
+		for (int measureIndex = 0; measureIndex < parsed.measures().size(); measureIndex++) {
+			ParsedMeasure measure = parsed.measures().get(measureIndex);
+			int bar = measureIndex + 1;
+			if (measure.chord() == null || measure.chord().isBlank()) {
+				result.add(new ChordProjectOmrChord(bar, null, 1.0, beatsPerBar));
+				continue;
+			}
+
+			String[] tokens = measure.chord().trim().split("\\s+");
+			int baseDuration = beatsPerBar / tokens.length;
+			int remainder = beatsPerBar % tokens.length;
+			double currentBeat = 1.0;
+			for (int i = 0; i < tokens.length; i++) {
+				double duration = baseDuration + (i < remainder ? 1 : 0);
+				String chord = "N.C.".equalsIgnoreCase(tokens[i]) ? null : tokens[i];
+				result.add(new ChordProjectOmrChord(bar, chord, currentBeat, duration));
+				currentBeat += duration;
+			}
+		}
+		return List.copyOf(result);
 	}
 
-	private String toBarToken(ParsedMeasure measure) {
-		if (measure.chord() == null || measure.chord().isBlank()) {
-			return "N.C.";
+	private int extractBeatsPerBar(String timeSignature) {
+		try {
+			int beatsPerBar = Integer.parseInt(timeSignature.split("/")[0].trim());
+			return beatsPerBar > 0 ? beatsPerBar : 4;
+		} catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+			return 4;
 		}
-		return measure.chord().trim().replaceAll("\\s+", " ");
 	}
 
 	public record ChordProjectOmrData(
 		String title,
 		@Nullable MusicKey key,
 		String timeSignature,
-		String progression
+		int beatsPerBar,
+		List<ChordProjectOmrChord> chords
 	) {
 	}
 }

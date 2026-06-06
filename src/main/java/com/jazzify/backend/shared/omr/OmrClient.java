@@ -398,7 +398,9 @@ public class OmrClient {
 		Map<String, String> chordsByMeasureNumber = new LinkedHashMap<>();
 		for (Map.Entry<String, List<MeasureChord>> entry : grouped.entrySet()) {
 			List<MeasureChord> measureChords = entry.getValue();
-			measureChords.sort(Comparator.comparingInt(MeasureChord::beat).thenComparing(MeasureChord::text));
+			measureChords.sort(Comparator
+				.comparingDouble((MeasureChord chord) -> chord.beat() != null ? chord.beat() : Double.MAX_VALUE)
+				.thenComparing(MeasureChord::text));
 			String joined = measureChords.stream()
 				.map(MeasureChord::text)
 				.reduce((left, right) -> left + "  " + right)
@@ -416,68 +418,121 @@ public class OmrClient {
 			throw OmrErrorCode.OMR_RECOGNITION_FAILED.toException("Chord chart 결과가 비어 있습니다. job_id=" + jobId);
 		}
 
-		List<ChordAssignment> acceptedTokens = response.chartOcr() != null
-			? nullSafeList(response.chartOcr().acceptedTokens())
-			: List.of();
-		List<String> bars = new ArrayList<>();
+		int beatsPerBar = toBeatsPerBar(response.beatsPerBar(), response.timeSignature());
+		List<ChartMeasureRef> measures = new ArrayList<>();
+		int traversalOrder = 1;
 		for (ChartPage page : nullSafeList(response.pages())) {
 			for (ChartSystem system : nullSafeList(page.systems())) {
 				for (ChartMeasure measure : nullSafeList(system.measures())) {
-					bars.add(toChartBarToken(measure, acceptedTokens));
+					measures.add(new ChartMeasureRef(traversalOrder++, measure));
 				}
 			}
 		}
 
-		if (bars.isEmpty()) {
+		if (measures.isEmpty()) {
 			throw OmrErrorCode.OMR_PARSE_FAILED.toException("Chord chart에서 인식된 마디가 없습니다. job_id=" + jobId);
 		}
 
-		return new ChordChartResult(toTimeSignature(response.timeSignature()), String.join(" | ", bars));
+		measures.sort(Comparator
+			.comparingInt(ChartMeasureRef::bar)
+			.thenComparingInt(ChartMeasureRef::traversalOrder));
+
+		List<ChordChartChord> chords = new ArrayList<>();
+		for (ChartMeasureRef measureRef : measures) {
+			chords.addAll(toChartChords(measureRef.bar(), measureRef.measure(), beatsPerBar));
+		}
+
+		String title = trimToNull(response.title());
+		return new ChordChartResult(
+			title != null ? title : "Untitled",
+			toTimeSignature(response.timeSignature()),
+			beatsPerBar,
+			List.copyOf(chords)
+		);
 	}
 
-	private String toChartBarToken(ChartMeasure measure, List<ChordAssignment> acceptedTokens) {
+	private List<ChordChartChord> toChartChords(int bar, ChartMeasure measure, int beatsPerBar) {
+		List<ChordAssignment> assignments = !nullSafeList(measure.chords()).isEmpty()
+			? nullSafeList(measure.chords())
+			: nullSafeList(measure.resolvedChords());
+
 		List<MeasureChord> measureChords = new ArrayList<>();
-		for (ChordAssignment chord : nullSafeList(measure.chords())) {
-			MeasureChord measureChord = toMeasureChord(chord);
+		for (ChordAssignment assignment : assignments) {
+			MeasureChord measureChord = toMeasureChord(assignment);
 			if (measureChord != null) {
 				measureChords.add(measureChord);
 			}
 		}
 
-		List<MeasureChord> acceptedMeasureChords = extractAcceptedTokensForMeasure(measure, acceptedTokens);
-		List<MeasureChord> selectedChords = acceptedMeasureChords.size() > measureChords.size()
-			? acceptedMeasureChords
-			: measureChords;
+		if (measureChords.isEmpty()) {
+			return List.of(new ChordChartChord(bar, null, 1.0, beatsPerBar));
+		}
 
-		selectedChords.sort(Comparator.comparingInt(MeasureChord::beat)
+		measureChords.sort(Comparator
+			.comparingDouble((MeasureChord chord) -> chord.beat() != null ? chord.beat() : Double.MAX_VALUE)
 			.thenComparingDouble(MeasureChord::horizontalOrder)
 			.thenComparing(MeasureChord::text));
-		String joined = selectedChords.stream()
-			.map(MeasureChord::text)
-			.reduce((left, right) -> left + " " + right)
-			.orElse("");
-		return joined.isBlank() ? "N.C." : joined.trim().replaceAll("\\s+", " ");
+
+		double inferredDuration = (double) beatsPerBar / measureChords.size();
+		Map<Double, PositionedChord> chordsByBeat = new LinkedHashMap<>();
+		for (int i = 0; i < measureChords.size(); i++) {
+			MeasureChord chord = measureChords.get(i);
+			double inferredBeat = 1.0 + (inferredDuration * i);
+			double beat = normalizeBeat(chord.beat(), inferredBeat, beatsPerBar);
+			PositionedChord positioned = new PositionedChord(beat, chord.text(), chord.confidence());
+			chordsByBeat.merge(beat, positioned, OmrClient::selectHigherConfidence);
+		}
+
+		List<PositionedChord> positionedChords = new ArrayList<>(chordsByBeat.values());
+		positionedChords.sort(Comparator.comparingDouble(PositionedChord::beat));
+
+		List<ChordChartChord> result = new ArrayList<>();
+		double measureEndBeat = beatsPerBar + 1.0;
+		for (int i = 0; i < positionedChords.size(); i++) {
+			PositionedChord chord = positionedChords.get(i);
+			double nextBeat = i + 1 < positionedChords.size()
+				? positionedChords.get(i + 1).beat()
+				: measureEndBeat;
+			double duration = Math.max(0.0, nextBeat - chord.beat());
+			result.add(new ChordChartChord(bar, chord.text(), chord.beat(), duration));
+		}
+		return mergeConsecutiveChartChords(result);
 	}
 
-	private List<MeasureChord> extractAcceptedTokensForMeasure(ChartMeasure measure, List<ChordAssignment> acceptedTokens) {
-		@Nullable Bounds measureBounds = Bounds.from(measure.bbox());
-		if (measureBounds == null || acceptedTokens.isEmpty()) {
-			return List.of();
+	private static PositionedChord selectHigherConfidence(PositionedChord current, PositionedChord candidate) {
+		return candidate.confidence() > current.confidence() ? candidate : current;
+	}
+
+	private static List<ChordChartChord> mergeConsecutiveChartChords(List<ChordChartChord> chords) {
+		if (chords.isEmpty()) {
+			return chords;
 		}
 
-		List<MeasureChord> measureChords = new ArrayList<>();
-		for (ChordAssignment token : acceptedTokens) {
-			@Nullable Bounds tokenBounds = Bounds.from(token.bbox());
-			if (tokenBounds == null || !measureBounds.containsCenterOf(tokenBounds)) {
-				continue;
-			}
-
-			MeasureChord measureChord = toMeasureChord(token);
-			if (measureChord != null) {
-				measureChords.add(measureChord);
+		List<ChordChartChord> merged = new ArrayList<>();
+		ChordChartChord current = chords.getFirst();
+		for (int i = 1; i < chords.size(); i++) {
+			ChordChartChord next = chords.get(i);
+			if (current.chord() != null
+				&& current.chord().equals(next.chord())
+				&& Double.compare(current.beat() + current.durationBeats(), next.beat()) == 0) {
+				current = new ChordChartChord(
+					current.bar(),
+					current.chord(),
+					current.beat(),
+					current.durationBeats() + next.durationBeats()
+				);
+			} else {
+				merged.add(current);
+				current = next;
 			}
 		}
-		return measureChords;
+		merged.add(current);
+		return merged;
+	}
+
+	private static double normalizeBeat(@Nullable Double beat, double inferredBeat, int beatsPerBar) {
+		double resolved = beat != null && Double.isFinite(beat) ? beat : inferredBeat;
+		return Math.max(1.0, Math.min(resolved, beatsPerBar));
 	}
 
 	private String toTimeSignature(@Nullable ChartTimeSignature timeSignature) {
@@ -494,6 +549,22 @@ public class OmrClient {
 		return "4/4";
 	}
 
+	private int toBeatsPerBar(@Nullable Integer beatsPerBar, @Nullable ChartTimeSignature timeSignature) {
+		if (beatsPerBar != null && beatsPerBar > 0) {
+			return beatsPerBar;
+		}
+		if (timeSignature != null && timeSignature.numerator() != null && timeSignature.numerator() > 0) {
+			return timeSignature.numerator();
+		}
+		String timeSignatureText = toTimeSignature(timeSignature);
+		try {
+			int parsed = Integer.parseInt(timeSignatureText.split("/")[0].trim());
+			return parsed > 0 ? parsed : 4;
+		} catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+			return 4;
+		}
+	}
+
 	@Nullable
 	private MeasureChord toMeasureChord(ChordAssignment chord) {
 		String chordText = trimToNull(chord.textNorm());
@@ -504,8 +575,8 @@ public class OmrClient {
 			return null;
 		}
 
-		int beat = chord.beat() != null ? chord.beat() : Integer.MAX_VALUE;
-		return new MeasureChord(beat, chordText, Bounds.centerX(chord.bbox()));
+		double confidence = chord.confidence() != null ? chord.confidence() : 0.0;
+		return new MeasureChord(chord.beat(), chordText, Bounds.centerX(chord.bbox()), confidence);
 	}
 
 	private static MediaType deriveMediaType(String ext) {
@@ -539,8 +610,18 @@ public class OmrClient {
 	}
 
 	public record ChordChartResult(
+		String title,
 		String timeSignature,
-		String progression
+		int beatsPerBar,
+		List<ChordChartChord> chords
+	) {
+	}
+
+	public record ChordChartChord(
+		int bar,
+		@Nullable String chord,
+		double beat,
+		double durationBeats
 	) {
 	}
 
@@ -569,15 +650,10 @@ public class OmrClient {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record ChordChartResponse(
+		@Nullable String title,
 		@JsonProperty("time_signature") @Nullable ChartTimeSignature timeSignature,
-		@JsonProperty("chart_ocr") @Nullable ChartOcr chartOcr,
+		@JsonProperty("beats_per_bar") @Nullable Integer beatsPerBar,
 		@Nullable List<ChartPage> pages
-	) {
-	}
-
-	@JsonIgnoreProperties(ignoreUnknown = true)
-	private record ChartOcr(
-		@JsonProperty("accepted_tokens") @Nullable List<ChordAssignment> acceptedTokens
 	) {
 	}
 
@@ -612,8 +688,10 @@ public class OmrClient {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	private record ChartMeasure(
+		@Nullable Integer index,
 		@Nullable List<Double> bbox,
-		@Nullable List<ChordAssignment> chords
+		@Nullable List<ChordAssignment> chords,
+		@JsonProperty("resolved_chords") @Nullable List<ChordAssignment> resolvedChords
 	) {
 	}
 
@@ -647,20 +725,30 @@ public class OmrClient {
 		@JsonProperty("text_raw") @Nullable String textRaw,
 		@JsonProperty("text_norm") @Nullable String textNorm,
 		@Nullable List<Double> bbox,
-		@Nullable Integer beat
+		@Nullable Double beat,
+		@Nullable Double confidence
 	) {
 	}
 
-	private record MeasureChord(int beat, String text, double horizontalOrder) {
+	private record MeasureChord(
+		@Nullable Double beat,
+		String text,
+		double horizontalOrder,
+		double confidence
+	) {
+	}
+
+	private record PositionedChord(double beat, String text, double confidence) {
+	}
+
+	private record ChartMeasureRef(int traversalOrder, ChartMeasure measure) {
+
+		private int bar() {
+			return measure.index() != null && measure.index() > 0 ? measure.index() : traversalOrder;
+		}
 	}
 
 	private record Bounds(double left, double top, double right, double bottom) {
-
-		private boolean containsCenterOf(Bounds other) {
-			double centerX = (other.left + other.right) / 2.0;
-			double centerY = (other.top + other.bottom) / 2.0;
-			return centerX >= left && centerX <= right && centerY >= top && centerY <= bottom;
-		}
 
 		private static @Nullable Bounds from(@Nullable List<Double> bbox) {
 			if (bbox == null || bbox.size() < 4) {

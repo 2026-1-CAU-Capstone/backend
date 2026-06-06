@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -279,26 +280,35 @@ class OmrClientTest {
 
 			OmrClient.ChordChartResult result = client.fetchChordChart(TestOmrServer.JOB_ID);
 
+			assertThat(result.title()).isEqualTo("Untitled");
 			assertThat(result.timeSignature()).isEqualTo("3/4");
-			assertThat(result.progression()).isEqualTo("Dm7 G7 | Cmaj7 | N.C.");
+			assertThat(result.beatsPerBar()).isEqualTo(3);
+			assertThat(result.chords()).containsExactly(
+				new OmrClient.ChordChartChord(1, "Dm7", 1.0, 2.0),
+				new OmrClient.ChordChartChord(1, "G7", 3.0, 1.0),
+				new OmrClient.ChordChartChord(2, "Cmaj7", 1.0, 3.0),
+				new OmrClient.ChordChartChord(3, null, 1.0, 3.0)
+			);
 		}
 	}
 
 	@Test
-	void fetchChordChart_usesAcceptedTokensWhenMeasureChordsAreIncomplete() throws Exception {
+	void fetchChordChart_usesStructuredChordsAndResolvedRepeatChordsInsteadOfAcceptedTokenCandidates() throws Exception {
 		String chordChartJson = """
 			{
+			  "title": "After You've Gone",
 			  "time_signature": {
 			    "text_raw": "4/4",
 			    "numerator": 4,
 			    "denominator": 4
 			  },
+			  "beats_per_bar": 4,
 			  "chart_ocr": {
 			    "accepted_tokens": [
-			      { "text_norm": "G", "bbox": [477.5, 606.0, 499.0, 668.0] },
-			      { "text_norm": "C7", "bbox": [482.5, 615.0, 516.6, 667.5] },
-			      { "text_norm": "Fdim", "bbox": [516.6, 615.0, 550.8, 667.5] },
-			      { "text_norm": "Bb7", "bbox": [550.8, 615.0, 585.0, 667.5] }
+			      { "kind": "chord", "text_norm": "Bb", "bbox": [518.0, 128.5, 616.5, 224.0], "confidence": 0.33 },
+			      { "kind": "chord", "text_norm": "Bdim", "bbox": [518.0, 153.0, 615.0, 232.0], "confidence": 0.41 },
+			      { "kind": "chord", "text_norm": "Dm0", "bbox": [520.5, 197.0, 607.5, 225.5], "confidence": 0.24 },
+			      { "kind": "ending", "text": "2", "bbox": [363.0, 152.0, 409.0, 210.0], "confidence": 0.15 }
 			    ]
 			  },
 			  "pages": [
@@ -307,10 +317,46 @@ class OmrClientTest {
 			        {
 			          "measures": [
 			            {
-			              "bbox": [448.0, 609.0, 593.5, 671.0],
+			              "index": 1,
 			              "chords": [
-			                { "text_norm": "C7", "beat": 2 },
-			                { "text_norm": "Bb7", "beat": 4 }
+			                { "text_norm": "Bbmaj7", "beat": 1, "confidence": 0.92 }
+			              ]
+			            },
+			            {
+			              "index": 2,
+			              "chords": [],
+			              "resolved_chords": [
+			                { "text_norm": "Bbmaj7", "beat": 1 }
+			              ]
+			            },
+			            {
+			              "index": 3,
+			              "chords": [
+			                { "text_norm": "Bdim", "beat": 1, "confidence": 0.41 }
+			              ]
+			            },
+			            {
+			              "index": 4,
+			              "chords": [
+			                { "text_norm": "Em7", "beat": 1, "confidence": 0.98 },
+			                { "text_norm": "Ab7", "beat": 3, "confidence": 0.99 }
+			              ]
+			            },
+			            {
+			              "index": 5,
+			              "chords": [
+			                { "text_norm": "Eb7", "beat": 3, "confidence": 0.61 }
+			              ]
+			            },
+			            {
+			              "index": 6,
+			              "chords": []
+			            },
+			            {
+			              "index": 7,
+			              "chords": [
+			                { "text_norm": "Dm7", "beat": 1, "confidence": 0.96 },
+			                { "text_norm": "Dm7", "beat": 3, "confidence": 0.89 }
 			              ]
 			            }
 			          ]
@@ -326,8 +372,19 @@ class OmrClientTest {
 
 			OmrClient.ChordChartResult result = client.fetchChordChart(TestOmrServer.JOB_ID);
 
+			assertThat(result.title()).isEqualTo("After You've Gone");
 			assertThat(result.timeSignature()).isEqualTo("4/4");
-			assertThat(result.progression()).isEqualTo("G C7 Fdim Bb7");
+			assertThat(result.beatsPerBar()).isEqualTo(4);
+			assertThat(result.chords()).containsExactlyElementsOf(List.of(
+				new OmrClient.ChordChartChord(1, "Bbmaj7", 1.0, 4.0),
+				new OmrClient.ChordChartChord(2, "Bbmaj7", 1.0, 4.0),
+				new OmrClient.ChordChartChord(3, "Bdim", 1.0, 4.0),
+				new OmrClient.ChordChartChord(4, "Em7", 1.0, 2.0),
+				new OmrClient.ChordChartChord(4, "Ab7", 3.0, 2.0),
+				new OmrClient.ChordChartChord(5, "Eb7", 3.0, 2.0),
+				new OmrClient.ChordChartChord(6, null, 1.0, 4.0),
+				new OmrClient.ChordChartChord(7, "Dm7", 1.0, 4.0)
+			));
 		}
 	}
 
