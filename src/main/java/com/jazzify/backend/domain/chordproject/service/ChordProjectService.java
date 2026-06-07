@@ -382,7 +382,14 @@ public class ChordProjectService {
 				? project.getOmrRequestedTimeSignature()
 				: omrData.timeSignature();
 
-			chordProjectOmrWriter.complete(publicId, title, key, timeSignature, omrData.progression());
+			chordProjectOmrWriter.complete(
+				publicId,
+				title,
+				key,
+				timeSignature,
+				omrData.beatsPerBar(),
+				omrData.chords()
+			);
 
 		} else if (callbackRequest.isFailed()) {
 			String errorMsg = hasText(callbackRequest.error()) ? callbackRequest.error()

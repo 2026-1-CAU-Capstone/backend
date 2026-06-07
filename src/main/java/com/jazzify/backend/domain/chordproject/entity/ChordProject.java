@@ -8,6 +8,8 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.domain.chordinfo.entity.ChordInfo;
+import com.jazzify.backend.domain.chordinfo.entity.ChordGroup;
+import com.jazzify.backend.domain.chordinfo.entity.ChordSection;
 import com.jazzify.backend.domain.chordproject.model.ChordProjectOmrSourceType;
 import com.jazzify.backend.domain.session.entity.Session;
 import com.jazzify.backend.domain.user.entity.User;
@@ -89,6 +91,12 @@ public class ChordProject extends BaseEntity {
 
 	@OneToMany(mappedBy = "chordProject", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ChordInfo> chordInfos = new ArrayList<>();
+
+	@OneToMany(mappedBy = "chordProject", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<ChordGroup> chordGroups = new ArrayList<>();
+
+	@OneToMany(mappedBy = "chordProject", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<ChordSection> chordSections = new ArrayList<>();
 
 	// ── 분석 메타데이터 ──
 	@Column
