@@ -419,6 +419,83 @@ public class OmrClient {
 		}
 
 		int beatsPerBar = toBeatsPerBar(response.beatsPerBar(), response.timeSignature());
+		if (response.measureCount() != null || !nullSafeList(response.chords()).isEmpty()) {
+			return extractSlimChordChart(response, jobId, beatsPerBar);
+		}
+
+		return extractLegacyChordChart(response, jobId, beatsPerBar);
+	}
+
+	private ChordChartResult extractSlimChordChart(ChordChartResponse response, String jobId, int beatsPerBar) {
+		Map<Integer, List<ChartChordAssignment>> assignmentsByMeasure = new LinkedHashMap<>();
+		int maxMeasureIndex = 0;
+		for (ChartChordAssignment assignment : nullSafeList(response.chords())) {
+			if (!isChordKind(assignment.kind()) || assignment.measureIndex() == null || assignment.measureIndex() <= 0) {
+				continue;
+			}
+			int measureIndex = assignment.measureIndex();
+			assignmentsByMeasure.computeIfAbsent(measureIndex, ignored -> new ArrayList<>()).add(assignment);
+			maxMeasureIndex = Math.max(maxMeasureIndex, measureIndex);
+		}
+
+		int measureCount = response.measureCount() != null && response.measureCount() > 0
+			? response.measureCount()
+			: maxMeasureIndex;
+		if (measureCount <= 0) {
+			throw OmrErrorCode.OMR_PARSE_FAILED.toException("Chord chart에서 인식된 마디가 없습니다. job_id=" + jobId);
+		}
+
+		Map<Integer, List<MeasureChord>> resolvedByMeasure = new LinkedHashMap<>();
+		List<ChordChartChord> chords = new ArrayList<>();
+		for (int measureIndex = 1; measureIndex <= measureCount; measureIndex++) {
+			List<MeasureChord> resolved = resolveSlimMeasureChords(
+				assignmentsByMeasure.getOrDefault(measureIndex, List.of()),
+				resolvedByMeasure,
+				jobId
+			);
+			resolvedByMeasure.put(measureIndex, resolved);
+			chords.addAll(toChartChords(measureIndex, resolved, beatsPerBar));
+		}
+
+		return toChordChartResult(response, beatsPerBar, chords);
+	}
+
+	private List<MeasureChord> resolveSlimMeasureChords(
+		List<ChartChordAssignment> assignments,
+		Map<Integer, List<MeasureChord>> resolvedByMeasure,
+		String jobId
+	) {
+		List<MeasureChord> resolved = new ArrayList<>();
+		for (int index = 0; index < assignments.size(); index++) {
+			ChartChordAssignment assignment = assignments.get(index);
+			if (isRepeatPreviousMeasure(assignment)) {
+				Integer sourceMeasureIndex = assignment.derivedFromMeasureIndex();
+				if (sourceMeasureIndex == null || sourceMeasureIndex <= 0) {
+					sourceMeasureIndex = assignment.measureIndex() != null ? assignment.measureIndex() - 1 : null;
+				}
+				List<MeasureChord> sourceChords = sourceMeasureIndex != null
+					? resolvedByMeasure.get(sourceMeasureIndex)
+					: null;
+				if (sourceChords == null) {
+					log.warn(
+						"[OMR] 반복 마디 원본을 찾을 수 없어 건너뜁니다. job_id={}, measure={}, derivedFrom={}",
+						jobId, assignment.measureIndex(), sourceMeasureIndex
+					);
+					continue;
+				}
+				resolved.addAll(sourceChords);
+				continue;
+			}
+
+			String chordText = trimToNull(assignment.text());
+			if (chordText != null) {
+				resolved.add(new MeasureChord(assignment.beat(), chordText, index, 0.0));
+			}
+		}
+		return List.copyOf(resolved);
+	}
+
+	private ChordChartResult extractLegacyChordChart(ChordChartResponse response, String jobId, int beatsPerBar) {
 		List<ChartMeasureRef> measures = new ArrayList<>();
 		int traversalOrder = 1;
 		for (ChartPage page : nullSafeList(response.pages())) {
@@ -442,6 +519,14 @@ public class OmrClient {
 			chords.addAll(toChartChords(measureRef.bar(), measureRef.measure(), beatsPerBar));
 		}
 
+		return toChordChartResult(response, beatsPerBar, chords);
+	}
+
+	private ChordChartResult toChordChartResult(
+		ChordChartResponse response,
+		int beatsPerBar,
+		List<ChordChartChord> chords
+	) {
 		String title = trimToNull(response.title());
 		return new ChordChartResult(
 			title != null ? title : "Untitled",
@@ -463,20 +548,24 @@ public class OmrClient {
 				measureChords.add(measureChord);
 			}
 		}
+		return toChartChords(bar, measureChords, beatsPerBar);
+	}
 
+	private List<ChordChartChord> toChartChords(int bar, List<MeasureChord> measureChords, int beatsPerBar) {
 		if (measureChords.isEmpty()) {
 			return List.of(new ChordChartChord(bar, null, 1.0, beatsPerBar));
 		}
 
-		measureChords.sort(Comparator
+		List<MeasureChord> orderedMeasureChords = new ArrayList<>(measureChords);
+		orderedMeasureChords.sort(Comparator
 			.comparingDouble((MeasureChord chord) -> chord.beat() != null ? chord.beat() : Double.MAX_VALUE)
 			.thenComparingDouble(MeasureChord::horizontalOrder)
 			.thenComparing(MeasureChord::text));
 
-		double inferredDuration = (double) beatsPerBar / measureChords.size();
+		double inferredDuration = (double) beatsPerBar / orderedMeasureChords.size();
 		Map<Double, PositionedChord> chordsByBeat = new LinkedHashMap<>();
-		for (int i = 0; i < measureChords.size(); i++) {
-			MeasureChord chord = measureChords.get(i);
+		for (int i = 0; i < orderedMeasureChords.size(); i++) {
+			MeasureChord chord = orderedMeasureChords.get(i);
 			double inferredBeat = 1.0 + (inferredDuration * i);
 			double beat = normalizeBeat(chord.beat(), inferredBeat, beatsPerBar);
 			PositionedChord positioned = new PositionedChord(beat, chord.text(), chord.confidence());
@@ -497,6 +586,15 @@ public class OmrClient {
 			result.add(new ChordChartChord(bar, chord.text(), chord.beat(), duration));
 		}
 		return mergeConsecutiveChartChords(result);
+	}
+
+	private static boolean isChordKind(@Nullable String kind) {
+		return kind == null || kind.isBlank() || "chord".equalsIgnoreCase(kind);
+	}
+
+	private static boolean isRepeatPreviousMeasure(ChartChordAssignment assignment) {
+		return "repeat_previous_measure".equalsIgnoreCase(assignment.source())
+			|| "%".equals(trimToNull(assignment.text()));
 	}
 
 	private static PositionedChord selectHigherConfidence(PositionedChord current, PositionedChord candidate) {
@@ -653,6 +751,8 @@ public class OmrClient {
 		@Nullable String title,
 		@JsonProperty("time_signature") @Nullable ChartTimeSignature timeSignature,
 		@JsonProperty("beats_per_bar") @Nullable Integer beatsPerBar,
+		@JsonProperty("measure_count") @Nullable Integer measureCount,
+		@Nullable List<ChartChordAssignment> chords,
 		@Nullable List<ChartPage> pages
 	) {
 	}
@@ -671,6 +771,17 @@ public class OmrClient {
 		@JsonProperty("text_raw") @JsonAlias("text") @Nullable String textRaw,
 		@Nullable Integer numerator,
 		@Nullable Integer denominator
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record ChartChordAssignment(
+		@Nullable String kind,
+		@Nullable String text,
+		@JsonProperty("measure_index") @Nullable Integer measureIndex,
+		@Nullable Double beat,
+		@Nullable String source,
+		@JsonProperty("derived_from_measure_index") @Nullable Integer derivedFromMeasureIndex
 	) {
 	}
 

@@ -14,6 +14,7 @@ import com.jazzify.backend.shared.omr.OmrProcessingStatus;
 import com.jazzify.backend.shared.persistence.BaseEntity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -68,7 +69,7 @@ public class SheetProject extends BaseEntity {
 	@JoinColumn(name = "session_id")
 	private @Nullable Session session;
 
-	@OneToMany(mappedBy = "sheetProject", fetch = FetchType.LAZY)
+	@OneToMany(mappedBy = "sheetProject", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ChordInfo> chordInfos = new ArrayList<>();
 
 	@Builder
@@ -120,4 +121,3 @@ public class SheetProject extends BaseEntity {
 		this.omrFailureReason = failureReason;
 	}
 }
-

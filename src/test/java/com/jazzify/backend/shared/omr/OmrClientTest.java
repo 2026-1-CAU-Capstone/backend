@@ -244,32 +244,42 @@ class OmrClientTest {
 	void fetchChordChart_buildsProgressionFromChartJson() throws Exception {
 		String chordChartJson = """
 			{
+			  "title": "Cherokee",
 			  "time_signature": {
-			    "numerator": 3,
+			    "numerator": 4,
 			    "denominator": 4
 			  },
-			  "pages": [
+			  "beats_per_bar": 4,
+			  "measure_count": 4,
+			  "chords": [
 			    {
-			      "systems": [
-			        {
-			          "measures": [
-			            {
-			              "chords": [
-			                { "text_norm": "G7", "beat": 3 },
-			                { "text_norm": "Dm7", "beat": 1 }
-			              ]
-			            },
-			            {
-			              "chords": [
-			                { "text_raw": "Cmaj7", "beat": 1 }
-			              ]
-			            },
-			            {
-			              "chords": []
-			            }
-			          ]
-			        }
-			      ]
+			      "kind": "chord",
+			      "text": "Bb6",
+			      "measure_index": 1,
+			      "beat": 1,
+			      "source": "direct"
+			    },
+			    {
+			      "kind": "chord",
+			      "text": "G7b9",
+			      "measure_index": 1,
+			      "beat": 3,
+			      "source": "direct"
+			    },
+			    {
+			      "kind": "chord",
+			      "text": "%",
+			      "measure_index": 2,
+			      "beat": 1,
+			      "source": "repeat_previous_measure",
+			      "derived_from_measure_index": 1
+			    },
+			    {
+			      "kind": "chord",
+			      "text": "Cm7",
+			      "measure_index": 3,
+			      "beat": 1,
+			      "source": "direct"
 			    }
 			  ]
 			}
@@ -280,14 +290,16 @@ class OmrClientTest {
 
 			OmrClient.ChordChartResult result = client.fetchChordChart(TestOmrServer.JOB_ID);
 
-			assertThat(result.title()).isEqualTo("Untitled");
-			assertThat(result.timeSignature()).isEqualTo("3/4");
-			assertThat(result.beatsPerBar()).isEqualTo(3);
+			assertThat(result.title()).isEqualTo("Cherokee");
+			assertThat(result.timeSignature()).isEqualTo("4/4");
+			assertThat(result.beatsPerBar()).isEqualTo(4);
 			assertThat(result.chords()).containsExactly(
-				new OmrClient.ChordChartChord(1, "Dm7", 1.0, 2.0),
-				new OmrClient.ChordChartChord(1, "G7", 3.0, 1.0),
-				new OmrClient.ChordChartChord(2, "Cmaj7", 1.0, 3.0),
-				new OmrClient.ChordChartChord(3, null, 1.0, 3.0)
+				new OmrClient.ChordChartChord(1, "Bb6", 1.0, 2.0),
+				new OmrClient.ChordChartChord(1, "G7b9", 3.0, 2.0),
+				new OmrClient.ChordChartChord(2, "Bb6", 1.0, 2.0),
+				new OmrClient.ChordChartChord(2, "G7b9", 3.0, 2.0),
+				new OmrClient.ChordChartChord(3, "Cm7", 1.0, 4.0),
+				new OmrClient.ChordChartChord(4, null, 1.0, 4.0)
 			);
 		}
 	}
