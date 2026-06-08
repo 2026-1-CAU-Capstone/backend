@@ -1,5 +1,6 @@
 package com.jazzify.backend.domain.chat.controller;
 
+import java.io.IOException;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 import com.jazzify.backend.core.security.CustomPrincipal;
 import com.jazzify.backend.domain.chat.dto.request.ChatStreamRequest;
@@ -38,7 +40,9 @@ import com.jazzify.backend.shared.web.ApiResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @NullMarked
 @RequiredArgsConstructor
@@ -167,7 +171,21 @@ public class ChatController implements ChatControllerSpec {
 			.header("X-Chat-Public-Id", preparedChatStream.chatPublicId().toString())
 			.header("X-Accel-Buffering", "no")
 			.header("Cache-Control", "no-cache, no-transform")
-			.body(body);
+			.body(ignoreClientDisconnect(body, preparedChatStream.chatPublicId()));
+	}
+
+	private StreamingResponseBody ignoreClientDisconnect(StreamingResponseBody body, UUID chatPublicId) {
+		return outputStream -> {
+			try {
+				body.writeTo(outputStream);
+			} catch (IOException | RuntimeException e) {
+				if (DisconnectedClientHelper.isClientDisconnectedException(e)) {
+					log.debug("Chat stream client disconnected: chatPublicId={}", chatPublicId);
+					return;
+				}
+				throw e;
+			}
+		};
 	}
 }
 

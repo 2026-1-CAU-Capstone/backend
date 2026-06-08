@@ -12,6 +12,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.StreamingChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 import com.jazzify.backend.shared.exception.code.LlmErrorCode;
 
@@ -44,6 +45,9 @@ public class AnthropicStreamingClient {
 				.blockLast();
 			return accumulated.toString();
 		} catch (Exception e) {
+			if (DisconnectedClientHelper.isClientDisconnectedException(e)) {
+				throw propagateClientDisconnect(e);
+			}
 			throw LlmErrorCode.LLM_REQUEST_FAILED.toException(e.getMessage());
 		}
 	}
@@ -62,8 +66,18 @@ public class AnthropicStreamingClient {
 			outputStream.write(text.getBytes(StandardCharsets.UTF_8));
 			outputStream.flush();
 		} catch (Exception e) {
+			if (DisconnectedClientHelper.isClientDisconnectedException(e)) {
+				throw propagateClientDisconnect(e);
+			}
 			throw LlmErrorCode.LLM_STREAM_FAILED.toException(e.getMessage());
 		}
+	}
+
+	private RuntimeException propagateClientDisconnect(Exception exception) {
+		if (exception instanceof RuntimeException runtimeException) {
+			return runtimeException;
+		}
+		return new IllegalStateException("Client disconnected during LLM streaming.", exception);
 	}
 }
 
