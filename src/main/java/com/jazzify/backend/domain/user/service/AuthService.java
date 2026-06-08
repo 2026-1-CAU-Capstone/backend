@@ -74,16 +74,13 @@ public class AuthService {
 		String username = jwtTokenProvider.getUsername(refreshToken);
 		UserRole role = jwtTokenProvider.getRole(refreshToken);
 
-		String storedToken = refreshTokenService.find(publicId)
-			.orElseThrow(UserErrorCode.REFRESH_TOKEN_NOT_FOUND::toException);
-
-		if (!storedToken.equals(refreshToken)) {
-			refreshTokenService.delete(publicId);
-			throw UserErrorCode.INVALID_REFRESH_TOKEN.toException("토큰 재사용이 감지되었습니다.");
+		if (refreshTokenService.find(publicId).isEmpty()) {
+			throw UserErrorCode.REFRESH_TOKEN_NOT_FOUND.toException();
 		}
 
 		String newAccessToken = jwtTokenProvider.createAccessToken(publicId, username, role);
-		String newRefreshToken = refreshTokenService.rotate(publicId, username, role);
+		String newRefreshToken = refreshTokenService.rotateIfCurrent(publicId, refreshToken, username, role)
+			.orElseThrow(() -> UserErrorCode.INVALID_REFRESH_TOKEN.toException("토큰 재사용이 감지되었습니다."));
 
 		return new TokenResult(newAccessToken, newRefreshToken, publicId, username);
 	}
@@ -99,5 +96,3 @@ public class AuthService {
 		return jwtTokenProvider.getRefreshExpiration();
 	}
 }
-
-
