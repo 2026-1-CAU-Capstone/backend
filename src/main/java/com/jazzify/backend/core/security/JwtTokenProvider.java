@@ -48,6 +48,7 @@ public class JwtTokenProvider {
 
 		return Jwts.builder()
 			.subject(publicId.toString())
+			.id(UUID.randomUUID().toString())
 			.claim("username", username)
 			.claim("role", role.name())
 			.claim("type", tokenType)

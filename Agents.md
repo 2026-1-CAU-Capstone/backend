@@ -58,7 +58,7 @@ domain/{도메인}/
 - Entity: `@Builder`, `@Getter`, `@NoArgsConstructor(access = PROTECTED)`, `@AllArgsConstructor(access = PRIVATE)`.
 
 ### REST API
-
+- context path: `/api`
 - URL 접두사: `/v1/{도메인}` (e.g., `/v1/chord-projects`, `/v1/analysis`).
 - 응답 래퍼: 항상 `ApiResponse<T>`로 감싼다.
 - 에러: `CustomException` + `BaseErrorCode` enum
