@@ -57,6 +57,9 @@ public class SheetProject extends BaseEntity {
 	@Column(length = 128)
 	private @Nullable String omrJobId;
 
+	@Column(length = 255)
+	private @Nullable String omrRequestedTitle;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
@@ -92,11 +95,12 @@ public class SheetProject extends BaseEntity {
 		this.keySignature = key;
 	}
 
-	public void markOmrQueued() {
+	public void markOmrQueued(@Nullable String requestedTitle) {
 		this.omrStatus = OmrProcessingStatus.PENDING;
 		this.omrProgress = 0;
 		this.omrFailureReason = null;
 		this.omrJobId = null;
+		this.omrRequestedTitle = requestedTitle;
 	}
 
 	public void storeOmrJobId(String jobId) {

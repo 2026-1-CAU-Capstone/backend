@@ -40,6 +40,7 @@ public class SoloWriter {
 		@Nullable String performer,
 		@Nullable String composer,
 		String title,
+		@Nullable String requestedTitle,
 		@Nullable String album,
 		Instrument instrument,
 		@Nullable JazzStyle style,
@@ -63,7 +64,7 @@ public class SoloWriter {
 			.timeSignature(timeSignature)
 			.rhythmFeel(rhythmFeel)
 			.build();
-		solo.markOmrQueued();
+		solo.markOmrQueued(trimToNull(requestedTitle), trimToNull(composer));
 		return soloRepository.save(solo);
 	}
 
@@ -230,6 +231,13 @@ public class SoloWriter {
 	private static String unknownIfBlank(@Nullable String value) {
 		if (value == null || value.isBlank()) {
 			return UNKNOWN_METADATA;
+		}
+		return value.trim();
+	}
+
+	private static @Nullable String trimToNull(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return null;
 		}
 		return value.trim();
 	}

@@ -92,9 +92,8 @@ public class SheetProjectService {
 
 		String originalFilename = defaultFileName(file.getOriginalFilename());
 		String contentType = defaultContentType(file.getContentType());
-		String pendingTitle = hasText(request.title())
-			? request.title().trim()
-			: DEFAULT_PENDING_TITLE;
+		String requestedTitle = trimToNull(request.title());
+		String pendingTitle = requestedTitle != null ? requestedTitle : DEFAULT_PENDING_TITLE;
 
 		// 1단계: User 조회와 PENDING 엔티티 생성을 같은 트랜잭션 안에서 실행하고 커밋한다.
 		//        User 엔티티가 detached 되지 않도록 TransactionTemplate 으로 감싼다.
@@ -107,6 +106,7 @@ public class SheetProjectService {
 					originalFilename,
 					contentType,
 					pendingTitle,
+					requestedTitle,
 					request.key()
 				);
 			})
@@ -206,8 +206,7 @@ public class SheetProjectService {
 
 			SheetProjectOmrProcessor.SheetProjectOmrData omrData = sheetProjectOmrProcessor.processJobResult(jobId);
 
-			String requestedTitle = extractRequestedTitle(project);
-			String title = hasText(requestedTitle) ? requestedTitle : omrData.title();
+			String title = firstText(project.getOmrRequestedTitle(), omrData.title(), "Untitled");
 			MusicKey key = project.getKeySignature() != null ? project.getKeySignature() : omrData.key();
 
 			sheetProjectOmrWriter.complete(
@@ -237,15 +236,25 @@ public class SheetProjectService {
 		}
 	}
 
-	/** OMR pending 상태에서 임시 저장된 제목을 추출 (프로젝트 생성 시 사용자가 입력한 제목). */
-	private static @Nullable String extractRequestedTitle(SheetProject project) {
-		String title = project.getTitle();
-		// 기본 pending 타이틀이면 null로 취급
-		return "OMR Processing".equals(title) ? null : title;
-	}
-
 	private static boolean hasText(@Nullable String value) {
 		return value != null && !value.isBlank();
+	}
+
+	private static @Nullable String trimToNull(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value.trim();
+	}
+
+	private static String firstText(@Nullable String userValue, @Nullable String omrValue, String defaultValue) {
+		if (hasText(userValue)) {
+			return Objects.requireNonNull(userValue).trim();
+		}
+		if (hasText(omrValue)) {
+			return Objects.requireNonNull(omrValue).trim();
+		}
+		return defaultValue;
 	}
 
 	private static String defaultFileName(@Nullable String originalFilename) {

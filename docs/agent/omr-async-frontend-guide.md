@@ -165,7 +165,7 @@ Form fields:
 | 필드 | 필수 | 설명 |
 | --- | --- | --- |
 | `file` | 예 | PNG/JPG/JPEG 악보 이미지 |
-| `title` | 아니오 | 미입력 시 파일명 base name을 임시 제목으로 사용 |
+| `title` | 아니오 | 완료 시 사용자 입력값, OMR 제목, `Untitled` 순으로 적용 |
 | `key` | 아니오 | `MusicKey` enum 이름. 예: `C_MAJOR`, `B_FLAT_MAJOR`, `C_MINOR` |
 | `timeSignature` | 아니오 | 예: `4/4`. 미입력 시 임시값 `4/4` |
 

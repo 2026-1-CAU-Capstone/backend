@@ -176,6 +176,12 @@ public class Lick extends BaseEntity {
 	@Column(length = 128)
 	private @Nullable String omrJobId;
 
+	@Column(length = 255)
+	private @Nullable String omrRequestedTitle;
+
+	@Column(length = 255)
+	private @Nullable String omrRequestedComposer;
+
 	// ─── Update ────────────────────────────────────────────────────────
 
 	/**
@@ -248,11 +254,13 @@ public class Lick extends BaseEntity {
 
 	// ─── OMR 상태 전환 ──────────────────────────────────────────────────
 
-	public void markOmrQueued() {
+	public void markOmrQueued(@Nullable String requestedTitle, @Nullable String requestedComposer) {
 		this.omrStatus = OmrProcessingStatus.PENDING;
 		this.omrProgress = 0;
 		this.omrFailureReason = null;
 		this.omrJobId = null;
+		this.omrRequestedTitle = requestedTitle;
+		this.omrRequestedComposer = requestedComposer;
 	}
 
 	public void storeOmrJobId(String jobId) {

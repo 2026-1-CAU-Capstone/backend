@@ -175,6 +175,12 @@ public class Solo extends BaseEntity {
 	@Column(length = 128)
 	private @Nullable String omrJobId;
 
+	@Column(length = 255)
+	private @Nullable String omrRequestedTitle;
+
+	@Column(length = 255)
+	private @Nullable String omrRequestedComposer;
+
 	// ─── Update ────────────────────────────────────────────────────────
 
 	/**
@@ -245,11 +251,13 @@ public class Solo extends BaseEntity {
 		this.sheetDataJson = newSheetDataJson;
 	}
 
-	public void markOmrQueued() {
+	public void markOmrQueued(@Nullable String requestedTitle, @Nullable String requestedComposer) {
 		this.omrStatus = OmrProcessingStatus.PENDING;
 		this.omrProgress = 0;
 		this.omrFailureReason = null;
 		this.omrJobId = null;
+		this.omrRequestedTitle = requestedTitle;
+		this.omrRequestedComposer = requestedComposer;
 	}
 
 	public void storeOmrJobId(String jobId) {

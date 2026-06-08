@@ -101,10 +101,9 @@ public class ChordProjectService {
 		byte[] fileData = readFileBytes(file);
 
 		String originalFilename = defaultFileName(file.getOriginalFilename());
-		String contentType = defaultContentType(file.getContentType());
 		String pendingTitle = hasText(request.title())
 			? request.title().trim()
-			: extractBaseName(originalFilename);
+			: DEFAULT_PENDING_TITLE;
 		MusicKey pendingKey = request.key() != null ? request.key() : DEFAULT_PENDING_KEY;
 		String pendingTimeSignature = hasText(request.timeSignature())
 			? request.timeSignature().trim()
@@ -321,17 +320,14 @@ public class ChordProjectService {
 		return hasText(originalFilename) ? Objects.requireNonNull(originalFilename).trim() : "upload.pdf";
 	}
 
-	private static String defaultContentType(@Nullable String contentType) {
-		return hasText(contentType) ? Objects.requireNonNull(contentType).trim() : "application/octet-stream";
-	}
-
-	private static String extractBaseName(String originalFilename) {
-		int lastDotIndex = originalFilename.lastIndexOf('.');
-		if (lastDotIndex <= 0) {
-			return hasText(originalFilename) ? originalFilename : DEFAULT_PENDING_TITLE;
+	private static String firstText(@Nullable String userValue, @Nullable String omrValue, String defaultValue) {
+		if (hasText(userValue)) {
+			return Objects.requireNonNull(userValue).trim();
 		}
-		String baseName = originalFilename.substring(0, lastDotIndex).trim();
-		return hasText(baseName) ? baseName : DEFAULT_PENDING_TITLE;
+		if (hasText(omrValue)) {
+			return Objects.requireNonNull(omrValue).trim();
+		}
+		return defaultValue;
 	}
 
 	private static byte[] readFileBytes(MultipartFile file) {
@@ -369,11 +365,8 @@ public class ChordProjectService {
 			ChordProjectOmrSourceType sourceType = resolveCallbackSourceType(project);
 			ChordProjectOmrProcessor.ChordProjectOmrData omrData = chordProjectOmrProcessor.processJobResult(jobId, sourceType);
 
-			String title = project.getOmrRequestedTitle() != null ? project.getOmrRequestedTitle() : omrData.title();
+			String title = firstText(project.getOmrRequestedTitle(), omrData.title(), "Untitled");
 			MusicKey key = project.getOmrRequestedKey() != null ? project.getOmrRequestedKey() : omrData.key();
-			if (key == null) {
-				key = project.getKeySignature();
-			}
 			if (key == null) {
 				chordProjectOmrWriter.fail(publicId, ChordProjectErrorCode.CHORD_PROJECT_KEY_REQUIRED.getMessage(), 80);
 				return;

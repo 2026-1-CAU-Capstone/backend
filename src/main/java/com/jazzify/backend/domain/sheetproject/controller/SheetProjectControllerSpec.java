@@ -46,7 +46,7 @@ public interface SheetProjectControllerSpec {
 			| 필드 | 필수 | 설명 |
 			| --- | --- | --- |
 			| `file` | 예 | 이미지 파일. `png`, `jpg`, `jpeg`만 허용 |
-			| `title` | 아니오 | 미입력 시 임시 제목 `OMR Processing`, 완료 시 OMR 제목으로 대체될 수 있음 |
+			| `title` | 아니오 | 완료 시 사용자 입력값을 최우선 사용. 미입력 시 OMR 제목, 둘 다 없으면 `Untitled` |
 			| `key` | 아니오 | `MusicKey` enum 이름. 미입력 시 OMR 결과에서 추론 |
 			
 			### MusicVision 제출 경로
