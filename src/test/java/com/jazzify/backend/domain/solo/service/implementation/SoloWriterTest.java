@@ -131,7 +131,7 @@ class SoloWriterTest {
 		Solo solo = Solo.builder()
 			.source(SoloSource.USER)
 			.isOMR(true)
-			.title("OMR Processing")
+			.title("Untitled")
 			.composer("Unknown")
 			.instrument(Instrument.AS)
 			.build();
@@ -161,7 +161,7 @@ class SoloWriterTest {
 		Solo solo = Solo.builder()
 			.source(SoloSource.USER)
 			.isOMR(true)
-			.title("OMR Processing")
+			.title("Untitled")
 			.composer("Unknown")
 			.performer("Unknown")
 			.instrument(Instrument.AS)

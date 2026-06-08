@@ -51,6 +51,7 @@ import com.jazzify.backend.domain.user.service.implementation.UserReader;
 import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.exception.CustomException;
 import com.jazzify.backend.shared.exception.code.ChordProjectErrorCode;
+import com.jazzify.backend.shared.exception.code.GlobalErrorCode;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
 import com.jazzify.backend.shared.omr.OmrCallbackDomain;
 import com.jazzify.backend.shared.omr.OmrClient;
@@ -67,7 +68,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ChordProjectService {
 
-	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String DEFAULT_PENDING_TITLE = "Untitled";
 	private static final String DEFAULT_PENDING_TIME_SIGNATURE = "4/4";
 	private static final MusicKey DEFAULT_PENDING_KEY = MusicKey.C_MAJOR;
 
@@ -104,7 +105,8 @@ public class ChordProjectService {
 		String pendingTitle = hasText(request.title())
 			? request.title().trim()
 			: DEFAULT_PENDING_TITLE;
-		MusicKey pendingKey = request.key() != null ? request.key() : DEFAULT_PENDING_KEY;
+		MusicKey requestedKey = parseRequestedKey(request.key());
+		MusicKey pendingKey = requestedKey != null ? requestedKey : DEFAULT_PENDING_KEY;
 		String pendingTimeSignature = hasText(request.timeSignature())
 			? request.timeSignature().trim()
 			: DEFAULT_PENDING_TIME_SIGNATURE;
@@ -117,7 +119,7 @@ public class ChordProjectService {
 				return chordProjectOmrWriter.createPending(
 					user, pendingTitle, pendingKey, pendingTimeSignature,
 					hasText(request.title()) ? request.title().trim() : null,
-					request.key(),
+					requestedKey,
 					hasText(request.timeSignature()) ? request.timeSignature().trim() : null,
 					sourceType
 				);
@@ -328,6 +330,19 @@ public class ChordProjectService {
 			return Objects.requireNonNull(omrValue).trim();
 		}
 		return defaultValue;
+	}
+
+	private static @Nullable MusicKey parseRequestedKey(@Nullable String key) {
+		if (!hasText(key)) {
+			return null;
+		}
+		MusicKey parsed = MusicKey.fromAnalysisKey(key);
+		if (parsed == null) {
+			throw GlobalErrorCode.INVALID_INPUT.toException(
+				"key는 MusicKey enum 이름 또는 조성 표기여야 합니다: " + Objects.requireNonNull(key).trim()
+			);
+		}
+		return parsed;
 	}
 
 	private static byte[] readFileBytes(MultipartFile file) {

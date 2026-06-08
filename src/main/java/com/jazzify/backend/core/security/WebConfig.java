@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
 			.allowedOrigins(allowedOrigins.toArray(String[]::new))
 			.allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 			.allowedHeaders("*")
-			.exposedHeaders("Authorization")
+			.exposedHeaders("Authorization", "X-Chat-Public-Id")
 			.allowCredentials(true)
 			.maxAge(3600);
 	}

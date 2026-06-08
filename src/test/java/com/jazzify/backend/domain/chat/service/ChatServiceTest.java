@@ -3,6 +3,7 @@ package com.jazzify.backend.domain.chat.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,6 +28,7 @@ import com.jazzify.backend.domain.chat.dto.request.ChatStreamRequest;
 import com.jazzify.backend.domain.chat.entity.Chat;
 import com.jazzify.backend.domain.chat.model.ChatAnalysisCategory;
 import com.jazzify.backend.domain.chat.model.ChatMessageDraft;
+import com.jazzify.backend.domain.chat.model.ChatSourceCategory;
 import com.jazzify.backend.domain.chat.model.ChatType;
 import com.jazzify.backend.domain.chat.service.implementation.ChatReader;
 import com.jazzify.backend.domain.chat.service.implementation.ChatWriter;
@@ -71,7 +73,15 @@ class ChatServiceTest {
 		UUID userPublicId = UUID.randomUUID();
 		UUID chatPublicId = UUID.randomUUID();
 		when(userReader.getByPublicId(userPublicId)).thenReturn(user);
-		when(chatWriter.create(eq(user), eq(ChatType.DIRECT), any(), eq(ChatAnalysisCategory.IMPROV), eq("Blue Bossa")))
+		when(chatWriter.create(
+			eq(user),
+			eq(ChatType.GLOBAL),
+			any(),
+			eq(ChatAnalysisCategory.IMPROV),
+			eq(ChatSourceCategory.DIRECT),
+			eq("Blue Bossa"),
+			isNull()
+		))
 			.thenReturn(chat);
 		when(chat.getPublicId()).thenReturn(chatPublicId);
 
@@ -93,6 +103,48 @@ class ChatServiceTest {
 		assertThat(prepared.chatPublicId()).isEqualTo(chatPublicId);
 		assertThat(prepared.history()).hasSize(1);
 		verify(chatWriter).appendMessages(eq(chat), any());
+	}
+
+	@Test
+	void prepareDirectStream_createsChordProjectChatWithProjectMetadata() {
+		UUID userPublicId = UUID.randomUUID();
+		UUID chatPublicId = UUID.randomUUID();
+		String projectPublicId = UUID.randomUUID().toString();
+		when(userReader.getByPublicId(userPublicId)).thenReturn(user);
+		when(chatWriter.create(
+			eq(user),
+			eq(ChatType.CHORD_PROJECT),
+			eq("Giant Steps"),
+			isNull(),
+			eq(ChatSourceCategory.CHORD),
+			eq("Giant Steps"),
+			eq(projectPublicId)
+		)).thenReturn(chat);
+		when(chat.getPublicId()).thenReturn(chatPublicId);
+
+		ChatStreamRequest request = new ChatStreamRequest(
+			"이 곡 설명해줘",
+			List.of(),
+			null,
+			null,
+			"Giant Steps",
+			projectPublicId,
+			List.of(),
+			null,
+			false,
+			null,
+			true
+		);
+
+		ChatService.PreparedChatStream prepared = chatService.prepareDirectStream(
+			new CustomPrincipal(userPublicId, "tester", UserRole.MEMBER),
+			request,
+			ChatType.CHORD_PROJECT,
+			ChatSourceCategory.CHORD
+		);
+
+		assertThat(prepared.chatPublicId()).isEqualTo(chatPublicId);
+		assertThat(prepared.history()).isEmpty();
 	}
 
 	@Test
@@ -127,5 +179,3 @@ class ChatServiceTest {
 			);
 	}
 }
-
-

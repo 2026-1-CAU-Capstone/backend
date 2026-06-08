@@ -5,17 +5,15 @@ import org.jspecify.annotations.NullMarked;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 @NullMarked
-public enum ChatType {
+public enum ChatSourceCategory {
 
-	GLOBAL("global"),
-	CHORD_PROJECT("chordProject"),
-	SHEET_PROJECT("sheetProject"),
 	DIRECT("direct"),
-	RAG("rag");
+	CHORD("chord"),
+	SHEET("sheet");
 
 	private final String id;
 
-	ChatType(String id) {
+	ChatSourceCategory(String id) {
 		this.id = id;
 	}
 
@@ -23,9 +21,4 @@ public enum ChatType {
 	public String id() {
 		return id;
 	}
-
-	public boolean isLegacyAiMode() {
-		return this == DIRECT || this == RAG;
-	}
 }
-

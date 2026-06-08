@@ -60,8 +60,8 @@ public interface ChordProjectControllerSpec {
 			| 필드 | 필수 | 설명 |
 			| --- | --- | --- |
 			| `file` | 예 | 이미지 파일. `png`, `jpg`, `jpeg`만 허용 |
-			| `title` | 아니오 | 완료 시 사용자 입력값을 최우선 사용. 미입력 시 OMR 제목, 둘 다 없으면 `Untitled` |
-			| `key` | 아니오 | `MusicKey` enum 이름. 미입력 시 OMR 결과에서 추론, 실패하면 `CHORD_PROJECT_006` |
+			| `title` | 아니오 | 생성 직후/완료 시 사용자 입력값을 최우선 사용. 미입력 시 생성 직후 `Untitled`, 완료 시 OMR 제목, 둘 다 없으면 `Untitled` |
+			| `key` | 아니오 | `MusicKey` enum 이름 또는 조성 표기. 예: `B_FLAT_MAJOR`, `Bb`, `B flat major`, `F#m`. 미입력 시 OMR 결과에서 추론, 실패하면 `CHORD_PROJECT_006` |
 			| `timeSignature` | 아니오 | 예: `4/4`. 완료 시 사용자 입력값, OMR 박자표, 기본 `4/4` 순으로 적용 |
 			| `sourceType` | 아니오 | `chart`/`chord-chart` 또는 `sheet`/`sheet-music`. 미입력 시 `chart` |
 			
@@ -77,6 +77,7 @@ public interface ChordProjectControllerSpec {
 			
 			### 처리 결과
 			- 백엔드가 PENDING 프로젝트를 만든 뒤 MusicVision 제출까지 성공하면 보통 `omrStatus=PROCESSING`, `omrProgress=10` 상태로 반환합니다.
+			- 생성 직후 제목은 사용자 입력값 또는 `Untitled`입니다. 더 이상 `OMR Processing`을 제목으로 저장하지 않습니다.
 			- 생성 직후 `chords[]`는 비어 있습니다.
 			- 실제 `ChordInfo` 저장과 제목/조성/박자 확정은 MusicVision callback 수신 후 수행됩니다.
 			- 진행률은 `GET /v1/chord-projects/{publicId}/omr-status`로 확인합니다.
@@ -85,6 +86,7 @@ public interface ChordProjectControllerSpec {
 			- `400 OMR_004`: 지원하지 않는 파일 형식
 			- `400 OMR_005`: 빈 파일
 			- `500 OMR_007`: 업로드 파일 읽기 실패
+			- `400 GLOBAL_002`: 유효하지 않은 `key` 문자열
 			- `400 CHORD_PROJECT_007`: 지원하지 않는 `sourceType`
 			- `400 CHORD_PROJECT_006`: 비동기 처리 중 조성 자동 판별 실패 및 key 미입력 (`omrStatus=FAILED`로 반영)
 			- `503 OMR_001`: OMR 서버 미설정

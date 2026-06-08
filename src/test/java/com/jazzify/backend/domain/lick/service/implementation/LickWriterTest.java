@@ -131,7 +131,7 @@ class LickWriterTest {
 		Lick lick = Lick.builder()
 			.source(LickSource.USER)
 			.isOMR(true)
-			.title("OMR Processing")
+			.title("Untitled")
 			.composer("Unknown")
 			.instrument(Instrument.TP)
 			.build();
@@ -161,7 +161,7 @@ class LickWriterTest {
 		Lick lick = Lick.builder()
 			.source(LickSource.USER)
 			.isOMR(true)
-			.title("OMR Processing")
+			.title("Untitled")
 			.composer("Unknown")
 			.performer("Unknown")
 			.instrument(Instrument.TP)

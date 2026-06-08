@@ -56,9 +56,36 @@ public interface ChatControllerSpec {
 
 	@Operation(
 		summary = "Claude 스트리밍 채팅",
-		description = "`useRag=true`이면 RAG 컨텍스트를 붙이고, 아니면 일반 Anthropic 스트림을 반환합니다. 응답 헤더 `X-Chat-Public-Id`로 채팅 식별자를 반환합니다."
+		description = "호환용 통합 스트림 API입니다. 요청 내용과 관계없이 `type=global`, `category=direct`로 저장합니다. 신규 프론트 연동은 `/global/stream`, `/chord-project/stream`, `/sheet-project/stream`을 사용하세요. 응답 헤더 `X-Chat-Public-Id`로 채팅 식별자를 반환합니다."
 	)
 	ResponseEntity<StreamingResponseBody> stream(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@Valid @RequestBody ChatStreamRequest request
+	);
+
+	@Operation(
+		summary = "전역 Claude 스트리밍 채팅",
+		description = "Home/전역 채팅 세션을 `type=global`, `category=direct`로 저장합니다. `useRag=true`이면 RAG 컨텍스트를 붙이고, 아니면 일반 Anthropic 스트림을 반환합니다. 응답 헤더 `X-Chat-Public-Id`로 채팅 식별자를 반환합니다."
+	)
+	ResponseEntity<StreamingResponseBody> streamGlobal(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@Valid @RequestBody ChatStreamRequest request
+	);
+
+	@Operation(
+		summary = "코드 프로젝트 Claude 스트리밍 채팅",
+		description = "코드 프로젝트 우측 AI 채팅 세션을 `type=chordProject`, `category=chord`로 저장합니다. 요청의 문자열 `projectPublicId`는 필수이며, `songTitle`과 함께 목록/상세 응답에 반환하여 프론트가 코드 프로젝트 이동 경로를 구성할 수 있게 합니다."
+	)
+	ResponseEntity<StreamingResponseBody> streamChordProject(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@Valid @RequestBody ChatStreamRequest request
+	);
+
+	@Operation(
+		summary = "악보 프로젝트 Claude 스트리밍 채팅",
+		description = "악보 프로젝트 우측 AI 채팅 세션을 `type=sheetProject`, `category=sheet`로 저장합니다. 요청의 문자열 `projectPublicId`는 필수이며, `songTitle`과 함께 목록/상세 응답에 반환하여 프론트가 악보 프로젝트 이동 경로를 구성할 수 있게 합니다."
+	)
+	ResponseEntity<StreamingResponseBody> streamSheetProject(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@Valid @RequestBody ChatStreamRequest request
 	);

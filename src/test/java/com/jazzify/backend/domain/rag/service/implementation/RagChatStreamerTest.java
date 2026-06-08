@@ -59,6 +59,7 @@ class RagChatStreamerTest {
 			"Eb 키의 II7 코드입니다.",
 			List.of(),
 			"It Could Happen to You",
+			null,
 			true,
 			null
 		);

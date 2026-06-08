@@ -11,6 +11,7 @@ import com.jazzify.backend.domain.chat.entity.Chat;
 import com.jazzify.backend.domain.chat.entity.ChatMessage;
 import com.jazzify.backend.domain.chat.model.ChatAnalysisCategory;
 import com.jazzify.backend.domain.chat.model.ChatMessageDraft;
+import com.jazzify.backend.domain.chat.model.ChatSourceCategory;
 import com.jazzify.backend.domain.chat.model.ChatType;
 import com.jazzify.backend.domain.chat.repository.ChatMessageRepository;
 import com.jazzify.backend.domain.chat.repository.ChatRepository;
@@ -31,21 +32,32 @@ public class ChatWriter {
 		User user,
 		ChatType type,
 		String title,
-		@Nullable ChatAnalysisCategory category,
-		@Nullable String songTitle
+		@Nullable ChatAnalysisCategory analysisCategory,
+		ChatSourceCategory sourceCategory,
+		@Nullable String songTitle,
+		@Nullable String projectPublicId
 	) {
 		Chat chat = Chat.builder()
 			.user(user)
 			.type(type)
 			.title(title)
-			.category(category)
+			.analysisCategory(analysisCategory)
+			.sourceCategory(sourceCategory)
 			.songTitle(songTitle != null && !songTitle.isBlank() ? songTitle.trim() : null)
+			.projectPublicId(projectPublicId != null && !projectPublicId.isBlank() ? projectPublicId.trim() : null)
 			.build();
 		return chatRepository.save(chat);
 	}
 
-	public Chat updateMetadata(Chat chat, @Nullable ChatAnalysisCategory category, @Nullable String songTitle) {
-		chat.updateMetadata(category, songTitle);
+	public Chat updateMetadata(
+		Chat chat,
+		ChatType type,
+		@Nullable ChatAnalysisCategory analysisCategory,
+		ChatSourceCategory sourceCategory,
+		@Nullable String songTitle,
+		@Nullable String projectPublicId
+	) {
+		chat.updateMetadata(type, analysisCategory, sourceCategory, songTitle, projectPublicId);
 		return chatRepository.save(chat);
 	}
 
