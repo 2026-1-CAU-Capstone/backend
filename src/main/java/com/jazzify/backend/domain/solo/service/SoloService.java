@@ -48,7 +48,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SoloService {
 
-	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String DEFAULT_PENDING_TITLE = "Untitled";
 	private static final String DEFAULT_TITLE = "Untitled";
 	private static final String UNKNOWN_METADATA = "Unknown";
 

@@ -7,6 +7,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import com.jazzify.backend.domain.chat.model.ChatAnalysisCategory;
+import com.jazzify.backend.domain.chat.model.ChatSourceCategory;
 import com.jazzify.backend.domain.chat.model.ChatType;
 import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.shared.persistence.BaseEntity;
@@ -43,12 +44,19 @@ public class Chat extends BaseEntity {
 	@Column(nullable = false, length = 120)
 	private String title;
 
-	@Column(length = 50)
+	@Column(name = "category", length = 50)
 	@Enumerated(EnumType.STRING)
-	private @Nullable ChatAnalysisCategory category;
+	private @Nullable ChatAnalysisCategory analysisCategory;
+
+	@Column(length = 20)
+	@Enumerated(EnumType.STRING)
+	private @Nullable ChatSourceCategory sourceCategory;
 
 	@Column(length = 255)
 	private @Nullable String songTitle;
+
+	@Column(length = 64)
+	private @Nullable String projectPublicId;
 
 	@Column(nullable = false)
 	private int messageCount;
@@ -62,9 +70,18 @@ public class Chat extends BaseEntity {
 	@Builder.Default
 	private List<ChatMessage> messages = new ArrayList<>();
 
-	public void updateMetadata(@Nullable ChatAnalysisCategory category, @Nullable String songTitle) {
-		this.category = category;
+	public void updateMetadata(
+		ChatType type,
+		@Nullable ChatAnalysisCategory analysisCategory,
+		ChatSourceCategory sourceCategory,
+		@Nullable String songTitle,
+		@Nullable String projectPublicId
+	) {
+		this.type = type;
+		this.analysisCategory = analysisCategory;
+		this.sourceCategory = sourceCategory;
 		this.songTitle = normalizeNullable(songTitle);
+		this.projectPublicId = normalizeNullable(projectPublicId);
 	}
 
 	public void increaseMessageCount(int delta) {

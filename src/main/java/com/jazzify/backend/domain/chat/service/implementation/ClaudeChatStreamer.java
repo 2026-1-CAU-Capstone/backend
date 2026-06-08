@@ -108,7 +108,7 @@ public class ClaudeChatStreamer {
 	public List<Message> buildMessages(ChatStreamRequest request, List<ChatHistoryMessage> history) {
 		List<Message> messages = new ArrayList<>();
 		String chordContext = request.directChordContext();
-		messages.add(new SystemMessage(buildSystem(request.category(), chordContext, request.songTitle())));
+		messages.add(new SystemMessage(buildSystem(request.analysisCategory(), chordContext, request.songTitle())));
 		for (ChatHistoryMessage historyMessage : history) {
 			messages.add(toTextMessage(historyMessage.role(), historyMessage.content()));
 		}

@@ -14,6 +14,8 @@ import com.jazzify.backend.domain.chat.dto.response.ChatSummaryResponse;
 import com.jazzify.backend.domain.chat.entity.Chat;
 import com.jazzify.backend.domain.chat.entity.ChatMessage;
 import com.jazzify.backend.domain.chat.model.ChatHistoryMessage;
+import com.jazzify.backend.domain.chat.model.ChatSourceCategory;
+import com.jazzify.backend.domain.chat.model.ChatType;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -27,8 +29,9 @@ public final class ChatMapper {
 			requirePublicId(chat),
 			chat.getType(),
 			chat.getTitle(),
-			chat.getCategory(),
+			sourceCategory(chat),
 			chat.getSongTitle(),
+			chat.getProjectPublicId(),
 			requireCreatedAt(chat.getCreatedAt()),
 			requireUpdatedAt(chat.getUpdatedAt())
 		);
@@ -39,8 +42,9 @@ public final class ChatMapper {
 			requirePublicId(chat),
 			chat.getType(),
 			chat.getTitle(),
-			chat.getCategory(),
+			sourceCategory(chat),
 			chat.getSongTitle(),
+			chat.getProjectPublicId(),
 			requireCreatedAt(chat.getCreatedAt()),
 			requireUpdatedAt(chat.getUpdatedAt()),
 			messages.stream().map(ChatMapper::toMessageResponse).toList()
@@ -67,6 +71,20 @@ public final class ChatMapper {
 
 	private static UUID requirePublicId(Chat chat) {
 		return Objects.requireNonNull(chat.getPublicId(), "chat.publicId must not be null");
+	}
+
+	private static ChatSourceCategory sourceCategory(Chat chat) {
+		if (chat.getSourceCategory() != null) {
+			return chat.getSourceCategory();
+		}
+		ChatType type = chat.getType();
+		if (type == ChatType.CHORD_PROJECT) {
+			return ChatSourceCategory.CHORD;
+		}
+		if (type == ChatType.SHEET_PROJECT) {
+			return ChatSourceCategory.SHEET;
+		}
+		return ChatSourceCategory.DIRECT;
 	}
 
 	private static LocalDateTime requireCreatedAt(LocalDateTime createdAt) {

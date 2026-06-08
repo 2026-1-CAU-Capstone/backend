@@ -23,8 +23,9 @@ public record ChatStreamRequest(
 	@NotBlank String message,
 	@Valid List<ChatMessageRequest> history,
 	@JsonAlias({"chordContext", "chord_context"}) @Nullable JsonNode chordContext,
-	@Nullable ChatAnalysisCategory category,
+	@JsonAlias({"analysisCategory", "analysis_category"}) @Nullable ChatAnalysisCategory analysisCategory,
 	@JsonAlias({"songTitle", "song_title"}) @Nullable String songTitle,
+	@JsonAlias({"projectPublicId", "project_public_id"}) @Nullable String projectPublicId,
 	@Valid List<ChatImageRequest> images,
 	@JsonAlias({"chatPublicId", "chat_public_id"}) @Nullable UUID chatPublicId,
 	@JsonAlias({"useRag", "use_rag", "rag"}) boolean useRag,
@@ -43,7 +44,7 @@ public record ChatStreamRequest(
 		String message,
 		List<ChatMessageRequest> history,
 		@Nullable String chordContext,
-		@Nullable ChatAnalysisCategory category,
+		@Nullable ChatAnalysisCategory analysisCategory,
 		@Nullable String songTitle,
 		List<ChatImageRequest> images,
 		@Nullable UUID chatPublicId
@@ -52,8 +53,9 @@ public record ChatStreamRequest(
 			message,
 			history,
 			chordContext != null ? TextNode.valueOf(chordContext) : null,
-			category,
+			analysisCategory,
 			songTitle,
+			null,
 			images,
 			chatPublicId,
 			false,
@@ -81,6 +83,7 @@ public record ChatStreamRequest(
 				.map(message -> new RagChatMessageRequest(message.role(), message.content()))
 				.toList(),
 			songTitle,
+			projectPublicId,
 			suppressInlineChart,
 			chatPublicId
 		);

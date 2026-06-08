@@ -22,6 +22,7 @@ import com.jazzify.backend.domain.chat.entity.Chat;
 import com.jazzify.backend.domain.chat.model.ChatAnalysisCategory;
 import com.jazzify.backend.domain.chat.model.ChatHistoryMessage;
 import com.jazzify.backend.domain.chat.model.ChatMessageDraft;
+import com.jazzify.backend.domain.chat.model.ChatSourceCategory;
 import com.jazzify.backend.domain.chat.model.ChatType;
 import com.jazzify.backend.domain.chat.service.implementation.ClaudeChatStreamer;
 import com.jazzify.backend.domain.chat.service.implementation.ChatReader;
@@ -67,27 +68,51 @@ public class ChatService {
 
 	@Transactional
 	public PreparedChatStream prepareDirectStream(CustomPrincipal principal, ChatStreamRequest request) {
+		return prepareDirectStream(principal, request, ChatType.GLOBAL, ChatSourceCategory.DIRECT);
+	}
+
+	@Transactional
+	public PreparedChatStream prepareDirectStream(
+		CustomPrincipal principal,
+		ChatStreamRequest request,
+		ChatType type,
+		ChatSourceCategory sourceCategory
+	) {
 		return prepareStream(
 			userReader.getByPublicId(principal.publicId()),
 			request.chatPublicId(),
-			ChatType.DIRECT,
+			type,
+			sourceCategory,
 			request.history().stream().map(ChatMapper::toHistoryMessage).toList(),
 			request.message(),
-			request.category(),
-			request.songTitle()
+			request.analysisCategory(),
+			request.songTitle(),
+			projectPublicId(sourceCategory, request.projectPublicId())
 		);
 	}
 
 	@Transactional
 	public PreparedChatStream prepareRagStream(CustomPrincipal principal, RagChatRequest request) {
+		return prepareRagStream(principal, request, ChatType.GLOBAL, ChatSourceCategory.DIRECT);
+	}
+
+	@Transactional
+	public PreparedChatStream prepareRagStream(
+		CustomPrincipal principal,
+		RagChatRequest request,
+		ChatType type,
+		ChatSourceCategory sourceCategory
+	) {
 		return prepareStream(
 			userReader.getByPublicId(principal.publicId()),
 			request.chatPublicId(),
-			ChatType.RAG,
+			type,
+			sourceCategory,
 			request.history().stream().map(message -> new ChatHistoryMessage(message.role(), message.content())).toList(),
 			request.message(),
 			null,
-			request.songTitle()
+			request.songTitle(),
+			projectPublicId(sourceCategory, request.projectPublicId())
 		);
 	}
 
@@ -116,24 +141,34 @@ public class ChatService {
 		User user,
 		@Nullable UUID chatPublicId,
 		ChatType type,
+		ChatSourceCategory sourceCategory,
 		List<ChatHistoryMessage> requestHistory,
 		String pendingMessage,
-		@Nullable ChatAnalysisCategory category,
-		@Nullable String songTitle
+		@Nullable ChatAnalysisCategory analysisCategory,
+		@Nullable String songTitle,
+		@Nullable String projectPublicId
 	) {
 		if (chatPublicId != null) {
 			Chat existing = chatReader.getChatByPublicId(chatPublicId, requireUserPublicId(user));
-			if (existing.getType() != type) {
+			if (!isCompatibleType(existing.getType(), type)) {
 				throw ChatErrorCode.CHAT_TYPE_MISMATCH.toException();
 			}
-			chatWriter.updateMetadata(existing, category, songTitle);
+			chatWriter.updateMetadata(existing, type, analysisCategory, sourceCategory, songTitle, projectPublicId);
 			return new PreparedChatStream(
 				requireChatPublicId(existing),
 				chatReader.getMessages(existing).stream().map(ChatMapper::toHistoryMessage).toList()
 			);
 		}
 
-		Chat chat = chatWriter.create(user, type, buildTitle(requestHistory, pendingMessage), category, songTitle);
+		Chat chat = chatWriter.create(
+			user,
+			type,
+			buildTitle(sourceCategory, requestHistory, pendingMessage, songTitle),
+			analysisCategory,
+			sourceCategory,
+			songTitle,
+			projectPublicId
+		);
 		if (!requestHistory.isEmpty()) {
 			chatWriter.appendMessages(chat, requestHistory.stream().map(this::toDraft).toList());
 		}
@@ -144,17 +179,55 @@ public class ChatService {
 		return new ChatMessageDraft(historyMessage.role(), historyMessage.content());
 	}
 
-	private String buildTitle(List<ChatHistoryMessage> requestHistory, String pendingMessage) {
-		String source = requestHistory.stream()
-			.filter(message -> "user".equals(message.role()))
-			.map(ChatHistoryMessage::content)
-			.findFirst()
-			.orElse(pendingMessage);
+	private String buildTitle(
+		ChatSourceCategory sourceCategory,
+		List<ChatHistoryMessage> requestHistory,
+		String pendingMessage,
+		@Nullable String songTitle
+	) {
+		String source = titleSource(sourceCategory, requestHistory, pendingMessage, songTitle);
 		String normalized = source.replaceAll("\\s+", " ").trim();
 		if (normalized.length() <= TITLE_MAX_LENGTH) {
 			return normalized;
 		}
 		return normalized.substring(0, TITLE_MAX_LENGTH - 1) + "…";
+	}
+
+	private String titleSource(
+		ChatSourceCategory sourceCategory,
+		List<ChatHistoryMessage> requestHistory,
+		String pendingMessage,
+		@Nullable String songTitle
+	) {
+		if (sourceCategory != ChatSourceCategory.DIRECT && songTitle != null && !songTitle.isBlank()) {
+			return songTitle;
+		}
+		return requestHistory.stream()
+			.filter(message -> "user".equals(message.role()))
+			.map(ChatHistoryMessage::content)
+			.findFirst()
+			.orElse(pendingMessage);
+	}
+
+	private boolean isCompatibleType(ChatType existing, ChatType requested) {
+		if (existing == requested) {
+			return true;
+		}
+		return existing.isLegacyAiMode();
+	}
+
+	private @Nullable String projectPublicId(
+		ChatSourceCategory sourceCategory,
+		@Nullable String requestedProjectPublicId
+	) {
+		if (sourceCategory == ChatSourceCategory.DIRECT) {
+			return null;
+		}
+		if (requestedProjectPublicId == null) {
+			return null;
+		}
+		String normalized = requestedProjectPublicId.trim();
+		return normalized.isBlank() ? null : normalized;
 	}
 
 	private UUID requireUserPublicId(User user) {

@@ -36,6 +36,7 @@ import com.jazzify.backend.domain.user.entity.User;
 import com.jazzify.backend.domain.user.service.implementation.UserReader;
 import com.jazzify.backend.shared.domain.MusicKey;
 import com.jazzify.backend.shared.exception.CustomException;
+import com.jazzify.backend.shared.exception.code.GlobalErrorCode;
 import com.jazzify.backend.shared.exception.code.OmrErrorCode;
 import com.jazzify.backend.shared.omr.OmrCallbackDomain;
 import com.jazzify.backend.shared.omr.OmrClient;
@@ -52,7 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class SheetProjectService {
 
-	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String DEFAULT_PENDING_TITLE = "Untitled";
 
 	private final SheetProjectReader sheetProjectReader;
 	private final SheetProjectWriter sheetProjectWriter;
@@ -94,6 +95,7 @@ public class SheetProjectService {
 		String contentType = defaultContentType(file.getContentType());
 		String requestedTitle = trimToNull(request.title());
 		String pendingTitle = requestedTitle != null ? requestedTitle : DEFAULT_PENDING_TITLE;
+		MusicKey requestedKey = parseRequestedKey(request.key());
 
 		// 1단계: User 조회와 PENDING 엔티티 생성을 같은 트랜잭션 안에서 실행하고 커밋한다.
 		//        User 엔티티가 detached 되지 않도록 TransactionTemplate 으로 감싼다.
@@ -107,7 +109,7 @@ public class SheetProjectService {
 					contentType,
 					pendingTitle,
 					requestedTitle,
-					request.key()
+					requestedKey
 				);
 			})
 		);
@@ -255,6 +257,19 @@ public class SheetProjectService {
 			return Objects.requireNonNull(omrValue).trim();
 		}
 		return defaultValue;
+	}
+
+	private static @Nullable MusicKey parseRequestedKey(@Nullable String key) {
+		if (!hasText(key)) {
+			return null;
+		}
+		MusicKey parsed = MusicKey.fromAnalysisKey(key);
+		if (parsed == null) {
+			throw GlobalErrorCode.INVALID_INPUT.toException(
+				"key는 MusicKey enum 이름 또는 조성 표기여야 합니다: " + Objects.requireNonNull(key).trim()
+			);
+		}
+		return parsed;
 	}
 
 	private static String defaultFileName(@Nullable String originalFilename) {

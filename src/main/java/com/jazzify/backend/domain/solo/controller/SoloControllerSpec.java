@@ -443,7 +443,7 @@ public interface SoloControllerSpec {
 			
 			| 파라미터 | 타입 | 설명 |
 			|---------|------|------|
-			| `title` | string | 곡 제목. 완료 시 사용자 입력값, MusicXML 제목, `Untitled` 순으로 적용 |
+			| `title` | string | 곡 제목. 생성 직후/완료 시 사용자 입력값을 우선 적용하고, 미입력 시 생성 직후 `Untitled`, 완료 시 MusicXML 제목, 없으면 `Untitled` 적용 |
 			| `performer` | string | 연주자 이름 |
 			| `composer` | string | 작곡자 이름. 완료 시 사용자 입력값, MusicXML composer, `Unknown` 순으로 적용 |
 			| `album` | string | 앨범명 |
@@ -458,7 +458,7 @@ public interface SoloControllerSpec {
 			
 			### 처리 흐름
 			1. 파일 확장자/빈 파일 검증
-			2. PENDING Solo 생성
+			2. PENDING Solo 생성. 제목은 사용자 입력값 또는 `Untitled`
 			3. MusicVision `/omr/dev/process` 또는 `/omr/prod/process`로 제출 (`X-OMR-API-Key` 사용)
 			4. 제출 성공 시 `omrStatus=PROCESSING`, `omrProgress=10` 응답
 			5. MusicVision callback 수신 시 `/omr/jobs/{jobId}/musicxml`과 `/chord-assignments` 조회

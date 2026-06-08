@@ -122,5 +122,6 @@ public enum ChatAnalysisCategory {
 		}
 		return from(value);
 	}
+
 }
 

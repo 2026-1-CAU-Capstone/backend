@@ -20,6 +20,7 @@ public record RagChatRequest(
 	@JsonAlias({"chordContextText", "chord_context_text"}) @Nullable String chordContextText,
 	@Valid List<RagChatMessageRequest> history,
 	@JsonAlias({"songTitle", "song_title"}) @Nullable String songTitle,
+	@JsonAlias({"projectPublicId", "project_public_id"}) @Nullable String projectPublicId,
 	@JsonAlias({"suppressInlineChart", "suppress_inline_chart"}) boolean suppressInlineChart,
 	@JsonAlias({"chatPublicId", "chat_public_id"}) @Nullable UUID chatPublicId
 ) {

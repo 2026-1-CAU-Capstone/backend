@@ -41,12 +41,25 @@ public enum MusicKey {
 			return null;
 		}
 
-		String normalized = key
-			.trim()
+		String trimmed = key.trim();
+		try {
+			return MusicKey.valueOf(trimmed
+				.replace('-', '_')
+				.replace(' ', '_')
+				.toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException ignored) {
+			// Fall through to music-notation parsing.
+		}
+
+		String normalized = trimmed
 			.replace("♭", "b")
 			.replace("♯", "#")
-			.replace("major", "")
-			.replace("minor", "m")
+			.replaceAll("(?i)flat", "b")
+			.replaceAll("(?i)sharp", "#")
+			.replaceAll("(?i)major|maj", "")
+			.replaceAll("(?i)minor|min", "m")
+			.replace("-", "")
+			.replace("_", "")
 			.replaceAll("\\s+", "")
 			.toUpperCase(Locale.ROOT);
 
@@ -59,4 +72,3 @@ public enum MusicKey {
 		return null;
 	}
 }
-

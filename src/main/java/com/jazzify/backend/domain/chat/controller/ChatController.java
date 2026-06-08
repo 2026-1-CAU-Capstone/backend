@@ -27,8 +27,12 @@ import com.jazzify.backend.core.security.CustomPrincipal;
 import com.jazzify.backend.domain.chat.dto.request.ChatStreamRequest;
 import com.jazzify.backend.domain.chat.dto.response.ChatDetailResponse;
 import com.jazzify.backend.domain.chat.dto.response.ChatSummaryResponse;
+import com.jazzify.backend.domain.chat.model.ChatSourceCategory;
+import com.jazzify.backend.domain.chat.model.ChatType;
 import com.jazzify.backend.domain.chat.service.ChatService;
+import com.jazzify.backend.domain.rag.dto.request.RagChatRequest;
 import com.jazzify.backend.domain.rag.service.RagService;
+import com.jazzify.backend.shared.exception.code.ChatErrorCode;
 import com.jazzify.backend.shared.exception.code.RagErrorCode;
 import com.jazzify.backend.shared.web.ApiResponse;
 
@@ -79,20 +83,78 @@ public class ChatController implements ChatControllerSpec {
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@Valid @RequestBody ChatStreamRequest request
 	) {
+		return streamAs(principal, request, ChatType.GLOBAL, ChatSourceCategory.DIRECT);
+	}
+
+	@Override
+	@PostMapping(value = "/global/stream", produces = MediaType.TEXT_PLAIN_VALUE)
+	public ResponseEntity<StreamingResponseBody> streamGlobal(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@Valid @RequestBody ChatStreamRequest request
+	) {
+		return streamAs(principal, request, ChatType.GLOBAL, ChatSourceCategory.DIRECT);
+	}
+
+	@Override
+	@PostMapping(value = "/chord-project/stream", produces = MediaType.TEXT_PLAIN_VALUE)
+	public ResponseEntity<StreamingResponseBody> streamChordProject(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@Valid @RequestBody ChatStreamRequest request
+	) {
+		return streamAs(principal, request, ChatType.CHORD_PROJECT, ChatSourceCategory.CHORD);
+	}
+
+	@Override
+	@PostMapping(value = "/sheet-project/stream", produces = MediaType.TEXT_PLAIN_VALUE)
+	public ResponseEntity<StreamingResponseBody> streamSheetProject(
+		@AuthenticationPrincipal CustomPrincipal principal,
+		@Valid @RequestBody ChatStreamRequest request
+	) {
+		return streamAs(principal, request, ChatType.SHEET_PROJECT, ChatSourceCategory.SHEET);
+	}
+
+	private ResponseEntity<StreamingResponseBody> streamAs(
+		CustomPrincipal principal,
+		ChatStreamRequest request,
+		ChatType type,
+		ChatSourceCategory sourceCategory
+	) {
+		validateProjectPublicId(request, sourceCategory);
+
 		if (request.useRag()) {
 			RagService ragService = ragServiceProvider.getIfAvailable();
 			if (ragService == null) {
 				throw RagErrorCode.RAG_NOT_ENABLED.toException();
 			}
-			com.jazzify.backend.domain.rag.dto.request.RagChatRequest ragRequest = request.toRagChatRequest();
-			ChatService.PreparedChatStream preparedChatStream = ragService.prepareChat(principal, ragRequest);
+			RagChatRequest ragRequest = request.toRagChatRequest();
+			ChatService.PreparedChatStream preparedChatStream = chatService.prepareRagStream(
+				principal,
+				ragRequest,
+				type,
+				sourceCategory
+			);
 			StreamingResponseBody body = outputStream -> ragService.streamChat(preparedChatStream, ragRequest, outputStream);
 			return streamingResponse(preparedChatStream, body);
 		}
 
-		ChatService.PreparedChatStream preparedChatStream = chatService.prepareDirectStream(principal, request);
+		ChatService.PreparedChatStream preparedChatStream = chatService.prepareDirectStream(
+			principal,
+			request,
+			type,
+			sourceCategory
+		);
 		StreamingResponseBody body = outputStream -> chatService.streamPreparedDirect(preparedChatStream, request, outputStream);
 		return streamingResponse(preparedChatStream, body);
+	}
+
+	private void validateProjectPublicId(ChatStreamRequest request, ChatSourceCategory sourceCategory) {
+		if (sourceCategory == ChatSourceCategory.DIRECT) {
+			return;
+		}
+		String projectPublicId = request.projectPublicId();
+		if (projectPublicId == null || projectPublicId.isBlank()) {
+			throw ChatErrorCode.CHAT_PROJECT_PUBLIC_ID_REQUIRED.toException();
+		}
 	}
 
 	private ResponseEntity<StreamingResponseBody> streamingResponse(

@@ -46,8 +46,8 @@ public interface SheetProjectControllerSpec {
 			| 필드 | 필수 | 설명 |
 			| --- | --- | --- |
 			| `file` | 예 | 이미지 파일. `png`, `jpg`, `jpeg`만 허용 |
-			| `title` | 아니오 | 완료 시 사용자 입력값을 최우선 사용. 미입력 시 OMR 제목, 둘 다 없으면 `Untitled` |
-			| `key` | 아니오 | `MusicKey` enum 이름. 미입력 시 OMR 결과에서 추론 |
+			| `title` | 아니오 | 생성 직후/완료 시 사용자 입력값을 최우선 사용. 미입력 시 생성 직후 `Untitled`, 완료 시 OMR 제목, 둘 다 없으면 `Untitled` |
+			| `key` | 아니오 | `MusicKey` enum 이름 또는 조성 표기. 예: `B_FLAT_MAJOR`, `Bb`, `B flat major`, `F#m`. 미입력 시 OMR 결과에서 추론 |
 			
 			### MusicVision 제출 경로
 			- dev profile: `/omr/dev/process`
@@ -56,6 +56,7 @@ public interface SheetProjectControllerSpec {
 			
 			### 처리 결과
 			- 백엔드가 PENDING 프로젝트와 파일 엔티티를 만든 뒤 MusicVision 제출까지 성공하면 보통 `omrStatus=PROCESSING`, `omrProgress=10` 상태로 반환합니다.
+			- 생성 직후 제목은 사용자 입력값 또는 `Untitled`입니다. 더 이상 `OMR Processing`을 제목으로 저장하지 않습니다.
 			- 생성 직후 `chords[]`는 비어 있습니다.
 			- 실제 MusicXML/chord assignments 조회, `ChordInfo` 저장, 프로젝트 제목/조성 확정은 MusicVision callback 수신 후 수행됩니다.
 			- 실패 시 `omrStatus=FAILED`, `omrFailureReason`에 원인을 기록합니다.
@@ -64,6 +65,7 @@ public interface SheetProjectControllerSpec {
 			- `400 OMR_004`: 지원하지 않는 파일 형식
 			- `400 OMR_005`: 빈 파일
 			- `500 OMR_007`: 업로드 파일 읽기 실패
+			- `400 GLOBAL_002`: 유효하지 않은 `key` 문자열
 			- `503 OMR_001`: OMR 서버 미설정
 			- `502 OMR_002`, `502 OMR_008`, `422 OMR_003`, `422 OMR_006`: 제출 또는 callback 처리 실패 시 `omrStatus=FAILED`와 `omrFailureReason`에 반영
 			"""

@@ -65,7 +65,7 @@ ChordProject는 DB 제약상 `keySignature`가 null일 수 없어 pending 생성
   도메인 기본 정책을 유지했다.
 - ChordProject의 `timeSignature`는 엔티티가 non-null이고 기존 처리도 기본 `4/4`를
   요구하므로 사용자 입력 또는 OMR 값이 없으면 `4/4`를 유지했다.
-- ChordProject의 pending 응답 제목은 사용자 제목이 없으면 `OMR Processing`으로 둔다.
+- ChordProject의 pending 응답 제목은 사용자 제목이 없으면 `Untitled`로 둔다.
   최종 완료 제목은 이 값이 아니라 requested title과 OMR title을 기준으로 다시 계산한다.
 
 ## 클래스 역할
