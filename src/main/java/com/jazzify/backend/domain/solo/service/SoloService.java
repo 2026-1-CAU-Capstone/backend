@@ -49,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 public class SoloService {
 
 	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String DEFAULT_TITLE = "Untitled";
 	private static final String UNKNOWN_METADATA = "Unknown";
 
 	private final SoloReader soloReader;
@@ -156,6 +157,7 @@ public class SoloService {
 			trimToNull(metadata.performer()),
 			trimToNull(metadata.composer()),
 			pendingTitle,
+			requestedTitle,
 			trimToNull(metadata.album()),
 			Instrument.from(trimToNull(metadata.instrument())),
 			JazzStyle.from(trimToNull(metadata.style())),
@@ -224,8 +226,8 @@ public class SoloService {
 		SoloOmrProcessor.ProcessedSheetData processedSheetData
 	) {
 		SheetDataRequest omrSheetData = processedSheetData.sheetData();
-		String title = resolveTitle(solo.getTitle(), omrSheetData.title());
-		String composer = isKnownMetadata(solo.getComposer()) ? solo.getComposer() : processedSheetData.composer();
+		String title = firstText(solo.getOmrRequestedTitle(), omrSheetData.title(), DEFAULT_TITLE);
+		String composer = firstText(solo.getOmrRequestedComposer(), processedSheetData.composer(), UNKNOWN_METADATA);
 		SheetDataRequest sheetData = withResolvedSheetMetadata(
 			omrSheetData,
 			title,
@@ -272,15 +274,14 @@ public class SoloService {
 		);
 	}
 
-	private static String resolveTitle(String pendingTitle, String omrTitle) {
-		if (!DEFAULT_PENDING_TITLE.equals(pendingTitle)) {
-			return pendingTitle;
+	private static String firstText(@Nullable String userValue, @Nullable String omrValue, String defaultValue) {
+		if (hasText(userValue)) {
+			return Objects.requireNonNull(userValue).trim();
 		}
-		return hasText(omrTitle) ? omrTitle : UNKNOWN_METADATA;
-	}
-
-	private static boolean isKnownMetadata(@Nullable String value) {
-		return hasText(value) && !UNKNOWN_METADATA.equalsIgnoreCase(Objects.requireNonNull(value).trim());
+		if (hasText(omrValue)) {
+			return Objects.requireNonNull(omrValue).trim();
+		}
+		return defaultValue;
 	}
 
 	private static @Nullable UUID parseUuid(@Nullable String uuidStr) {

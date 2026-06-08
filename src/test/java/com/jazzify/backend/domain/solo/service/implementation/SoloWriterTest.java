@@ -67,6 +67,7 @@ class SoloWriterTest {
 			"   ",
 			" ",
 			null,
+			null,
 			Instrument.AS,
 			null,
 			null,
@@ -91,6 +92,8 @@ class SoloWriterTest {
 			.performer("User Performer")
 			.composer("User Composer")
 			.title("User Title")
+			.omrRequestedTitle("User Title")
+			.omrRequestedComposer("User Composer")
 			.album("User Album")
 			.instrument(Instrument.AS)
 			.tempo(180)
@@ -151,6 +154,40 @@ class SoloWriterTest {
 		assertThat(request.title()).isEqualTo("Parsed Title");
 		assertThat(request.composer()).isEqualTo("Parsed Composer");
 		assertThat(request.sheetData().title()).isEqualTo("Parsed Title");
+	}
+
+	@Test
+	void buildOmrCreateRequest_usesDefaultsWhenUserAndOmrMetadataAreMissing() throws Exception {
+		Solo solo = Solo.builder()
+			.source(SoloSource.USER)
+			.isOMR(true)
+			.title("OMR Processing")
+			.composer("Unknown")
+			.performer("Unknown")
+			.instrument(Instrument.AS)
+			.build();
+		SoloOmrProcessor.ProcessedSheetData processedSheetData = new SoloOmrProcessor.ProcessedSheetData(
+			null,
+			new SheetDataRequest(
+				" ",
+				null,
+				null,
+				null,
+				List.of(new MeasureRequest(
+					"Gm7",
+					List.of(new NoteInfoRequest(List.of("g/4"), "q", null, null, null, null, null, null))
+				))
+			)
+		);
+
+		SoloCreateRequest request = invokeBuildOmrCreateRequest(solo, processedSheetData);
+
+		assertThat(request.title()).isEqualTo("Untitled");
+		assertThat(request.composer()).isEqualTo("Unknown");
+		assertThat(request.performer()).isEqualTo("Unknown");
+		assertThat(request.key()).isNull();
+		assertThat(request.timeSignature()).isNull();
+		assertThat(request.sheetData().title()).isEqualTo("Untitled");
 	}
 
 	private static SoloCreateRequest invokeBuildOmrCreateRequest(

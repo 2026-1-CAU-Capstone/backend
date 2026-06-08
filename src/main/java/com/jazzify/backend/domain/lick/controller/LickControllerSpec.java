@@ -442,16 +442,16 @@ public interface LickControllerSpec {
 			
 			| 파라미터 | 타입 | 설명 |
 			|---------|------|------|
-			| `title` | string | 곡 제목. 미입력 시 임시 제목 `OMR Processing`, 완료 후 MusicXML 제목 또는 `Unknown` 사용 |
+			| `title` | string | 곡 제목. 완료 시 사용자 입력값, MusicXML 제목, `Untitled` 순으로 적용 |
 			| `performer` | string | 연주자 이름 |
-			| `composer` | string | 작곡자 이름. 미입력/`Unknown`이면 완료 후 MusicXML composer fallback 허용 |
+			| `composer` | string | 작곡자 이름. 완료 시 사용자 입력값, MusicXML composer, `Unknown` 순으로 적용 |
 			| `album` | string | 앨범명 |
 			| `source` | string | 출처: `user`, `weimar`, `curated`. 미입력 또는 알 수 없는 값은 `unknown` |
 			| `instrument` | string | 악기 코드: `as`, `ts`, `tp`, `p`, `g`, `b`, `voc`, `cl`. 미입력 또는 알 수 없는 값은 `unknown` |
 			| `style` | string | 재즈 스타일: `SWING` · `BEBOP` · `HARDBOP` 등 |
-			| `tempo` | integer | 템포 BPM. 미입력 시 MusicXML 값 사용 |
-			| `key` | string | 조성. 미입력 시 MusicXML key 사용 |
-			| `timeSignature` | string | 박자표. 미입력 시 MusicXML 박자표 사용 |
+			| `tempo` | integer | 템포 BPM. 미입력 시 MusicXML 값, 없으면 `null` |
+			| `key` | string | 조성. 미입력 시 MusicXML key, 없으면 `null` |
+			| `timeSignature` | string | 박자표. 미입력 시 MusicXML 박자표, 없으면 `null` |
 			| `rhythmFeel` | string | 리듬감: `SWING` · `STRAIGHT` · `BOSSA` · `LATIN` |
 			| `userId` | string(UUID) | 소유자 ID. 잘못된 UUID 문자열은 `null`로 처리 |
 			

@@ -46,6 +46,7 @@ public class SheetProjectOmrWriter {
 		String originalFileName,
 		String contentType,
 		String title,
+		@Nullable String requestedTitle,
 		@Nullable MusicKey key
 	) {
 		StorageFileResponse storageFileResponse = storageFileService.upload(originalFileName, contentType, fileData);
@@ -60,7 +61,7 @@ public class SheetProjectOmrWriter {
 			.build();
 		entityManager.persist(session);
 		SheetProject project = sheetProjectWriter.create(title, key, user, sheetFile, session);
-		project.markOmrQueued();
+		project.markOmrQueued(requestedTitle);
 		return project;
 	}
 

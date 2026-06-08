@@ -49,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 public class LickService {
 
 	private static final String DEFAULT_PENDING_TITLE = "OMR Processing";
+	private static final String DEFAULT_TITLE = "Untitled";
 	private static final String UNKNOWN_METADATA = "Unknown";
 
 	private final LickReader lickReader;
@@ -152,6 +153,7 @@ public class LickService {
 			trimToNull(metadata.performer()),
 			trimToNull(metadata.composer()),
 			pendingTitle,
+			requestedTitle,
 			trimToNull(metadata.album()),
 			Instrument.from(trimToNull(metadata.instrument())),
 			JazzStyle.from(trimToNull(metadata.style())),
@@ -222,8 +224,8 @@ public class LickService {
 		LickOmrProcessor.ProcessedSheetData processedSheetData
 	) {
 		SheetDataRequest omrSheetData = processedSheetData.sheetData();
-		String title = resolveTitle(lick.getTitle(), omrSheetData.title());
-		String composer = isKnownMetadata(lick.getComposer()) ? lick.getComposer() : processedSheetData.composer();
+		String title = firstText(lick.getOmrRequestedTitle(), omrSheetData.title(), DEFAULT_TITLE);
+		String composer = firstText(lick.getOmrRequestedComposer(), processedSheetData.composer(), UNKNOWN_METADATA);
 		SheetDataRequest sheetData = withResolvedSheetMetadata(
 			omrSheetData,
 			title,
@@ -270,15 +272,14 @@ public class LickService {
 		);
 	}
 
-	private static String resolveTitle(String pendingTitle, String omrTitle) {
-		if (!DEFAULT_PENDING_TITLE.equals(pendingTitle)) {
-			return pendingTitle;
+	private static String firstText(@Nullable String userValue, @Nullable String omrValue, String defaultValue) {
+		if (hasText(userValue)) {
+			return Objects.requireNonNull(userValue).trim();
 		}
-		return hasText(omrTitle) ? omrTitle : UNKNOWN_METADATA;
-	}
-
-	private static boolean isKnownMetadata(@Nullable String value) {
-		return hasText(value) && !UNKNOWN_METADATA.equalsIgnoreCase(Objects.requireNonNull(value).trim());
+		if (hasText(omrValue)) {
+			return Objects.requireNonNull(omrValue).trim();
+		}
+		return defaultValue;
 	}
 
 	@org.jspecify.annotations.Nullable

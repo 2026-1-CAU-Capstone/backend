@@ -67,6 +67,7 @@ class LickWriterTest {
 			"   ",
 			" ",
 			null,
+			null,
 			Instrument.TP,
 			null,
 			null,
@@ -91,6 +92,8 @@ class LickWriterTest {
 			.performer("User Performer")
 			.composer("User Composer")
 			.title("User Title")
+			.omrRequestedTitle("User Title")
+			.omrRequestedComposer("User Composer")
 			.album("User Album")
 			.instrument(Instrument.TP)
 			.tempo(180)
@@ -151,6 +154,40 @@ class LickWriterTest {
 		assertThat(request.title()).isEqualTo("Parsed Title");
 		assertThat(request.composer()).isEqualTo("Parsed Composer");
 		assertThat(request.sheetData().title()).isEqualTo("Parsed Title");
+	}
+
+	@Test
+	void buildOmrCreateRequest_usesDefaultsWhenUserAndOmrMetadataAreMissing() throws Exception {
+		Lick lick = Lick.builder()
+			.source(LickSource.USER)
+			.isOMR(true)
+			.title("OMR Processing")
+			.composer("Unknown")
+			.performer("Unknown")
+			.instrument(Instrument.TP)
+			.build();
+		LickOmrProcessor.ProcessedSheetData processedSheetData = new LickOmrProcessor.ProcessedSheetData(
+			null,
+			new SheetDataRequest(
+				" ",
+				null,
+				null,
+				null,
+				List.of(new MeasureRequest(
+					"Dm7",
+					List.of(new NoteInfoRequest(List.of("d/4"), "q", null, null, null, null, null, null))
+				))
+			)
+		);
+
+		LickCreateRequest request = invokeBuildOmrCreateRequest(lick, processedSheetData);
+
+		assertThat(request.title()).isEqualTo("Untitled");
+		assertThat(request.composer()).isEqualTo("Unknown");
+		assertThat(request.performer()).isEqualTo("Unknown");
+		assertThat(request.key()).isNull();
+		assertThat(request.timeSignature()).isNull();
+		assertThat(request.sheetData().title()).isEqualTo("Untitled");
 	}
 
 	private static LickCreateRequest invokeBuildOmrCreateRequest(
