@@ -1,5 +1,7 @@
 package com.jazzify.backend.core.security;
 
+import jakarta.servlet.DispatcherType;
+
 import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,6 +39,7 @@ public class SecurityConfig {
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.authorizeHttpRequests(auth -> auth
+				.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
 				.requestMatchers("/v1/auth/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/v1/rag/health").permitAll()
 				.requestMatchers(HttpMethod.GET, "/v1/embedding/health").permitAll()
