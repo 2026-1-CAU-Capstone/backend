@@ -4,6 +4,7 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 import com.jazzify.backend.shared.exception.code.GlobalErrorCode;
 import com.jazzify.backend.shared.web.ErrorResponse;
@@ -72,9 +74,12 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(Exception.class)
 	@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-	public ErrorResponse handleException(Exception e, HttpServletRequest request) {
+	public @Nullable ErrorResponse handleException(Exception e, HttpServletRequest request) {
+		if (DisconnectedClientHelper.isClientDisconnectedException(e)) {
+			log.debug("Client disconnected before the response completed: uri={}", request.getRequestURI());
+			return null;
+		}
 		log.error("Unhandled exception at {}: ", request.getRequestURI(), e);
 		return ErrorResponse.of(GlobalErrorCode.INTERNAL_SERVER_ERROR);
 	}
 }
-
