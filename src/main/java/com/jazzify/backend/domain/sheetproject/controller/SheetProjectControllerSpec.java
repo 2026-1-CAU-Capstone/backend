@@ -73,7 +73,7 @@ public interface SheetProjectControllerSpec {
 	ApiResponse<SheetProjectOmrCreateResponse> createFromOmr(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		MultipartFile file,
-		SheetProjectOmrCreateRequest request);
+		String request);
 
 	@Operation(summary = "내 악보 프로젝트 목록 조회 (페이징)")
 	ApiResponse<Page<SheetProjectResponse>> getAll(

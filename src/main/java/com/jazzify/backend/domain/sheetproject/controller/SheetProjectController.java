@@ -1,5 +1,10 @@
 package com.jazzify.backend.domain.sheetproject.controller;
 
+import com.jazzify.backend.domain.chordproject.dto.request.ChordProjectOmrCreateRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -35,13 +40,15 @@ import com.jazzify.backend.shared.web.ApiResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.ObjectMapper;
 
 @NullMarked
 @RestController
 @RequestMapping("/v1/sheet-projects")
 @RequiredArgsConstructor
 public class SheetProjectController implements SheetProjectControllerSpec {
-
+	private final ObjectMapper objectMapper;
+	private final Validator validator;
 	private final SheetProjectService sheetProjectService;
 
 	@PostMapping
@@ -59,7 +66,16 @@ public class SheetProjectController implements SheetProjectControllerSpec {
 	public ApiResponse<SheetProjectOmrCreateResponse> createFromOmr(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@RequestPart("file") MultipartFile file,
-		@Valid @ModelAttribute SheetProjectOmrCreateRequest request) {
+		@RequestPart("request") String requestJson) {
+		SheetProjectOmrCreateRequest request =
+			objectMapper.readValue(requestJson, SheetProjectOmrCreateRequest.class);
+
+		Set<ConstraintViolation<SheetProjectOmrCreateRequest>> violations =
+			validator.validate(request);
+
+		if (!violations.isEmpty()) {
+			throw new ConstraintViolationException(violations);
+		}
 		return ApiResponse.ok(sheetProjectService.createFromOmr(principal.publicId(), file, request));
 	}
 
