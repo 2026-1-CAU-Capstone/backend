@@ -1,6 +1,10 @@
 package com.jazzify.backend.domain.chordproject.controller;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.NullMarked;
@@ -11,7 +15,6 @@ import org.springframework.http.MediaType;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,6 +43,7 @@ import com.jazzify.backend.shared.web.ApiResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.ObjectMapper;
 
 @NullMarked
 @RestController
@@ -47,6 +51,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChordProjectController implements ChordProjectControllerSpec {
 
+	private final ObjectMapper objectMapper;
+	private final Validator validator;
 	private final ChordProjectService chordProjectService;
 
 	@Override
@@ -64,7 +70,16 @@ public class ChordProjectController implements ChordProjectControllerSpec {
 	public ApiResponse<ChordProjectOmrCreateResponse> createFromOmr(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		@RequestPart("file") MultipartFile file,
-		@Valid @ModelAttribute ChordProjectOmrCreateRequest request) {
+		@RequestPart("request") String requestJson) {
+		ChordProjectOmrCreateRequest request =
+			objectMapper.readValue(requestJson, ChordProjectOmrCreateRequest.class);
+
+		Set<ConstraintViolation<ChordProjectOmrCreateRequest>> violations =
+			validator.validate(request);
+
+		if (!violations.isEmpty()) {
+			throw new ConstraintViolationException(violations);
+		}
 		return ApiResponse.ok(chordProjectService.createFromOmr(principal.publicId(), file, request));
 	}
 

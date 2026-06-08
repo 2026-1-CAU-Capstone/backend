@@ -96,7 +96,7 @@ public interface ChordProjectControllerSpec {
 	ApiResponse<ChordProjectOmrCreateResponse> createFromOmr(
 		@AuthenticationPrincipal CustomPrincipal principal,
 		MultipartFile file,
-		ChordProjectOmrCreateRequest request);
+		String request);
 
 	@Operation(
 		summary = "내 코드 프로젝트 목록 조회 (페이징)",
